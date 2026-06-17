@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCR-P-011: Patient Profile Dashboard - PropellQ Wireframe</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f9fafb;
+            color: #111827;
+        }
+        
+        .wireframe-header {
+            background: white;
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: center;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        header {
+            background: white;
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-weight: bold;
+            font-size: 1.25rem;
+            color: #0066ff;
+        }
+        
+        .top-nav {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .icon-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.25rem;
+            color: #6b7280;
+            padding: 0.5rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        
+        .page-title {
+            font-size: 1.875rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: #111827;
+        }
+        
+        .profile-header {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.375rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .profile-info {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+        
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            background: #e3f2fd;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+        
+        .profile-details h2 {
+            font-size: 1.375rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .profile-details p {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 0.25rem;
+        }
+        
+        .profile-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        .action-button {
+            padding: 0.5rem 1rem;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .action-button:hover {
+            background: #f3f4f6;
+        }
+        
+        .action-button-primary {
+            background: #0066ff;
+            color: white;
+            border: none;
+        }
+        
+        .action-button-primary:hover {
+            background: #0052cc;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 2rem;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.375rem 0.375rem 0 0;
+        }
+        
+        .tab {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            color: #6b7280;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1rem;
+            font-size: 0.9375rem;
+        }
+        
+        .tab.active {
+            color: #0066ff;
+            border-bottom-color: #0066ff;
+        }
+        
+        .tab-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .data-item {
+            padding: 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        
+        .data-item-header {
+            flex: 1;
+        }
+        
+        .data-item-label {
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 0.25rem;
+        }
+        
+        .data-item-details {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .data-item-source {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        .badge-verified {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        
+        .badge-high-confidence {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        
+        .badge-warning {
+            background: #fff8e1;
+            color: #f57c00;
+        }
+        
+        .badge-conflict {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+        
+        .conflict-alert {
+            background: #ffebee;
+            padding: 1rem;
+            border: 1px solid #ef5350;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .conflict-alert-icon {
+            font-size: 1.5rem;
+        }
+        
+        .conflict-alert-content h4 {
+            margin-bottom: 0.25rem;
+            color: #d32f2f;
+        }
+        
+        .conflict-alert-content p {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+        }
+        
+        .resolve-button {
+            padding: 0.5rem 1rem;
+            background: #d32f2f;
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .resolve-button:hover {
+            background: #b71c1c;
+        }
+        
+        .footer {
+            background: white;
+            padding: 2rem;
+            border-top: 1px solid #e5e7eb;
+            margin-top: 3rem;
+            text-align: center;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        @media (max-width: 768px) {
+            .profile-header {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .profile-info {
+                flex-direction: column;
+            }
+            
+            .profile-actions {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .profile-actions button {
+                width: 100%;
+            }
+            
+            .tabs {
+                flex-wrap: wrap;
+            }
+            
+            .data-item {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wireframe-header">
+        🔧 WIREFRAME - SCR-P-011 (Patient Profile Dashboard) | High-Fidelity | Patient Portal
+    </div>
+    
+    <header>
+        <div class="logo">PropellQ</div>
+        <nav class="top-nav">
+            <button class="icon-button" title="Bell icon">🔔</button>
+            <button class="icon-button" title="User profile">👤</button>
+        </nav>
+    </header>
+    
+    <div class="container">
+        <h1 class="page-title">Medical Profile</h1>
+        
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="profile-info">
+                <div class="profile-avatar">👤</div>
+                <div class="profile-details">
+                    <h2>Maria Garcia</h2>
+                    <p>DOB: May 14, 1984 (42 years old)</p>
+                    <p>MRN: #PQ-2024-08452</p>
+                    <p>Last Updated: 2 hours ago</p>
+                </div>
+            </div>
+            <div class="profile-actions">
+                <button class="action-button action-button-primary">📝 Edit Profile</button>
+                <button class="action-button">⬇️ Download PDF</button>
+            </div>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('overview')">Overview</button>
+            <button class="tab" onclick="showTab('medications')">Medications</button>
+            <button class="tab" onclick="showTab('allergies')">
+                Allergies <span class="badge badge-conflict">⚠️ 1 Conflict</span>
+            </button>
+            <button class="tab" onclick="showTab('diagnoses')">Diagnoses</button>
+            <button class="tab" onclick="showTab('documents')">Documents</button>
+            <button class="tab" onclick="showTab('insurance')">Insurance</button>
+        </div>
+        
+        <!-- Tab Content: Overview -->
+        <div class="tab-content active" id="overview">
+            <h3 style="margin-bottom: 1rem;">Medical Summary</h3>
+            
+            <div class="conflict-alert">
+                <div class="conflict-alert-icon">🚨</div>
+                <div class="conflict-alert-content">
+                    <h4>1 Data Conflict Detected</h4>
+                    <p>Allergy data mismatch between documents and current records. Blood pressure readings vary by 15mmHg.</p>
+                    <button class="resolve-button">Review & Resolve</button>
+                </div>
+            </div>
+            
+            <h4 style="margin-bottom: 1rem; margin-top: 1rem;">Key Health Data</h4>
+            
+            <div class="data-item">
+                <div class="data-item-header">
+                    <div class="data-item-label">Primary Conditions</div>
+                    <div class="data-item-details">
+                        • Hypertension (Stage 1, diagnosed 2020)  
+                        • Type 2 Diabetes (diagnosed 2019)
+                    </div>
+                    <div class="data-item-source">Last Updated: June 15, 2026 • Source: Intake Form</div>
+                </div>
+                <span class="badge badge-high-confidence">✓ Verified</span>
+            </div>
+            
+            <div class="data-item">
+                <div class="data-item-header">
+                    <div class="data-item-label">Active Medications</div>
+                    <div class="data-item-details">
+                        3 medications on file
+                    </div>
+                    <div class="data-item-source">Last Updated: June 10, 2026 • Source: Pharmacy Records</div>
+                </div>
+                <span class="badge badge-verified">✓ Current</span>
+            </div>
+            
+            <div class="data-item">
+                <div class="data-item-header">
+                    <div class="data-item-label">Allergies</div>
+                    <div class="data-item-details">
+                        Penicillin (Anaphylaxis), NSAIDs (GI upset)
+                    </div>
+                    <div class="data-item-source">Last Updated: June 1, 2026 • Source: Multiple Documents</div>
+                </div>
+                <span class="badge badge-conflict">⚠️ Review</span>
+            </div>
+        </div>
+        
+        <!-- Tab Content: Medications -->
+        <div class="tab-content" id="medications">
+            <h3 style="margin-bottom: 1rem;">Current Medications</h3>
+            
+            <div class="data-item">
+                <div class="data-item-header">
+                    <div class="data-item-label">Lisinopril</div>
+                    <div class="data-item-details">
+                        10mg • Once daily • PO (by mouth)  
+                        <br>🎯 Indication: Hypertension Control
+                    </div>
+                    <div class="data-item-source">Prescribed: March 2020 • Confidence: 98%</div>
+                </div>
+                <span class="badge badge-high-confidence">✓ High</span>
+            </div>
+            
+            <div class="data-item">
+                <div class="data-item-header">
+                    <div class="data-item-label">Metformin</div>
+                    <div class="data-item-details">
+                        1000mg • Twice daily • PO (by mouth)  
+                        <br>🎯 Indication: Diabetes Management
+                    </div>
+                    <div class="data-item-source">Prescribed: August 2019 • Confidence: 97%</div>
+                </div>
+                <span class="badge badge-high-confidence">✓ High</span>
+            </div>
+            
+            <div class="data-item">
+                <div class="data-item-header">
+                    <div class="data-item-label">Atorvastatin</div>
+                    <div class="data-item-details">
+                        20mg • Once daily • PO (by mouth)  
+                        <br>🎯 Indication: Cholesterol Management
+                    </div>
+                    <div class="data-item-source">Prescribed: January 2021 • Confidence: 92%</div>
+                </div>
+                <span class="badge badge-warning">⚠️ Medium</span>
+            </div>
+        </div>
+        
+        <!-- Tab Content: Allergies -->
+        <div class="tab-content" id="allergies">
+            <h3 style="margin-bottom: 1rem;">Known Allergies</h3>
+            
+            <div class="conflict-alert">
+                <div class="conflict-alert-icon">🚨</div>
+                <div class="conflict-alert-content">
+                    <h4>Allergy Mismatch Detected</h4>
+                    <p>Document from 2024 lists "Penicillin - Rash" but current intake indicates "Penicillin - Anaphylaxis". This is a critical discrepancy.</p>
+                    <button class="resolve-button">Resolve Now</button>
+                </div>
+            </div>
+            
+            <div class="data-item">
+                <div class="data-item-header">
+                    <div class="data-item-label">🚨 Penicillin</div>
+                    <div class="data-item-details">
+                        <strong>Reaction: Anaphylaxis</strong>  
+                        <br>Severity: CRITICAL  
+                        <br>Avoid all penicillin-based antibiotics
+                    </div>
+                    <div class="data-item-source">Reported: June 2026 • Source: Patient Intake</div>
+                </div>
+                <span class="badge badge-conflict">⚠️ Review</span>
+            </div>
+            
+            <div class="data-item">
+                <div class="data-item-header">
+                    <div class="data-item-label">NSAIDs</div>
+                    <div class="data-item-details">
+                        <strong>Reaction: GI Upset</strong>  
+                        <br>Severity: MODERATE  
+                        <br>Alternative pain management recommended
+                    </div>
+                    <div class="data-item-source">Reported: March 2026 • Source: Medical Records</div>
+                </div>
+                <span class="badge badge-high-confidence">✓ Confirmed</span>
+            </div>
+        </div>
+        
+        <!-- Other tabs (collapsed for brevity) -->
+        <div class="tab-content" id="diagnoses">
+            <p>Diagnoses tab content...</p>
+        </div>
+        
+        <div class="tab-content" id="documents">
+            <p>Documents tab content...</p>
+        </div>
+        
+        <div class="tab-content" id="insurance">
+            <p>Insurance tab content...</p>
+        </div>
+    </div>
+    
+    <footer class="footer">
+        <p>PropellQ Patient Portal | This profile is HIPAA-protected and encrypted | <a href="#" style="color: #0066ff;">Report Issue</a></p>
+    </footer>
+    
+    <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+            
+            // Deactivate all tabs
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Activate selected tab
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

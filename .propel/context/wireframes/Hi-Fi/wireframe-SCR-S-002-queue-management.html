@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCR-S-002: Queue Management - PropellQ Wireframe</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f9fafb;
+            color: #111827;
+        }
+        
+        .wireframe-header {
+            background: white;
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: center;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        header {
+            background: white;
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-weight: bold;
+            font-size: 1.25rem;
+            color: #0066ff;
+        }
+        
+        .top-nav {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+            min-height: calc(100vh - 80px);
+        }
+        
+        .page-title {
+            grid-column: 1 / -1;
+            font-size: 1.875rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: #111827;
+        }
+        
+        .queue-list, .patient-detail, .actions-panel {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.375rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #111827;
+        }
+        
+        .queue-stats {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+        
+        .stat {
+            padding: 0.75rem;
+            background: #f3f4f6;
+            border-radius: 0.375rem;
+            flex: 1;
+        }
+        
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #0066ff;
+        }
+        
+        .stat-label {
+            color: #6b7280;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+        
+        .queue-item {
+            padding: 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            margin-bottom: 0.75rem;
+            cursor: grab;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .queue-item:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-color: #3399ff;
+        }
+        
+        .queue-item.active {
+            background: #e8f3ff;
+            border-color: #0066ff;
+        }
+        
+        .queue-item-info {
+            flex: 1;
+        }
+        
+        .queue-item-name {
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 0.25rem;
+        }
+        
+        .queue-item-time {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .queue-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-align: center;
+        }
+        
+        .status-waiting {
+            background: #fff8e1;
+            color: #f57c00;
+        }
+        
+        .status-in-room {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        
+        .status-checked-in {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .patient-detail h3 {
+            font-size: 1.125rem;
+            margin-bottom: 1rem;
+            color: #111827;
+        }
+        
+        .detail-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 500;
+            color: #6b7280;
+            min-width: 120px;
+            font-size: 0.875rem;
+        }
+        
+        .detail-value {
+            flex: 1;
+            color: #111827;
+            font-size: 0.875rem;
+        }
+        
+        .detail-value.alert {
+            color: #d32f2f;
+            font-weight: 500;
+        }
+        
+        .alert-badge {
+            display: inline-block;
+            background: #ffebee;
+            color: #d32f2f;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-right: 0.5rem;
+        }
+        
+        .warning-badge {
+            display: inline-block;
+            background: #fff8e1;
+            color: #f57c00;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .actions-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .action-button {
+            padding: 0.75rem 1rem;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        
+        .action-button-primary {
+            background: #0066ff;
+            color: white;
+        }
+        
+        .action-button-primary:hover {
+            background: #0052cc;
+        }
+        
+        .action-button-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+        
+        .action-button-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        .action-button:disabled {
+            background: #e5e7eb;
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .footer {
+            grid-column: 1 / -1;
+            background: white;
+            padding: 2rem;
+            border-top: 1px solid #e5e7eb;
+            margin-top: 3rem;
+            text-align: center;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wireframe-header">
+        🔧 WIREFRAME - SCR-S-002 (Queue Management) | High-Fidelity | Staff Portal
+    </div>
+    
+    <header>
+        <div class="logo">PropellQ Staff</div>
+        <div class="top-nav">
+            <span>📅 June 26, 2026</span>
+            <span>👤 Dr. Sarah Johnson</span>
+        </div>
+    </header>
+    
+    <div class="container">
+        <h1 class="page-title">Today's Queue Management</h1>
+        
+        <!-- Queue List (Left Panel) -->
+        <div class="queue-list">
+            <h2 class="section-title">Current Queue</h2>
+            
+            <div class="queue-stats">
+                <div class="stat">
+                    <div class="stat-value">7</div>
+                    <div class="stat-label">Waiting</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">2</div>
+                    <div class="stat-label">In-Room</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">12m</div>
+                    <div class="stat-label">Avg Wait</div>
+                </div>
+            </div>
+            
+            <!-- Queue Items (Draggable) -->
+            <div class="queue-item active">
+                <div class="queue-item-info">
+                    <div class="queue-item-name">Maria Garcia</div>
+                    <div class="queue-item-time">🕐 2:45 PM (Scheduled: 2:30 PM)</div>
+                </div>
+                <div class="queue-status status-in-room">In Room</div>
+            </div>
+            
+            <div class="queue-item">
+                <div class="queue-item-info">
+                    <div class="queue-item-name">John Smith</div>
+                    <div class="queue-item-time">🕐 Waiting 8 minutes</div>
+                </div>
+                <div class="queue-status status-checked-in">Checked In</div>
+            </div>
+            
+            <div class="queue-item">
+                <div class="queue-item-info">
+                    <div class="queue-item-name">Patricia Lee</div>
+                    <div class="queue-item-time">🕐 Waiting 5 minutes</div>
+                </div>
+                <div class="queue-status status-waiting">Waiting</div>
+            </div>
+            
+            <div class="queue-item">
+                <div class="queue-item-info">
+                    <div class="queue-item-name">Michael Chen</div>
+                    <div class="queue-item-time">🕐 Scheduled: 3:15 PM</div>
+                </div>
+                <div class="queue-status status-waiting">Waiting</div>
+            </div>
+            
+            <div class="queue-item">
+                <div class="queue-item-info">
+                    <div class="queue-item-name">Lisa Martinez</div>
+                    <div class="queue-item-time">🕐 Scheduled: 3:30 PM</div>
+                </div>
+                <div class="queue-status status-waiting">Waiting</div>
+            </div>
+            
+            <p style="font-size: 0.75rem; color: #9ca3af; margin-top: 1rem;">💡 Drag to reorder priority</p>
+        </div>
+        
+        <!-- Patient Detail (Center Panel) -->
+        <div class="patient-detail">
+            <h3>Patient Profile: Maria Garcia</h3>
+            
+            <div class="detail-row">
+                <div class="detail-label">Status</div>
+                <div class="detail-value">
+                    <span class="status-in-room" style="padding: 0.25rem 0.75rem; border-radius: 9999px;">In-Room</span>
+                </div>
+            </div>
+            
+            <div class="detail-row">
+                <div class="detail-label">MRN</div>
+                <div class="detail-value">#PQ-2024-08452</div>
+            </div>
+            
+            <div class="detail-row">
+                <div class="detail-label">Age / DOB</div>
+                <div class="detail-value">42 years old | May 14, 1984</div>
+            </div>
+            
+            <div class="detail-row">
+                <div class="detail-label">Insurance</div>
+                <div class="detail-value">
+                    <span class="warning-badge">⚠️ Unverified</span>
+                </div>
+            </div>
+            
+            <div class="detail-row">
+                <div class="detail-label">Medical History</div>
+                <div class="detail-value">Hypertension, Type 2 Diabetes</div>
+            </div>
+            
+            <div class="detail-row">
+                <div class="detail-label">Medications</div>
+                <div class="detail-value">Lisinopril 10mg, Metformin 1000mg</div>
+            </div>
+            
+            <div class="detail-row">
+                <div class="detail-label">Allergies</div>
+                <div class="detail-value">
+                    <span class="alert-badge">🚨 Penicillin (anaphylaxis)</span>
+                </div>
+            </div>
+            
+            <div class="detail-row">
+                <div class="detail-label">Data Conflicts</div>
+                <div class="detail-value">
+                    <span class="alert-badge">1 conflict detected</span>
+                </div>
+            </div>
+            
+            <div class="detail-row">
+                <div class="detail-label">Intake Status</div>
+                <div class="detail-value">✓ Completed (AI-assisted)</div>
+            </div>
+        </div>
+        
+        <!-- Actions Panel (Right Side) -->
+        <div class="actions-panel">
+            <h2 class="section-title">Quick Actions</h2>
+            
+            <button class="action-button action-button-primary">✓ Mark as Ready for Visit</button>
+            <button class="action-button action-button-secondary">📋 View Full Profile</button>
+            <button class="action-button action-button-secondary">🔍 Resolve Data Conflict</button>
+            <button class="action-button action-button-secondary">📋 Review Intake</button>
+            <button class="action-button action-button-secondary">⚠️ Flag Insurance Issue</button>
+            <button class="action-button action-button-secondary">❌ Cancel Appointment</button>
+            <button class="action-button action-button-secondary">🏥 Update Queue Status</button>
+            
+            <hr style="margin: 1rem 0; border: none; border-top: 1px solid #e5e7eb;">
+            
+            <button class="action-button action-button-secondary">➕ Add Walk-In</button>
+            <button class="action-button action-button-secondary">🔔 Send Reminder</button>
+        </div>
+    </div>
+    
+    <footer class="footer">
+        <p>PropellQ Staff Portal | Real-time updates refresh every 30 seconds | <a href="#" style="color: #0066ff;">Help</a></p>
+    </footer>
+</body>
+</html>
