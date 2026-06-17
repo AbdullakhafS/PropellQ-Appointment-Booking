@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCR-A-003: User Management List - PropellQ Wireframe</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f9fafb; color: #111827; }
+        .wf-header { background: #fff; border-bottom: 1px solid #e5e7eb; text-align: center; padding: 0.75rem; font-size: 0.875rem; color: #6b7280; }
+        header { background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; padding: 1rem; }
+        .logo { color: #0066ff; font-weight: 700; font-size: 1.25rem; }
+        .container { max-width: 1320px; margin: 0 auto; padding: 1.5rem 1rem; }
+        .title-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        h1 { font-size: 1.75rem; }
+        .btn { border: 1px solid #d1d5db; background: #fff; border-radius: 0.375rem; padding: 0.55rem 0.85rem; font-weight: 600; cursor: pointer; }
+        .btn.primary { background: #0066ff; border-color: #0066ff; color: #fff; }
+        .toolbar { background: #fff; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 0.75rem; display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 0.65rem; margin-bottom: 0.85rem; }
+        .input, .select { width: 100%; border: 1px solid #d1d5db; border-radius: 0.375rem; padding: 0.55rem 0.65rem; font-size: 0.875rem; }
+        .table-wrap { background: #fff; border: 1px solid #e5e7eb; border-radius: 0.5rem; overflow: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 860px; }
+        thead { background: #f3f4f6; }
+        th, td { padding: 0.75rem; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 0.875rem; }
+        th { color: #4b5563; font-weight: 700; }
+        tbody tr:hover { background: #f9fafb; }
+        .role { display: inline-block; font-size: 0.75rem; font-weight: 700; border-radius: 9999px; padding: 0.2rem 0.55rem; }
+        .role.admin { background: #ede9fe; color: #5b21b6; }
+        .role.staff { background: #e8f3ff; color: #1d4ed8; }
+        .role.patient { background: #ecfdf3; color: #166534; }
+        .status { display: inline-block; font-size: 0.75rem; font-weight: 700; border-radius: 9999px; padding: 0.2rem 0.55rem; }
+        .status.active { background: #e8f5e9; color: #2e7d32; }
+        .status.inactive { background: #ffebee; color: #b91c1c; }
+        .actions { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+        .small { font-size: 0.75rem; padding: 0.35rem 0.5rem; }
+        .footer { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: #fff; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 0.5rem 0.5rem; color: #6b7280; font-size: 0.875rem; }
+        @media (max-width: 960px) { .toolbar { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="wf-header">WIREFRAME - SCR-A-003 (User Management List) | High-Fidelity | Responsive</div>
+    <header>
+        <div class="logo">PropellQ Admin</div>
+        <div style="color:#6b7280; font-size:0.875rem;">System Configuration</div>
+    </header>
+
+    <main class="container">
+        <div class="title-row">
+            <h1>User Management</h1>
+            <button class="btn primary" type="button">+ Add User</button>
+        </div>
+
+        <section class="toolbar" aria-label="User filters and search">
+            <input class="input" type="search" placeholder="Search by name, email, or ID">
+            <select class="select"><option>All Roles</option><option>Admin</option><option>Staff</option><option>Patient</option></select>
+            <select class="select"><option>All Status</option><option>Active</option><option>Inactive</option></select>
+            <button class="btn" type="button">Export CSV</button>
+        </section>
+
+        <section class="table-wrap" aria-label="User management data table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Sarah Johnson</td>
+                        <td>s.johnson@propellq.com</td>
+                        <td><span class="role staff">Staff</span></td>
+                        <td><span class="status active">Active</span></td>
+                        <td>2026-06-17 09:11</td>
+                        <td><div class="actions"><button class="btn small">Edit</button><button class="btn small">Reset PW</button><button class="btn small">Deactivate</button></div></td>
+                    </tr>
+                    <tr>
+                        <td>Amelia Ford</td>
+                        <td>a.ford@propellq.com</td>
+                        <td><span class="role admin">Admin</span></td>
+                        <td><span class="status active">Active</span></td>
+                        <td>2026-06-17 08:40</td>
+                        <td><div class="actions"><button class="btn small">Edit</button><button class="btn small">Reset PW</button></div></td>
+                    </tr>
+                    <tr>
+                        <td>James Peterson</td>
+                        <td>j.peterson@email.com</td>
+                        <td><span class="role patient">Patient</span></td>
+                        <td><span class="status inactive">Inactive</span></td>
+                        <td>2026-06-10 16:29</td>
+                        <td><div class="actions"><button class="btn small">View</button><button class="btn small">Activate</button></div></td>
+                    </tr>
+                    <tr>
+                        <td>David Kim</td>
+                        <td>d.kim@propellq.com</td>
+                        <td><span class="role staff">Staff</span></td>
+                        <td><span class="status active">Active</span></td>
+                        <td>2026-06-16 18:55</td>
+                        <td><div class="actions"><button class="btn small">Edit</button><button class="btn small">Reset PW</button><button class="btn small">Deactivate</button></div></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <div class="footer">
+            <span>Showing 1-4 of 78 users</span>
+            <div>
+                <button class="btn small" type="button">Prev</button>
+                <button class="btn small" type="button">1</button>
+                <button class="btn small" type="button">2</button>
+                <button class="btn small" type="button">Next</button>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

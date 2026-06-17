@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCR-S-005: Staff Patient Profile - PropellQ Wireframe</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f9fafb; color: #111827; }
+        .wf-header { text-align: center; font-size: 0.875rem; color: #6b7280; padding: 0.75rem; border-bottom: 1px solid #e5e7eb; background: #fff; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #fff; border-bottom: 1px solid #e5e7eb; }
+        .logo { color: #0066ff; font-weight: 700; font-size: 1.25rem; }
+        .container { max-width: 1280px; margin: 0 auto; padding: 1.25rem 1rem 2rem; }
+        .profile-head { background: #fff; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .identity { display: flex; gap: 0.875rem; }
+        .avatar { width: 56px; height: 56px; border-radius: 9999px; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+        .meta { color: #6b7280; font-size: 0.875rem; margin-top: 0.15rem; }
+        .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .btn { border: 1px solid #d1d5db; background: #fff; border-radius: 0.375rem; padding: 0.55rem 0.8rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+        .btn.primary { background: #0066ff; color: #fff; border-color: #0066ff; }
+        .layout { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; }
+        .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1rem; }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+        .tab { border: 1px solid #d1d5db; background: #fff; border-radius: 9999px; padding: 0.4rem 0.75rem; font-size: 0.8125rem; font-weight: 700; }
+        .tab.active { background: #e8f3ff; color: #1d4ed8; border-color: #93c5fd; }
+        .row { border: 1px solid #e5e7eb; border-radius: 0.375rem; padding: 0.65rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; gap: 0.75rem; }
+        .row .desc { color: #374151; font-size: 0.875rem; }
+        .tag { display: inline-block; border-radius: 9999px; padding: 0.2rem 0.55rem; font-size: 0.75rem; font-weight: 700; }
+        .tag.warn { background: #fff8e1; color: #b26a00; }
+        .tag.critical { background: #ffebee; color: #b91c1c; }
+        .tag.ok { background: #e8f5e9; color: #2e7d32; }
+        .kv { display: grid; grid-template-columns: 120px 1fr; gap: 0.5rem; font-size: 0.875rem; margin-bottom: 0.35rem; }
+        .kv .k { color: #6b7280; }
+        @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="wf-header">WIREFRAME - SCR-S-005 (Patient Profile - Staff View) | High-Fidelity | Responsive</div>
+    <header>
+        <div class="logo">PropellQ Staff</div>
+        <div style="color:#6b7280; font-size:0.875rem;">Patient Management</div>
+    </header>
+
+    <main class="container">
+        <section class="profile-head" aria-label="Patient summary header">
+            <div class="identity">
+                <div class="avatar" aria-hidden="true">👤</div>
+                <div>
+                    <h1 style="font-size:1.4rem;">James Peterson</h1>
+                    <div class="meta">DOB: 1982-03-14 • MRN: PQ-944021 • Insurance: Pre-verified</div>
+                    <div class="meta">Upcoming appointment: Today 10:30 AM • Dr. Sarah Johnson</div>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn" type="button">View Documents</button>
+                <button class="btn" type="button">Open Coding</button>
+                <button class="btn primary" type="button">Resolve Conflict</button>
+            </div>
+        </section>
+
+        <section class="layout">
+            <article class="card" aria-label="Clinical tabs and data">
+                <div class="tabs" role="tablist" aria-label="Patient profile tabs">
+                    <button class="tab active">Overview</button>
+                    <button class="tab">Medical History</button>
+                    <button class="tab">Medications</button>
+                    <button class="tab">Allergies</button>
+                    <button class="tab">Documents</button>
+                    <button class="tab">Coding</button>
+                </div>
+
+                <h2 style="font-size:1rem; margin-bottom:0.6rem;">Active Clinical Items</h2>
+                <div class="row"><div><strong>Lisinopril 10mg</strong><div class="desc">Daily • Source: Intake + PCP note</div></div><span class="tag warn">Dose mismatch</span></div>
+                <div class="row"><div><strong>Penicillin Allergy</strong><div class="desc">Reaction: Hives • Source: Historical lab</div></div><span class="tag critical">Critical interaction</span></div>
+                <div class="row"><div><strong>ICD-10 I10</strong><div class="desc">Essential hypertension • Confidence 92%</div></div><span class="tag ok">Auto-accepted</span></div>
+                <div class="row"><div><strong>CPT 93000</strong><div class="desc">Electrocardiogram • Confidence 68%</div></div><span class="tag warn">Needs review</span></div>
+            </article>
+
+            <aside class="card" aria-label="Staff quick context panel">
+                <h2 style="font-size:1rem; margin-bottom:0.6rem;">Quick Profile</h2>
+                <div class="kv"><div class="k">Blood Type</div><div>A+</div></div>
+                <div class="kv"><div class="k">Last Visit</div><div>2026-05-03</div></div>
+                <div class="kv"><div class="k">Vitals Risk</div><div><span class="tag warn">Elevated BP</span></div></div>
+                <div class="kv"><div class="k">Open Conflicts</div><div>2 (1 critical)</div></div>
+                <div class="kv"><div class="k">Docs Uploaded</div><div>14</div></div>
+                <hr style="border:none; border-top:1px solid #e5e7eb; margin:0.75rem 0;">
+                <h3 style="font-size:0.95rem; margin-bottom:0.55rem;">Staff Actions</h3>
+                <button class="btn" style="width:100%; margin-bottom:0.45rem;" type="button">Mark Reviewed</button>
+                <button class="btn" style="width:100%; margin-bottom:0.45rem;" type="button">Request Clarification</button>
+                <button class="btn primary" style="width:100%;" type="button">Submit Resolution</button>
+            </aside>
+        </section>
+    </main>
+</body>
+</html>

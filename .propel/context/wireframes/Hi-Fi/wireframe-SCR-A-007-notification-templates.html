@@ -1,0 +1,63 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SCR-A-007: Notification Templates - PropellQ Wireframe</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f9fafb; color: #111827; }
+    .wf-header { background: #fff; border-bottom: 1px solid #e5e7eb; color: #6b7280; text-align: center; font-size: .875rem; padding: .75rem; }
+    header { background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; padding: 1rem; }
+    .logo { color: #0066ff; font-size: 1.25rem; font-weight: 700; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1rem 2rem; }
+    .title { font-size: 1.75rem; font-weight: 600; margin-bottom: .5rem; }
+    .sub { color: #6b7280; margin-bottom: 1rem; }
+    .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: .5rem; padding: 1rem; }
+    .section-title { font-size: 1rem; font-weight: 600; margin-bottom: .65rem; }
+    .label { display: block; font-size: .8125rem; color: #6b7280; margin: .4rem 0 .25rem; }
+    .input { width: 100%; border: 1px solid #d1d5db; border-radius: .375rem; padding: .55rem .65rem; font-size: .875rem; }
+    .actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .75rem; }
+    .btn { border: 1px solid #d1d5db; border-radius: .375rem; background: #fff; color: #374151; padding: .55rem .8rem; font-size: .875rem; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #0066ff; border-color: #0066ff; color: #fff; }
+    .item { border: 1px solid #e5e7eb; border-radius: .375rem; padding: .6rem; margin-bottom: .45rem; }
+    .meta { color: #6b7280; font-size: .8125rem; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { .title { font-size: 1.4rem; } .actions .btn { width: 100%; } }
+  </style>
+</head>
+<body>
+  <div class="wf-header">WIREFRAME - SCR-A-007 (Notification Templates) | High-Fidelity | Admin Portal</div>
+  <header>
+    <div class="logo">PropellQ Admin</div>
+    <div class="meta" aria-label="portal context">Responsive / Accessible / Interactive</div>
+  </header>
+  <main class="container">
+    <h1 class="title">Notification Templates</h1>
+    <p class="sub">Edit SMS and email templates.</p>
+    <section class="grid" aria-label="Main screen layout">
+      <article class="card" aria-label="Primary interaction area">
+        <h2 class="section-title">Core Interaction</h2>
+        <label class="label" for="field1-SCR-A-007">Primary Field</label>
+        <input class="input" id="field1-SCR-A-007" type="text" placeholder="Enter value">
+        <label class="label" for="field2-SCR-A-007">Secondary Field</label>
+        <input class="input" id="field2-SCR-A-007" type="text" placeholder="Enter value">
+        <label class="label" for="notes-SCR-A-007">Notes</label>
+        <textarea class="input" id="notes-SCR-A-007" rows="4" placeholder="Add relevant details"></textarea>
+        <div class="actions">
+          <button type="button" class="btn btn-primary">Save Template</button>
+          <button type="button" class="btn">Preview</button>
+          <button type="button" class="btn">Reset</button>
+        </div>
+      </article>
+      <aside class="card" aria-label="Context panel">
+        <h2 class="section-title">Context Panel</h2>
+        <div class="item"><strong>Default State</strong><div class="meta">Initial screen layout and data placeholders.</div></div>
+        <div class="item"><strong>Validation State</strong><div class="meta">Error/help feedback appears inline.</div></div>
+        <div class="item"><strong>Completion State</strong><div class="meta">Confirmation and next actions become visible.</div></div>
+      </aside>
+    </section>
+  </main>
+</body>
+</html>

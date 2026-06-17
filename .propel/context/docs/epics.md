@@ -9,9 +9,9 @@
 
 ## Executive Summary
 
-This document decomposes the 22 functional requirements from the specification into 8 business-aligned epics. Each epic groups related requirements with clear business value, priority levels, and dependencies.
+This document decomposes the 22 functional requirements from the specification into business-aligned epics and inferred technical epics. Each epic groups related requirements with clear business value, priority levels, and dependencies.
 
-**Total Epics:** 8 (EP-001 through EP-008)  
+**Total Epics:** 10 (EP-001 through EP-008, EP-TECH-001, EP-DATA-001)  
 **Total Requirements Mapped:** 22 FRs (100% coverage)  
 **Estimated Delivery Timeline:** 6-9 months across 4 phases
 
@@ -29,6 +29,8 @@ This document decomposes the 22 functional requirements from the specification i
 | EP-006 | Patient Portal & Analytics | HIGH | Medium | Medium | FR-017, FR-018 | 12 pts |
 | EP-007 | Compliance & Audit | CRITICAL | Very High | High | FR-019, FR-020 | 14 pts |
 | EP-008 | System Reliability & Performance | CRITICAL | Very High | Very High | FR-021, FR-022 | 18 pts |
+| EP-TECH-001 | Technical Foundation & DevEx | CRITICAL | Very High | High | NFR-001..NFR-009, TR-001..TR-008 | 12 pts |
+| EP-DATA-001 | Data Platform & Governance | CRITICAL | Very High | High | DR-001..DR-004, NFR-004, NFR-006 | 10 pts |
 
 ---
 
@@ -673,6 +675,88 @@ Achieve 99.9% uptime through load balancing, database replication, health checks
 
 ---
 
+## EP-TECH-001: Technical Foundation & DevEx [SOURCE:INFERRED]
+
+**Priority:** CRITICAL  
+**Business Value:** Very High  
+**Complexity:** High  
+**Timeline:** Months 1-2 (Phase 1 - Foundation)
+
+### Objective
+Establish cross-cutting technical foundations and developer experience capabilities required to deliver all feature epics predictably: architecture guardrails, observability, CI quality gates, resiliency defaults, API standards, and security baselines.
+
+### Mapped Requirements
+
+| Requirement ID | Requirement |
+|----------------|-------------|
+| NFR-001..NFR-009 | Availability, performance, scalability, security, maintainability, accessibility, interoperability |
+| TR-001..TR-008 | Stack constraints, architecture patterns, API design, auth, async processing, caching, resilience |
+
+### Dependencies
+
+- Blocks EP-001..EP-008 implementation velocity and release confidence
+
+### Acceptance Criteria (Epic-Level)
+
+- [ ] CI pipeline enforces lint, unit tests, dependency checks, and security scans
+- [ ] Standard API conventions documented (error envelope, pagination, versioning, idempotency)
+- [ ] Centralized structured logging and distributed tracing enabled end-to-end
+- [ ] Health checks/readiness/liveness probes implemented for all core services
+- [ ] Baseline observability dashboards and alerts for uptime, latency, error rate, queue depth
+- [ ] Environment configuration strategy documented and automated for dev/test/prod
+- [ ] Reference architecture guardrails adopted by all feature teams
+
+### Estimated User Stories
+
+- US-098: Define API standards and shared middleware contracts
+- US-099: Implement centralized logging + correlation IDs
+- US-100: Implement tracing and SLO dashboards
+- US-101: Add CI quality gates (lint, test, SAST/SCA)
+- US-102: Implement resiliency defaults (timeouts, retries, circuit breakers)
+- US-103: Standardize environment configuration and secret loading
+
+---
+
+## EP-DATA-001: Data Platform & Governance [SOURCE:INFERRED]
+
+**Priority:** CRITICAL  
+**Business Value:** Very High  
+**Complexity:** High  
+**Timeline:** Months 1-3 (Phase 1-2)
+
+### Objective
+Deliver a governed data foundation for transactional integrity, lifecycle management, query performance, retention, and auditability across operational and analytical workloads.
+
+### Mapped Requirements
+
+| Requirement ID | Requirement |
+|----------------|-------------|
+| DR-001..DR-004 | Data model, storage organization, retention lifecycle, data access/querying |
+| NFR-004, NFR-006 | Data consistency/integrity and privacy/retention controls |
+
+### Dependencies
+
+- Supports EP-003 (Clinical Intelligence), EP-006 (Analytics), EP-007 (Compliance), EP-008 (Reliability)
+
+### Acceptance Criteria (Epic-Level)
+
+- [ ] Core schema and indexing strategy implemented for high-frequency appointment and profile queries
+- [ ] Data retention/archive jobs implemented per policy (including immutable audit retention)
+- [ ] Migration strategy established with rollback and forward-fix procedures
+- [ ] Data quality checks implemented for critical clinical fields and coding data
+- [ ] Read/write access patterns documented with performance budgets
+- [ ] Backup, restore, and integrity validation runbooks verified
+
+### Estimated User Stories
+
+- US-104: Finalize production schema + index strategy
+- US-105: Implement migration and rollback pipeline
+- US-106: Implement retention/archive lifecycle jobs
+- US-107: Implement data quality validation checks
+- US-108: Build backup/restore automation and verification
+
+---
+
 ## Dependency Matrix
 
 ```
@@ -710,10 +794,21 @@ EP-006 (Patient Portal & Analytics)
   └─ EP-008 (Reliability)
 
 EP-007 (Compliance)
+  ├─ EP-TECH-001 (Technical Foundation) - Security and observability baseline
+  ├─ EP-DATA-001 (Data Platform) - Retention and integrity controls
   └─ No dependencies (cross-cutting)
 
 EP-008 (Reliability)
+  ├─ EP-TECH-001 (Technical Foundation) - Resilience and platform controls
+  ├─ EP-DATA-001 (Data Platform) - Replication and data integrity support
   └─ No dependencies (cross-cutting)
+
+EP-TECH-001 (Technical Foundation)
+  └─ No dependencies (foundational inferred epic)
+
+EP-DATA-001 (Data Platform)
+  ├─ EP-TECH-001 (Technical Foundation)
+  └─ No additional dependencies
 ```
 
 ---
@@ -722,10 +817,12 @@ EP-008 (Reliability)
 
 ### Phase 1: Foundation & Core Booking (Months 1-2)
 
-**Epics:** EP-005, EP-007, EP-001, EP-004 (partial)
+**Epics:** EP-TECH-001, EP-DATA-001, EP-005, EP-007, EP-001, EP-004 (partial)
 
 **Objectives:**
 - User authentication and RBAC
+- Technical platform baseline (CI gates, observability, API standards)
+- Data platform baseline (schema/indexing, migration safety, retention jobs)
 - HIPAA compliance and audit logging
 - Patient self-service appointment booking
 - Preferred slot swap
@@ -825,7 +922,7 @@ EP-008 (Reliability)
 **Next Steps:**
 1. Review epics with Product & Engineering leadership
 2. Refine estimates and dependencies
-3. Execute `/create-user-stories EP-001` (start with Phase 1 epics)
+3. Execute `/create-user-stories EP-TECH-001` and `/create-user-stories EP-DATA-001` first
 4. Conduct backlog refinement sessions
-5. Begin Sprint 1 planning with Phase 1 epics (EP-005, EP-007, EP-001)
+5. Begin Sprint 1 planning with Phase 1 epics (EP-TECH-001, EP-DATA-001, EP-005, EP-007, EP-001)
 
