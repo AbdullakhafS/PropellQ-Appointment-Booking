@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCR-P-013: Upcoming Appointments - PropellQ Wireframe</title>
+    <style>
+        :root {
+            --primary: #0066ff;
+            --bg: #f9fafb;
+            --text: #111827;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+        .wf-header { background: #fff; border-bottom: 1px solid var(--border); text-align: center; padding: 0.75rem; font-size: 0.875rem; color: var(--muted); }
+        header { display: flex; justify-content: space-between; align-items: center; background: #fff; border-bottom: 1px solid var(--border); padding: 1rem; }
+        .logo { font-weight: 700; color: var(--primary); font-size: 1.25rem; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1rem; }
+        .top-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+        .top-row h1 { font-size: 1.75rem; }
+        .btn { border: 1px solid var(--border); background: #fff; border-radius: 0.375rem; padding: 0.5rem 0.75rem; font-weight: 600; cursor: pointer; }
+        .btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .tabs { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+        .tab { border: 1px solid var(--border); background: #fff; padding: 0.5rem 0.875rem; border-radius: 9999px; font-weight: 600; cursor: pointer; }
+        .tab.active { background: #e8f3ff; border-color: #93c5fd; color: #1d4ed8; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 1rem; }
+        .appt { background: #fff; border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem; }
+        .appt h2 { font-size: 1.125rem; margin-bottom: 0.375rem; }
+        .meta { color: var(--muted); font-size: 0.875rem; margin-bottom: 0.5rem; }
+        .badge { display: inline-block; font-size: 0.75rem; font-weight: 700; border-radius: 9999px; padding: 0.25rem 0.5rem; margin-bottom: 0.5rem; }
+        .badge.scheduled { background: #e8f3ff; color: #1d4ed8; }
+        .badge.arrived { background: #ecfdf3; color: #166534; }
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.75rem; }
+        .actions button { border: 1px solid var(--border); background: #fff; border-radius: 0.375rem; padding: 0.5rem; cursor: pointer; }
+        .actions .danger { border-color: #fecaca; color: #b91c1c; background: #fef2f2; }
+        .past { margin-top: 1.5rem; background: #fff; border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem; }
+        .past summary { cursor: pointer; font-weight: 700; }
+        @media (max-width: 700px) {
+            .top-row { flex-direction: column; align-items: flex-start; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wf-header">WIREFRAME - SCR-P-013 (Upcoming Appointments) | High-Fidelity | Responsive</div>
+    <header>
+        <div class="logo">PropellQ</div>
+        <nav aria-label="Top navigation">Patient Dashboard</nav>
+    </header>
+
+    <main class="container">
+        <div class="top-row">
+            <h1>Upcoming Appointments</h1>
+            <button class="btn primary" type="button">Book New Appointment</button>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="Appointment sections">
+            <button class="tab active" role="tab" aria-selected="true">Upcoming (3)</button>
+            <button class="tab" role="tab" aria-selected="false">Past (12 months)</button>
+        </div>
+
+        <section class="grid" aria-label="Upcoming appointments list">
+            <article class="appt">
+                <span class="badge scheduled">Scheduled</span>
+                <h2>Cardiology Follow-up</h2>
+                <p class="meta">Wed, Jun 24 at 10:00 AM</p>
+                <p class="meta">Dr. Sarah Johnson • Main Clinic</p>
+                <div class="actions">
+                    <button type="button">View Details</button>
+                    <button type="button">Reschedule</button>
+                    <button type="button">Add Calendar</button>
+                    <button class="danger" type="button">Cancel</button>
+                </div>
+            </article>
+            <article class="appt">
+                <span class="badge scheduled">Scheduled</span>
+                <h2>Telehealth Consult</h2>
+                <p class="meta">Mon, Jul 01 at 02:30 PM</p>
+                <p class="meta">Dr. Priya Anand • Virtual</p>
+                <div class="actions">
+                    <button type="button">View Details</button>
+                    <button type="button">Reschedule</button>
+                    <button type="button">Add Calendar</button>
+                    <button class="danger" type="button">Cancel</button>
+                </div>
+            </article>
+            <article class="appt">
+                <span class="badge arrived">Arrived</span>
+                <h2>Routine Check-up</h2>
+                <p class="meta">Fri, Jul 12 at 09:15 AM</p>
+                <p class="meta">Dr. Miguel Santos • North Clinic</p>
+                <div class="actions">
+                    <button type="button">View Details</button>
+                    <button type="button">Reschedule</button>
+                    <button type="button">Add Calendar</button>
+                    <button class="danger" type="button">Cancel</button>
+                </div>
+            </article>
+        </section>
+
+        <details class="past">
+            <summary>Past Appointments</summary>
+            <p style="margin-top: 0.75rem; color: var(--muted);">Past appointment history is collapsed by default to keep current actions focused.</p>
+        </details>
+    </main>
+</body>
+</html>

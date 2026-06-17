@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCR-S-001: Staff Dashboard - PropellQ Wireframe</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f9fafb; color: #111827; }
+        .wf-header { background: #fff; border-bottom: 1px solid #e5e7eb; text-align: center; padding: 0.75rem; font-size: 0.875rem; color: #6b7280; }
+        header { display: flex; justify-content: space-between; align-items: center; background: #fff; border-bottom: 1px solid #e5e7eb; padding: 1rem; }
+        .logo { font-weight: 700; font-size: 1.25rem; color: #0066ff; }
+        .container { max-width: 1360px; margin: 0 auto; padding: 1.5rem 1rem; }
+        h1 { font-size: 1.75rem; margin-bottom: 1rem; }
+        .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+        .kpi { background: #fff; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 0.875rem; }
+        .kpi .label { color: #6b7280; font-size: 0.8125rem; }
+        .kpi .value { font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; }
+        .layout { display: grid; gap: 1rem; grid-template-columns: 1.2fr 1fr 1fr; }
+        .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1rem; }
+        .title { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; }
+        .item { border: 1px solid #e5e7eb; border-radius: 0.375rem; padding: 0.625rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; gap: 0.75rem; }
+        .meta { color: #6b7280; font-size: 0.8125rem; }
+        .pill { display: inline-block; padding: 0.2rem 0.55rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        .pill.wait { background: #fff8e1; color: #b26a00; }
+        .pill.ready { background: #e8f5e9; color: #2e7d32; }
+        .pill.warn { background: #ffebee; color: #b91c1c; }
+        .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+        .btn { border: 1px solid #d1d5db; background: #fff; border-radius: 0.375rem; padding: 0.625rem; font-weight: 600; cursor: pointer; }
+        .btn.primary { background: #0066ff; border-color: #0066ff; color: #fff; }
+        .btn.primary:hover { background: #0052cc; }
+        @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+        @media (max-width: 700px) { h1 { font-size: 1.4rem; } .btns { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="wf-header">WIREFRAME - SCR-S-001 (Staff Dashboard) | High-Fidelity | Responsive</div>
+    <header>
+        <div class="logo">PropellQ Staff</div>
+        <div style="color:#6b7280; font-size:0.875rem;">Clinic A • Tue, Jun 17 • Dr. Sarah Johnson</div>
+    </header>
+
+    <main class="container">
+        <h1>Today's Operations Dashboard</h1>
+
+        <section class="kpis" aria-label="Staff KPI summary">
+            <article class="kpi"><div class="label">Waiting Patients</div><div class="value">7</div></article>
+            <article class="kpi"><div class="label">Checked-In</div><div class="value">12</div></article>
+            <article class="kpi"><div class="label">Avg Wait Time</div><div class="value">14m</div></article>
+            <article class="kpi"><div class="label">Walk-Ins Today</div><div class="value">5</div></article>
+        </section>
+
+        <section class="layout">
+            <article class="card" aria-label="Today's schedule">
+                <h2 class="title">Schedule Widget</h2>
+                <div class="item"><div><strong>09:00 AM</strong><div class="meta">Maria Gomez • Cardiology Follow-up</div></div><span class="pill ready">Arrived</span></div>
+                <div class="item"><div><strong>09:30 AM</strong><div class="meta">John Lee • Intake Review</div></div><span class="pill wait">Waiting</span></div>
+                <div class="item"><div><strong>10:00 AM</strong><div class="meta">Farah Khan • Echocardiogram Prep</div></div><span class="pill wait">Waiting</span></div>
+                <div class="item"><div><strong>10:30 AM</strong><div class="meta">Walk-In • New Patient</div></div><span class="pill warn">Needs Verification</span></div>
+            </article>
+
+            <article class="card" aria-label="Queue status and alerts">
+                <h2 class="title">Queue & Alerts</h2>
+                <div class="item"><div><strong>Insurance Pending</strong><div class="meta">3 profiles need post-visit verification</div></div><span class="pill warn">High</span></div>
+                <div class="item"><div><strong>Critical Data Conflicts</strong><div class="meta">2 unresolved medication conflicts</div></div><span class="pill warn">Critical</span></div>
+                <div class="item"><div><strong>Late Arrivals</strong><div class="meta">4 patients > 10 minutes delayed</div></div><span class="pill wait">Monitor</span></div>
+            </article>
+
+            <article class="card" aria-label="Quick actions">
+                <h2 class="title">Quick Actions</h2>
+                <div class="btns">
+                    <button class="btn primary" type="button">Create Walk-In</button>
+                    <button class="btn" type="button">Open Queue</button>
+                    <button class="btn" type="button">Search Patient</button>
+                    <button class="btn" type="button">Check-In Patient</button>
+                    <button class="btn" type="button">Resolve Conflict</button>
+                    <button class="btn" type="button">Export Daily Report</button>
+                </div>
+            </article>
+        </section>
+    </main>
+</body>
+</html>

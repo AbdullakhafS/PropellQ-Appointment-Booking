@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCR-P-005: Provider Selection - PropellQ Wireframe</title>
+    <style>
+        :root {
+            --primary: #0066ff;
+            --primary-100: #e8f3ff;
+            --bg: #f9fafb;
+            --text: #111827;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --success: #4caf50;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+        .wf-header { background: #fff; border-bottom: 1px solid var(--border); text-align: center; padding: 0.75rem; font-size: 0.875rem; color: var(--muted); }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #fff; border-bottom: 1px solid var(--border); }
+        .logo { font-weight: 700; font-size: 1.25rem; color: var(--primary); }
+        .container { max-width: 1280px; margin: 0 auto; padding: 1.5rem 1rem; }
+        .page-title { font-size: 1.875rem; font-weight: 600; margin-bottom: 1rem; }
+        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 1.25rem; }
+        .card { background: #fff; border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .provider-head { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.75rem; }
+        .avatar { width: 56px; height: 56px; border-radius: 9999px; background: var(--primary-100); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+        .sub { color: var(--muted); font-size: 0.875rem; }
+        .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; background: #e8f5e9; color: #2e7d32; margin-top: 0.5rem; }
+        .section-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; }
+        .calendar-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+        .btn { border: 1px solid var(--border); background: #fff; border-radius: 0.375rem; padding: 0.5rem 0.75rem; cursor: pointer; }
+        .btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .btn:focus-visible, .slot:focus-visible { outline: 3px solid #bfdbfe; outline-offset: 2px; }
+        .weekday, .day { text-align: center; font-size: 0.875rem; padding: 0.5rem; border-radius: 0.375rem; }
+        .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.375rem; margin-bottom: 1rem; }
+        .weekday { font-weight: 600; color: var(--muted); background: #f3f4f6; }
+        .day { border: 1px solid var(--border); background: #fff; min-height: 52px; }
+        .day.available { background: #ecfdf5; border-color: #86efac; }
+        .day.selected { border-color: var(--primary); background: var(--primary-100); font-weight: 700; }
+        .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.5rem; }
+        .slot { border: 1px solid var(--border); background: #fff; border-radius: 0.375rem; padding: 0.625rem; cursor: pointer; text-align: center; }
+        .slot:hover { border-color: var(--primary); }
+        .slot.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .footer-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+        @media (max-width: 640px) { .page-title { font-size: 1.5rem; } .slots { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body>
+    <div class="wf-header">WIREFRAME - SCR-P-005 (Provider Selection & Slot Picker) | High-Fidelity | Responsive</div>
+    <header>
+        <div class="logo">PropellQ</div>
+        <nav aria-label="Top navigation">Patient Portal</nav>
+    </header>
+
+    <main class="container">
+        <h1 class="page-title">Choose Provider & Appointment Slot</h1>
+
+        <section class="grid" aria-label="Provider and slot selection layout">
+            <article class="card" aria-label="Provider details">
+                <div class="provider-head">
+                    <div class="avatar" aria-hidden="true">👩‍⚕️</div>
+                    <div>
+                        <h2>Dr. Sarah Johnson</h2>
+                        <p class="sub">Cardiology</p>
+                        <span class="badge">4.8/5 (102 Reviews)</span>
+                    </div>
+                </div>
+                <p class="sub">Board-certified cardiologist with 12+ years experience in preventive and interventional cardiology.</p>
+                <p class="sub" style="margin-top: 0.75rem;"><strong>Location:</strong> Main Clinic, Floor 2</p>
+                <p class="sub"><strong>Mode:</strong> In-Person and Telehealth</p>
+                <hr style="margin: 1rem 0; border: none; border-top: 1px solid var(--border);">
+                <h3 class="section-title">Selected Slot</h3>
+                <p id="selected-slot" class="sub">No time selected yet</p>
+            </article>
+
+            <article class="card" aria-label="Calendar and slot picker">
+                <div class="calendar-controls">
+                    <button class="btn" type="button" aria-label="Previous month">←</button>
+                    <h2 style="font-size: 1.125rem;">June 2026</h2>
+                    <button class="btn" type="button" aria-label="Next month">→</button>
+                </div>
+
+                <div class="calendar" role="grid" aria-label="Provider availability calendar">
+                    <div class="weekday">Mon</div><div class="weekday">Tue</div><div class="weekday">Wed</div><div class="weekday">Thu</div><div class="weekday">Fri</div><div class="weekday">Sat</div><div class="weekday">Sun</div>
+                    <div class="day">22</div><div class="day available">23</div><div class="day available selected">24</div><div class="day">25</div><div class="day available">26</div><div class="day">27</div><div class="day">28</div>
+                    <div class="day">29</div><div class="day available">30</div><div class="day">1</div><div class="day">2</div><div class="day available">3</div><div class="day">4</div><div class="day">5</div>
+                </div>
+
+                <h3 class="section-title">Available Times - Wed, Jun 24</h3>
+                <div class="slots" role="list" aria-label="Available slots">
+                    <button type="button" class="slot" data-time="09:00 AM (30 min)">09:00 AM</button>
+                    <button type="button" class="slot" data-time="09:30 AM (30 min)">09:30 AM</button>
+                    <button type="button" class="slot selected" data-time="10:00 AM (30 min)">10:00 AM</button>
+                    <button type="button" class="slot" data-time="10:30 AM (30 min)">10:30 AM</button>
+                    <button type="button" class="slot" data-time="01:30 PM (30 min)">01:30 PM</button>
+                    <button type="button" class="slot" data-time="02:00 PM (30 min)">02:00 PM</button>
+                </div>
+
+                <div class="footer-actions">
+                    <button class="btn" type="button">Back</button>
+                    <button class="btn primary" type="button">Continue to Preferred Slot</button>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <script>
+        const slots = document.querySelectorAll('.slot');
+        const selectedSlotText = document.getElementById('selected-slot');
+        const defaultSlot = document.querySelector('.slot.selected');
+        if (defaultSlot) {
+            selectedSlotText.textContent = `Wed, Jun 24 at ${defaultSlot.dataset.time}`;
+        }
+
+        slots.forEach(slot => {
+            slot.addEventListener('click', () => {
+                slots.forEach(s => s.classList.remove('selected'));
+                slot.classList.add('selected');
+                selectedSlotText.textContent = `Wed, Jun 24 at ${slot.dataset.time}`;
+            });
+        });
+    </script>
+</body>
+</html>

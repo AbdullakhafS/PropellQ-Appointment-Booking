@@ -12,8 +12,8 @@
 
 This document serves as the master index for all wireframes generated for the PropellQ platform. Each wireframe is fully responsive (mobile, tablet, desktop) and includes accessibility compliance (WCAG 2.2 Level AA).
 
-**Total Wireframes Generated:** 10 key screens  
-**Coverage:** Patient Portal (4), Staff Portal (3), Admin Portal (2), Navigation (1)
+**Total Wireframes Generated:** 34 screens  
+**Coverage:** Patient Portal (16), Staff Portal (10), Admin Portal (8), Navigation (1)
 
 ---
 
@@ -21,35 +21,44 @@ This document serves as the master index for all wireframes generated for the Pr
 
 All wireframes are located in: `.propel/context/wireframes/Hi-Fi/`
 
-### Patient Portal Wireframes
+### Patient Portal Wireframes (Key Screens)
 
 | File | Screen ID | Screen Name | Purpose | URL Path | UXR Mapping | Status |
 |------|-----------|-------------|---------|----------|------------|--------|
 | `wireframe-SCR-P-004-appointment-search.html` | SCR-P-004 | Search & Book Appointment | Primary patient action: find and book appointments | `/appointments/search` | UXR-001, UXR-002, UXR-003 | ✅ Complete |
-| `wireframe-SCR-P-005-provider-selection.html` | SCR-P-005 | Provider Selection & Calendar | Visual provider selection with real-time availability | `/appointments/provider` | UXR-005, UXR-006 | 📋 Planned |
-| `wireframe-SCR-P-008-confirmation.html` | SCR-P-008 | Booking Confirmation | Success page after appointment booked | `/appointments/confirmed` | UXR-004, UXR-006 | 📋 Planned |
+| `wireframe-SCR-P-005-provider-selection.html` | SCR-P-005 | Provider Selection & Calendar | Visual provider selection with real-time availability | `/appointments/provider` | UXR-005, UXR-006 | ✅ Complete |
+| `wireframe-SCR-P-008-confirmation.html` | SCR-P-008 | Booking Confirmation | Success page after appointment booked | `/appointments/confirmed` | UXR-004, UXR-006 | ✅ Complete |
 | `wireframe-SCR-P-011-patient-profile.html` | SCR-P-011 | Patient Profile Dashboard | Tabbed view of medical history, medications, allergies, documents | `/profile/overview` | UXR-018, UXR-019, UXR-020 | ✅ Complete |
+| `wireframe-SCR-P-013-upcoming-appointments.html` | SCR-P-013 | Upcoming Appointments | View and manage upcoming appointments with quick actions | `/appointments/upcoming` | UXR-029 | ✅ Complete |
 
-### Staff Portal Wireframes
+### Staff Portal Wireframes (Key Screens)
 
 | File | Screen ID | Screen Name | Purpose | URL Path | UXR Mapping | Status |
 |------|-----------|-------------|---------|----------|------------|--------|
-| `wireframe-SCR-S-001-dashboard.html` | SCR-S-001 | Staff Dashboard | Overview of today's operations | `/staff` | — | 📋 Planned |
+| `wireframe-SCR-S-001-dashboard.html` | SCR-S-001 | Staff Dashboard | Overview of today's operations | `/staff` | — | ✅ Complete |
 | `wireframe-SCR-S-002-queue-management.html` | SCR-S-002 | Queue Management | Real-time queue with patient detail panel | `/queue` | UXR-026, UXR-027 | ✅ Complete |
-| `wireframe-SCR-S-005-patient-profile.html` | SCR-S-005 | Patient Profile (Staff View) | Clinical data with staff-specific actions | `/patients/:id/profile` | UXR-024, UXR-025 | 📋 Planned |
+| `wireframe-SCR-S-005-patient-profile.html` | SCR-S-005 | Patient Profile (Staff View) | Clinical data with staff-specific actions | `/patients/:id/profile` | UXR-024, UXR-025 | ✅ Complete |
 
-### Admin Portal Wireframes
+### Admin Portal Wireframes (Key Screens)
 
 | File | Screen ID | Screen Name | Purpose | URL Path | UXR Mapping | Status |
 |------|-----------|-------------|---------|----------|------------|--------|
 | `wireframe-SCR-A-001-admin-dashboard.html` | SCR-A-001 | Admin Dashboard | System KPIs, alerts, analytics | `/admin` | — | ✅ Complete |
-| `wireframe-SCR-A-003-user-list.html` | SCR-A-003 | User Management List | CRUD operations for users | `/admin/users` | UXR-030 | 📋 Planned |
+| `wireframe-SCR-A-003-user-list.html` | SCR-A-003 | User Management List | CRUD operations for users | `/admin/users` | UXR-030 | ✅ Complete |
 
 ### Navigation & Architecture
 
 | File | Purpose | Status |
 |------|---------|--------|
 | `navigation-map.md` | Site architecture, portal flows, information hierarchy | ✅ Complete |
+
+### Full Coverage Completion (Contiguous IDs)
+
+| Portal | Screen Range | Status |
+|------|------|------|
+| Patient | SCR-P-001 to SCR-P-016 | ✅ Complete |
+| Staff | SCR-S-001 to SCR-S-010 | ✅ Complete |
+| Admin | SCR-A-001 to SCR-A-008 | ✅ Complete |
 
 ---
 
@@ -134,10 +143,10 @@ design-tokens (CSS variables in designsystem.md)
 | Use Case | Functional Req | UX Requirement | Screen(s) | Wireframe(s) |
 |----------|---|---|---|---|
 | UC-001 | FR-001 | UXR-001 to UXR-004 | SCR-P-004 to SCR-P-008 | P-004, P-005, P-008 |
-| UC-002 | FR-003 | UXR-006 to UXR-009 | SCR-P-009, SCR-P-016 | (Planned) |
+| UC-002 | FR-003 | UXR-006 to UXR-009 | SCR-P-009, SCR-P-016 | P-009, P-016 |
 | UC-010 | FR-007 | UXR-018 to UXR-020 | SCR-P-011 | P-011 |
 | UC-016 | FR-011 | UXR-026, UXR-027 | SCR-S-002 | S-002 |
-| UC-021 | FR-018 | UXR-031 | SCR-A-001 to SCR-A-008 | A-001 |
+| UC-021 | FR-018 | UXR-031 | SCR-A-001 to SCR-A-008 | A-001 to A-008 |
 
 ---
 
@@ -215,7 +224,7 @@ All wireframes meet WCAG 2.2 Level AA:
 | **Badge/Pill** | All | Status indicators (success/warning/error/info) |
 | **Alert/Banner** | A-001 | Inline alerts with severity coloring |
 | **Modal/Dialog** | P-004, P-011, S-002 | Centered overlay, header, body, footer |
-| **Progress Indicator** | P-009 (planned) | Multi-step form progress bar |
+| **Progress Indicator** | P-009 | Multi-step form progress bar |
 | **Loading Spinner** | All | Animated spinner for async operations |
 
 ---
@@ -247,15 +256,9 @@ All wireframes meet WCAG 2.2 Level AA:
 ```
 .propel/context/wireframes/
 ├── Hi-Fi/
-│   ├── wireframe-SCR-P-004-appointment-search.html
-│   ├── wireframe-SCR-P-005-provider-selection.html
-│   ├── wireframe-SCR-P-008-confirmation.html
-│   ├── wireframe-SCR-P-011-patient-profile.html
-│   ├── wireframe-SCR-S-001-dashboard.html
-│   ├── wireframe-SCR-S-002-queue-management.html
-│   ├── wireframe-SCR-S-005-patient-profile.html
-│   ├── wireframe-SCR-A-001-admin-dashboard.html
-│   ├── wireframe-SCR-A-003-user-list.html
+│   ├── wireframe-SCR-P-001-*.html ... wireframe-SCR-P-016-*.html
+│   ├── wireframe-SCR-S-001-*.html ... wireframe-SCR-S-010-*.html
+│   ├── wireframe-SCR-A-001-*.html ... wireframe-SCR-A-008-*.html
 │   └── README.md (this file)
 │
 └── navigation-map.md
