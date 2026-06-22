@@ -222,6 +222,176 @@ CREATE TABLE IF NOT EXISTS provider_external_events (
     FOREIGN KEY (provider_id) REFERENCES providers (id)
 );
 
+CREATE TABLE IF NOT EXISTS lifecycle_policy_versions (
+    id INTEGER PRIMARY KEY,
+    policy_name TEXT NOT NULL,
+    dataset_name TEXT NOT NULL,
+    action_type TEXT NOT NULL CHECK (action_type IN ('archive', 'purge')),
+    retention_days INTEGER NOT NULL,
+    archive_after_days INTEGER NOT NULL DEFAULT 0,
+    immutable_retention_days INTEGER NOT NULL DEFAULT 0,
+    timezone_name TEXT NOT NULL DEFAULT 'UTC',
+    owner_email TEXT NOT NULL,
+    approval_status TEXT NOT NULL DEFAULT 'approved' CHECK (approval_status IN ('draft', 'pending', 'approved', 'rejected')),
+    approved_by TEXT,
+    effective_from TEXT NOT NULL,
+    version_label TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (policy_name, version_label)
+);
+
+CREATE TABLE IF NOT EXISTS lifecycle_subjects (
+    id INTEGER PRIMARY KEY,
+    dataset_name TEXT NOT NULL,
+    record_key TEXT NOT NULL,
+    record_type TEXT NOT NULL DEFAULT 'record',
+    payload_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    archive_after_at TEXT NOT NULL,
+    purge_after_at TEXT NOT NULL,
+    immutable_until TEXT NOT NULL,
+    archive_status TEXT NOT NULL DEFAULT 'active' CHECK (archive_status IN ('active', 'archived', 'purged', 'held')),
+    legal_hold INTEGER NOT NULL DEFAULT 0,
+    hold_reason TEXT,
+    hold_expires_at TEXT,
+    policy_version TEXT NOT NULL,
+    archived_at TEXT,
+    purged_at TEXT,
+    archive_location TEXT,
+    retrieval_role TEXT,
+    created_by TEXT NOT NULL DEFAULT 'system',
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (dataset_name, record_key)
+);
+
+CREATE TABLE IF NOT EXISTS lifecycle_archive_entries (
+    id INTEGER PRIMARY KEY,
+    dataset_name TEXT NOT NULL,
+    record_key TEXT NOT NULL,
+    policy_version TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    archived_at TEXT NOT NULL,
+    retention_expires_at TEXT NOT NULL,
+    archive_checksum TEXT NOT NULL,
+    retrieval_allowed_roles TEXT NOT NULL DEFAULT '["compliance", "auditor"]',
+    retrieved_at TEXT,
+    retrieval_count INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (dataset_name, record_key)
+);
+
+CREATE TABLE IF NOT EXISTS lifecycle_execution_runs (
+    id INTEGER PRIMARY KEY,
+    run_id TEXT NOT NULL UNIQUE,
+    job_name TEXT NOT NULL,
+    dataset_name TEXT,
+    policy_version TEXT,
+    dry_run INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL CHECK (status IN ('running', 'succeeded', 'failed', 'partial')),
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    operator_identity TEXT NOT NULL,
+    retries INTEGER NOT NULL DEFAULT 0,
+    backoff_seconds INTEGER NOT NULL DEFAULT 0,
+    details_json TEXT
+);
+
+CREATE TABLE IF NOT EXISTS lifecycle_execution_events (
+    id INTEGER PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    event_type TEXT NOT NULL CHECK (event_type IN ('archive', 'purge', 'hold_skip', 'immutability_block', 'retrieval', 'retry', 'dead_letter', 'alert')),
+    dataset_name TEXT NOT NULL,
+    record_key TEXT,
+    status TEXT NOT NULL CHECK (status IN ('success', 'skipped', 'blocked', 'failed', 'retried')),
+    reason TEXT NOT NULL,
+    details_json TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS lifecycle_alerts (
+    id INTEGER PRIMARY KEY,
+    run_id TEXT,
+    severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
+    alert_type TEXT NOT NULL,
+    message TEXT NOT NULL,
+    backoff_seconds INTEGER NOT NULL DEFAULT 0,
+    incident_target TEXT,
+    runbook_link TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS data_quality_rules (
+    id INTEGER PRIMARY KEY,
+    rule_code TEXT NOT NULL UNIQUE,
+    domain_name TEXT NOT NULL,
+    rule_name TEXT NOT NULL,
+    rule_type TEXT NOT NULL CHECK (rule_type IN ('completeness', 'validity', 'duplicate', 'consistency', 'referential')),
+    severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
+    enforcement_mode TEXT NOT NULL DEFAULT 'observe' CHECK (enforcement_mode IN ('observe', 'warn', 'block')),
+    owner_team TEXT NOT NULL,
+    rationale TEXT NOT NULL,
+    version_label TEXT NOT NULL,
+    runbook_link TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (domain_name, rule_name, version_label)
+);
+
+CREATE TABLE IF NOT EXISTS data_quality_runs (
+    id INTEGER PRIMARY KEY,
+    run_id TEXT NOT NULL UNIQUE,
+    scope_name TEXT NOT NULL,
+    stage_name TEXT NOT NULL,
+    enforcement_mode TEXT NOT NULL CHECK (enforcement_mode IN ('observe', 'warn', 'block')),
+    status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'blocked', 'failed')),
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    evaluated_records INTEGER NOT NULL DEFAULT 0,
+    violation_count INTEGER NOT NULL DEFAULT 0,
+    warning_count INTEGER NOT NULL DEFAULT 0,
+    critical_count INTEGER NOT NULL DEFAULT 0,
+    blocked_count INTEGER NOT NULL DEFAULT 0,
+    report_path TEXT,
+    trend_date TEXT NOT NULL,
+    owner_team TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS data_quality_violations (
+    id INTEGER PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    rule_code TEXT NOT NULL,
+    domain_name TEXT NOT NULL,
+    record_key TEXT,
+    severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
+    message TEXT NOT NULL,
+    details_json TEXT,
+    owner_team TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'triaged', 'resolved', 'ignored')),
+    detected_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TEXT,
+    FOREIGN KEY (run_id) REFERENCES data_quality_runs (run_id) ON DELETE CASCADE,
+    FOREIGN KEY (rule_code) REFERENCES data_quality_rules (rule_code) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS data_quality_quarantine (
+    id INTEGER PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    domain_name TEXT NOT NULL,
+    record_key TEXT,
+    severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
+    quarantine_status TEXT NOT NULL DEFAULT 'flagged' CHECK (quarantine_status IN ('flagged', 'reviewing', 'cleared', 'blocked')),
+    reason TEXT NOT NULL,
+    payload_json TEXT,
+    owner_team TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    triaged_at TEXT,
+    triage_notes TEXT,
+    FOREIGN KEY (run_id) REFERENCES data_quality_runs (run_id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_appointments_status_date
     ON appointments (status, appointment_date, start_time, id);
 
@@ -258,6 +428,33 @@ CREATE INDEX IF NOT EXISTS idx_confirmation_deliveries_status
 CREATE INDEX IF NOT EXISTS idx_reminder_log_lookup
     ON reminder_log (appointment_id, patient_profile_id, reminder_type, channel, delivery_status, created_at);
 
+CREATE INDEX IF NOT EXISTS idx_lifecycle_subjects_due_archive
+    ON lifecycle_subjects (dataset_name, archive_status, archive_after_at, legal_hold, policy_version);
+
+CREATE INDEX IF NOT EXISTS idx_lifecycle_subjects_due_purge
+    ON lifecycle_subjects (dataset_name, archive_status, purge_after_at, legal_hold, immutable_until);
+
+CREATE INDEX IF NOT EXISTS idx_lifecycle_archive_lookup
+    ON lifecycle_archive_entries (dataset_name, record_key, archived_at);
+
+CREATE INDEX IF NOT EXISTS idx_lifecycle_runs_status
+    ON lifecycle_execution_runs (job_name, status, started_at);
+
+CREATE INDEX IF NOT EXISTS idx_lifecycle_events_run
+    ON lifecycle_execution_events (run_id, event_type, status, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_data_quality_runs_stage
+    ON data_quality_runs (stage_name, status, trend_date, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_data_quality_violations_rule
+    ON data_quality_violations (rule_code, severity, status, detected_at);
+
+CREATE INDEX IF NOT EXISTS idx_data_quality_violations_domain
+    ON data_quality_violations (domain_name, severity, detected_at);
+
+CREATE INDEX IF NOT EXISTS idx_data_quality_quarantine_status
+    ON data_quality_quarantine (quarantine_status, severity, created_at);
+
 CREATE INDEX IF NOT EXISTS idx_swap_history_lookup
     ON preferred_slot_swap_history (appointment_id, status, created_at);
 
@@ -275,3 +472,232 @@ CREATE INDEX IF NOT EXISTS idx_manual_review_queue_status
 
 CREATE INDEX IF NOT EXISTS idx_provider_external_events_lookup
     ON provider_external_events (calendar_type, external_event_id, status, updated_at);
+
+-- ============================================================================
+-- BACKUP AND RESTORE AUTOMATION SCHEMA (TASK-108)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS backup_policies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    policy_name TEXT NOT NULL UNIQUE,
+    dataset_name TEXT NOT NULL,
+    backup_type TEXT NOT NULL CHECK (backup_type IN ('full', 'incremental')),
+    schedule_cron TEXT NOT NULL,
+    retention_days INTEGER NOT NULL CHECK (retention_days > 0),
+    retention_tiers TEXT NOT NULL DEFAULT '{"hot": 7, "warm": 30, "cold": 365}',
+    encryption_enabled INTEGER NOT NULL DEFAULT 1 CHECK (encryption_enabled IN (0, 1)),
+    encryption_algorithm TEXT NOT NULL DEFAULT 'AES-256-GCM',
+    kms_key_id TEXT,
+    compression_enabled INTEGER NOT NULL DEFAULT 1 CHECK (compression_enabled IN (0, 1)),
+    compression_algorithm TEXT NOT NULL DEFAULT 'zstd',
+    storage_location TEXT NOT NULL,
+    access_role_id TEXT NOT NULL,
+    owner_team TEXT NOT NULL,
+    rpo_target_minutes INTEGER NOT NULL CHECK (rpo_target_minutes > 0),
+    rto_target_minutes INTEGER NOT NULL CHECK (rto_target_minutes > 0),
+    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (dataset_name, backup_type)
+);
+
+CREATE TABLE IF NOT EXISTS backup_executions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    execution_id TEXT NOT NULL UNIQUE,
+    policy_id INTEGER NOT NULL,
+    policy_name TEXT NOT NULL,
+    dataset_name TEXT NOT NULL,
+    backup_type TEXT NOT NULL CHECK (backup_type IN ('full', 'incremental')),
+    status TEXT NOT NULL CHECK (status IN ('scheduled', 'running', 'succeeded', 'failed', 'cancelled')),
+    backup_location TEXT,
+    backup_size_bytes INTEGER CHECK (backup_size_bytes >= 0),
+    backup_checksum TEXT,
+    data_currency_point TEXT,
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    duration_ms INTEGER CHECK (duration_ms >= 0),
+    rows_backed_up INTEGER CHECK (rows_backed_up >= 0),
+    compression_ratio REAL CHECK (compression_ratio > 0),
+    encryption_status TEXT CHECK (encryption_status IN ('unencrypted', 'encrypted', 'key_rotation_pending')),
+    verification_status TEXT CHECK (verification_status IN ('not_verified', 'verified', 'failed')),
+    error_message TEXT,
+    operator_identity TEXT,
+    artifact_path TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (policy_id) REFERENCES backup_policies (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS restore_drills (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    drill_id TEXT NOT NULL UNIQUE,
+    drill_name TEXT NOT NULL,
+    policy_id INTEGER NOT NULL,
+    dataset_name TEXT NOT NULL,
+    target_backup_execution_id TEXT NOT NULL,
+    drill_schedule_next_run TEXT,
+    frequency_days INTEGER NOT NULL CHECK (frequency_days > 0),
+    isolated_environment_name TEXT NOT NULL,
+    restore_point_type TEXT NOT NULL CHECK (restore_point_type IN ('full', 'pitr', 'snapshot')),
+    rpo_target_minutes INTEGER NOT NULL,
+    rto_target_minutes INTEGER NOT NULL,
+    last_drill_date TEXT,
+    last_drill_status TEXT CHECK (last_drill_status IN ('pending', 'passed', 'failed', 'partial')),
+    last_drill_rto_minutes INTEGER,
+    last_drill_rpo_accuracy_percent REAL CHECK (last_drill_rpo_accuracy_percent >= 0 AND last_drill_rpo_accuracy_percent <= 100),
+    drill_owner_email TEXT NOT NULL,
+    approval_status TEXT NOT NULL CHECK (approval_status IN ('pending', 'approved', 'rejected')),
+    approved_by TEXT,
+    approved_at TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (policy_id) REFERENCES backup_policies (id) ON DELETE RESTRICT,
+    UNIQUE (drill_name, dataset_name)
+);
+
+CREATE TABLE IF NOT EXISTS restore_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id TEXT NOT NULL UNIQUE,
+    drill_id TEXT,
+    backup_execution_id TEXT NOT NULL,
+    dataset_name TEXT NOT NULL,
+    restore_type TEXT NOT NULL CHECK (restore_type IN ('drill', 'emergency', 'point_in_time')),
+    restore_target_environment TEXT NOT NULL,
+    restore_point_timestamp TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('initiated', 'in_progress', 'completed', 'failed', 'rolled_back')),
+    initiated_at TEXT NOT NULL,
+    started_at TEXT,
+    completed_at TEXT,
+    rolled_back_at TEXT,
+    duration_ms INTEGER CHECK (duration_ms >= 0),
+    rpo_achieved_minutes INTEGER,
+    rto_achieved_minutes INTEGER,
+    rows_restored INTEGER CHECK (rows_restored >= 0),
+    integrity_check_passed INTEGER CHECK (integrity_check_passed IN (0, 1)),
+    operator_identity TEXT NOT NULL,
+    approver_identity TEXT,
+    rationale TEXT,
+    verified_by_role TEXT CHECK (verified_by_role IN ('dba', 'ops', 'compliance', 'none')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (event_id)
+);
+
+CREATE TABLE IF NOT EXISTS restore_verification (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    verification_id TEXT NOT NULL UNIQUE,
+    restore_event_id TEXT NOT NULL,
+    verification_type TEXT NOT NULL CHECK (verification_type IN ('row_count', 'checksum', 'referential', 'critical_query', 'schema')),
+    verification_target_table TEXT,
+    expected_result TEXT,
+    actual_result TEXT,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'passed', 'failed', 'skipped')),
+    failure_reason TEXT,
+    verified_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (restore_event_id) REFERENCES restore_events (event_id) ON DELETE CASCADE,
+    UNIQUE (restore_event_id, verification_type, verification_target_table)
+);
+
+CREATE TABLE IF NOT EXISTS backup_audit_trail (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    audit_id TEXT NOT NULL UNIQUE,
+    action_type TEXT NOT NULL CHECK (action_type IN ('backup_initiated', 'backup_completed', 'backup_failed', 'restore_initiated', 'restore_completed', 'restore_failed', 'drill_scheduled', 'drill_completed', 'approval_given', 'access_granted', 'encryption_rotated', 'retention_policy_changed')),
+    resource_type TEXT NOT NULL CHECK (resource_type IN ('backup', 'restore_event', 'drill', 'policy')),
+    resource_id TEXT NOT NULL,
+    actor_identity TEXT NOT NULL,
+    actor_role TEXT NOT NULL,
+    action_details TEXT,
+    approval_status TEXT CHECK (approval_status IN ('pending', 'approved', 'rejected')),
+    approver_identity TEXT,
+    approver_notes TEXT,
+    compliance_context TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (audit_id)
+);
+
+CREATE TABLE IF NOT EXISTS backup_alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_id TEXT NOT NULL UNIQUE,
+    backup_execution_id TEXT,
+    restore_event_id TEXT,
+    alert_type TEXT NOT NULL CHECK (alert_type IN ('backup_missed', 'backup_failed', 'restore_failed', 'restore_incomplete', 'rpo_exceeded', 'rto_exceeded', 'encryption_key_expiring', 'storage_quota_exceeded', 'verification_failed')),
+    severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
+    message TEXT NOT NULL,
+    affected_dataset TEXT NOT NULL,
+    incident_target TEXT,
+    runbook_link TEXT,
+    retry_backoff_seconds INTEGER,
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'acknowledged', 'resolved')),
+    acknowledged_by TEXT,
+    acknowledged_at TEXT,
+    resolved_at TEXT,
+    resolution_notes TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (alert_id)
+);
+
+CREATE TABLE IF NOT EXISTS drill_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_id TEXT NOT NULL UNIQUE,
+    drill_id TEXT NOT NULL,
+    drill_date TEXT NOT NULL,
+    drill_outcome TEXT NOT NULL CHECK (drill_outcome IN ('success', 'partial_success', 'failure')),
+    drill_duration_minutes INTEGER NOT NULL CHECK (drill_duration_minutes > 0),
+    rpo_achieved_minutes INTEGER,
+    rto_achieved_minutes INTEGER,
+    rpo_target_minutes INTEGER NOT NULL,
+    rto_target_minutes INTEGER NOT NULL,
+    rpo_target_met INTEGER CHECK (rpo_target_met IN (0, 1)),
+    rto_target_met INTEGER CHECK (rto_target_met IN (0, 1)),
+    integrity_checks_passed INTEGER CHECK (integrity_checks_passed IN (0, 1)),
+    critical_queries_validated INTEGER CHECK (critical_queries_validated IN (0, 1)),
+    blockers TEXT,
+    remediation_actions TEXT,
+    executed_by TEXT NOT NULL,
+    approved_by TEXT,
+    approved_at TEXT,
+    report_path TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (report_id)
+);
+
+-- ============================================================================
+-- BACKUP INDEXES
+-- ============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_backup_executions_policy
+    ON backup_executions (policy_id, status, started_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_backup_executions_dataset
+    ON backup_executions (dataset_name, status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_backup_executions_status
+    ON backup_executions (status, completed_at, started_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_restore_events_drill
+    ON restore_events (drill_id, status, completed_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_restore_events_dataset
+    ON restore_events (dataset_name, status, initiated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_restore_verification_event
+    ON restore_verification (restore_event_id, verification_type, status);
+
+CREATE INDEX IF NOT EXISTS idx_drill_reports_drill
+    ON drill_reports (drill_id, drill_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_drill_reports_outcome
+    ON drill_reports (drill_outcome, drill_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_backup_audit_trail_resource
+    ON backup_audit_trail (resource_type, resource_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_backup_audit_trail_actor
+    ON backup_audit_trail (actor_identity, action_type, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_backup_alerts_status
+    ON backup_alerts (status, severity, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_backup_alerts_dataset
+    ON backup_alerts (affected_dataset, alert_type, status);

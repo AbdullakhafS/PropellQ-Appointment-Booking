@@ -1,0 +1,29 @@
+{
+  "pipeline_name": "propellq_schema_migration_pipeline",
+  "versioning": "semantic",
+  "default_environment": "development",
+  "migrations": [
+    {
+      "version": "1.0.0",
+      "name": "production_schema_hardening",
+      "sql_file": "schema_v1_production.sql",
+      "rollback_sql_file": "migrations/0001__production_schema_hardening.rollback.sql",
+      "rollback_strategy": "restore_backup",
+      "requires_approval": true,
+      "destructive_patterns_allowed": false,
+      "verification_tables": [
+        "specialties",
+        "providers",
+        "appointments",
+        "patient_profiles",
+        "appointment_reservations",
+        "calendar_sync_queue"
+      ],
+      "smoke_queries": [
+        "SELECT COUNT(*) FROM appointments",
+        "SELECT COUNT(*) FROM patient_profiles",
+        "SELECT COUNT(*) FROM calendar_sync_queue"
+      ]
+    }
+  ]
+}
