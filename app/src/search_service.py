@@ -24,14 +24,16 @@ class ValidationResult:
 
 def parse_filters(params: dict[str, str], connection: sqlite3.Connection) -> ValidationResult:
     errors: list[str] = []
+    page = _parse_int(params.get("page"), 1, "page", errors)
+    page_size = _parse_int(params.get("pageSize"), 10, "pageSize", errors)
     parsed: dict[str, Any] = {
         "date_from": params.get("dateFrom", "").strip() or None,
         "date_to": params.get("dateTo", "").strip() or None,
         "time_of_day": params.get("timeOfDay", "").strip().lower() or None,
         "provider": params.get("provider", "").strip() or None,
         "specialty": params.get("specialty", "").strip() or None,
-        "page": int(params.get("page", "1") or "1"),
-        "page_size": int(params.get("pageSize", "10") or "10"),
+        "page": page,
+        "page_size": page_size,
         "sort_by": (params.get("sortBy", "date") or "date").strip().lower(),
         "sort_dir": (params.get("sortDir", "asc") or "asc").strip().lower(),
     }
@@ -81,6 +83,17 @@ def _validate_date(value: str, field_name: str, errors: list[str]) -> None:
         date.fromisoformat(value)
     except ValueError:
         errors.append(f"{field_name} must be ISO date (YYYY-MM-DD)")
+
+
+def _parse_int(raw: str | None, default: int, field_name: str, errors: list[str]) -> int:
+    value = (raw or "").strip()
+    if not value:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        errors.append(f"{field_name} must be an integer")
+        return default
 
 
 def search_appointments(connection: sqlite3.Connection, filters: dict[str, Any]) -> dict[str, Any]:
@@ -138,10 +151,14 @@ def search_appointments(connection: sqlite3.Connection, filters: dict[str, Any])
             a.start_time,
             a.end_time,
             a.location,
+            a.duration_minutes,
+            a.appointment_timezone,
             p.id AS provider_id,
             p.name AS provider_name,
             p.credentials,
             p.photo_url,
+            p.review_count,
+            p.bio,
             s.name AS specialty
         FROM appointments a
         INNER JOIN providers p ON p.id = a.provider_id
@@ -178,7 +195,7 @@ def suggest_providers(connection: sqlite3.Connection, query: str) -> list[dict[s
     value = f"%{query.lower()}%"
     rows = connection.execute(
         """
-        SELECT p.id, p.name, p.credentials, s.name AS specialty
+        SELECT p.id, p.name, p.credentials, p.photo_url, p.review_count, p.bio, s.name AS specialty
         FROM providers p
         INNER JOIN specialties s ON s.id = p.specialty_id
         WHERE p.is_active = 1
@@ -194,7 +211,7 @@ def suggest_providers(connection: sqlite3.Connection, query: str) -> list[dict[s
 def get_provider(connection: sqlite3.Connection, provider_id: int) -> dict[str, Any] | None:
     row = connection.execute(
         """
-        SELECT p.id, p.name, p.credentials, p.photo_url, s.name AS specialty
+        SELECT p.id, p.name, p.credentials, p.photo_url, p.review_count, p.bio, s.name AS specialty
         FROM providers p
         INNER JOIN specialties s ON s.id = p.specialty_id
         WHERE p.id = ?

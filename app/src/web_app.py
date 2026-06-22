@@ -9,6 +9,23 @@ from time import perf_counter
 from typing import Any
 from urllib.parse import parse_qs
 
+from src.booking_service import (
+    authorize_provider,
+    build_calendar_payload,
+    complete_provider_authorization,
+    create_checkout_reservation,
+    dashboard_metrics,
+    disconnect_provider,
+    finalize_booking,
+    get_appointment_details,
+    get_integration_state,
+    get_patient_profile,
+    process_calendar_sync_queue,
+    process_confirmation_queue,
+    process_due_reminders,
+    process_preferred_swaps,
+    run_pull_reconciliation,
+)
 from src.db import DEFAULT_DB_PATH, initialize_database, get_connection
 from src.search_service import (
     book_appointment,
@@ -83,13 +100,63 @@ def create_app(db_path: Path | None = None):
         if method == "GET" and path == "/api/providers/suggest":
             return _handle_provider_suggest(environ, start_response, selected_db)
 
+        if method == "GET" and path == "/api/appointments/calendar":
+            return _handle_calendar(environ, start_response, selected_db)
+
+        appointment_match = re.match(r"^/api/appointments/(\d+)$", path)
+        if method == "GET" and appointment_match:
+            return _handle_appointment_details(start_response, selected_db, int(appointment_match.group(1)))
+
         provider_match = re.match(r"^/api/providers/(\d+)$", path)
         if method == "GET" and provider_match:
             return _handle_provider_details(start_response, selected_db, int(provider_match.group(1)))
 
+        checkout_match = re.match(r"^/api/appointments/(\d+)/checkout$", path)
+        if method == "POST" and checkout_match:
+            return _handle_checkout(environ, start_response, selected_db, int(checkout_match.group(1)))
+
+        if method == "POST" and path == "/api/appointments/book":
+            return _handle_finalize_booking(environ, start_response, selected_db)
+
         book_match = re.match(r"^/api/appointments/(\d+)/book$", path)
         if method == "POST" and book_match:
             return _handle_book_appointment(start_response, selected_db, int(book_match.group(1)))
+
+        if method == "GET" and path == "/api/patient/profile":
+            return _handle_patient_profile(start_response, selected_db)
+
+        if method == "GET" and path == "/api/integrations/status":
+            return _handle_integration_status(start_response, selected_db)
+
+        auth_authorize_match = re.match(r"^/api/auth/(google|outlook)/authorize$", path)
+        if method == "GET" and auth_authorize_match:
+            return _handle_auth_authorize(start_response, selected_db, auth_authorize_match.group(1))
+
+        auth_callback_match = re.match(r"^/api/auth/(google|outlook)/callback$", path)
+        if method == "GET" and auth_callback_match:
+            return _handle_auth_callback(environ, start_response, selected_db, auth_callback_match.group(1))
+
+        auth_disconnect_match = re.match(r"^/api/auth/(google|outlook)/disconnect$", path)
+        if method == "POST" and auth_disconnect_match:
+            return _handle_auth_disconnect(start_response, selected_db, auth_disconnect_match.group(1))
+
+        if method == "POST" and path == "/api/jobs/process-confirmations":
+            return _handle_process_confirmations(start_response, selected_db)
+
+        if method == "POST" and path == "/api/jobs/process-reminders":
+            return _handle_process_reminders(start_response, selected_db)
+
+        if method == "POST" and path == "/api/jobs/process-swaps":
+            return _handle_process_swaps(start_response, selected_db)
+
+        if method == "POST" and path == "/api/jobs/process-calendar-sync":
+            return _handle_process_calendar_sync(start_response, selected_db)
+
+        if method == "POST" and path == "/api/jobs/reconcile-calendar-sync":
+            return _handle_reconcile_sync(start_response, selected_db)
+
+        if method == "GET" and path == "/api/dashboard/metrics":
+            return _handle_dashboard_metrics(start_response, selected_db)
 
         if method == "GET" and path == "/api/metrics/search":
             return _json_response(start_response, 200, {"success": True, "data": metrics.snapshot()})
@@ -166,6 +233,44 @@ def _handle_provider_suggest(environ, start_response, db_path: Path):
     return _json_response(start_response, 200, {"success": True, "data": rows})
 
 
+def _handle_calendar(environ, start_response, db_path: Path):
+    query_params = _flat_query_params(environ.get("QUERY_STRING", ""))
+    with get_connection(db_path) as connection:
+        validated = parse_filters(query_params, connection)
+        if validated.errors:
+            return _json_response(
+                start_response,
+                400,
+                {
+                    "success": False,
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "Invalid calendar parameters",
+                        "details": validated.errors,
+                    },
+                },
+            )
+        data = build_calendar_payload(
+            connection,
+            validated.data,
+            query_params.get("view", "month"),
+            query_params.get("anchorDate"),
+        )
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_appointment_details(start_response, db_path: Path, appointment_id: int):
+    with get_connection(db_path) as connection:
+        data = get_appointment_details(connection, appointment_id)
+    if data is None:
+        return _json_response(
+            start_response,
+            404,
+            {"success": False, "error": {"code": "APPOINTMENT_NOT_FOUND", "message": "Appointment not found"}},
+        )
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
 def _handle_provider_details(start_response, db_path: Path, provider_id: int):
     with get_connection(db_path) as connection:
         data = get_provider(connection, provider_id)
@@ -208,6 +313,151 @@ def _handle_book_appointment(start_response, db_path: Path, appointment_id: int)
         200,
         {"success": True, "data": {"appointmentId": appointment_id, "status": "booked"}},
     )
+
+
+def _handle_checkout(environ, start_response, db_path: Path, appointment_id: int):
+    payload = _read_json_body(environ)
+    with get_connection(db_path) as connection:
+        status_code, data = create_checkout_reservation(connection, appointment_id, payload)
+    success = status_code == 200
+    return _json_response(
+        start_response,
+        status_code,
+        {"success": success, "data": data} if success else {"success": False, "error": data},
+    )
+
+
+def _handle_finalize_booking(environ, start_response, db_path: Path):
+    payload = _read_json_body(environ)
+    reservation_token = payload.get("reservationToken")
+    if not reservation_token:
+        return _json_response(
+            start_response,
+            400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "reservationToken is required"}},
+        )
+    with get_connection(db_path) as connection:
+        status_code, data = finalize_booking(connection, reservation_token, payload)
+    success = status_code == 200
+    return _json_response(
+        start_response,
+        status_code,
+        {"success": success, "data": data} if success else {"success": False, "error": data},
+    )
+
+
+def _handle_patient_profile(start_response, db_path: Path):
+    with get_connection(db_path) as connection:
+        profile = get_patient_profile(connection)
+    return _json_response(start_response, 200, {"success": True, "data": profile})
+
+
+def _handle_integration_status(start_response, db_path: Path):
+    with get_connection(db_path) as connection:
+        data = get_integration_state(connection)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_auth_authorize(start_response, db_path: Path, provider: str):
+    with get_connection(db_path) as connection:
+        redirect_url = authorize_provider(connection, provider)
+    return _json_response(
+        start_response,
+        200,
+        {
+            "success": True,
+            "data": {
+                "provider": provider,
+                "authorizeUrl": redirect_url,
+                "message": f"PropellQ will request access to manage your {provider.title()} calendar events.",
+            },
+        },
+    )
+
+
+def _handle_auth_callback(environ, start_response, db_path: Path, provider: str):
+    params = _flat_query_params(environ.get("QUERY_STRING", ""))
+    with get_connection(db_path) as connection:
+        success, state = complete_provider_authorization(
+            connection,
+            provider,
+            params.get("state", ""),
+            params.get("code"),
+            params.get("error"),
+        )
+        integration = get_integration_state(connection)
+    if success:
+        return _json_response(
+            start_response,
+            200,
+            {
+                "success": True,
+                "data": {
+                    "provider": provider,
+                    "status": state,
+                    "integration": integration,
+                    "message": f"{provider.title()} Calendar connected! Appointments will be added automatically.",
+                },
+            },
+        )
+    return _json_response(
+        start_response,
+        400,
+        {
+            "success": False,
+            "error": {
+                "code": state.upper(),
+                "message": f"{provider.title()} Calendar authorization failed. Please try again or contact support.",
+            },
+        },
+    )
+
+
+def _handle_auth_disconnect(start_response, db_path: Path, provider: str):
+    with get_connection(db_path) as connection:
+        disconnect_provider(connection, provider)
+        integration = get_integration_state(connection)
+    return _json_response(
+        start_response,
+        200,
+        {"success": True, "data": {"provider": provider, "integration": integration}},
+    )
+
+
+def _handle_process_confirmations(start_response, db_path: Path):
+    with get_connection(db_path) as connection:
+        data = process_confirmation_queue(connection)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_process_reminders(start_response, db_path: Path):
+    with get_connection(db_path) as connection:
+        data = process_due_reminders(connection)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_process_swaps(start_response, db_path: Path):
+    with get_connection(db_path) as connection:
+        data = process_preferred_swaps(connection)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_process_calendar_sync(start_response, db_path: Path):
+    with get_connection(db_path) as connection:
+        data = process_calendar_sync_queue(connection)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_reconcile_sync(start_response, db_path: Path):
+    with get_connection(db_path) as connection:
+        data = run_pull_reconciliation(connection)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_dashboard_metrics(start_response, db_path: Path):
+    with get_connection(db_path) as connection:
+        data = dashboard_metrics(connection)
+    return _json_response(start_response, 200, {"success": True, "data": data})
 
 
 def _serve_static(path: str, start_response):
@@ -254,8 +504,19 @@ def _status_text(status_code: int) -> str:
         403: "Forbidden",
         404: "Not Found",
         409: "Conflict",
+        410: "Gone",
     }
     return text.get(status_code, "OK")
+
+
+def _read_json_body(environ) -> dict[str, Any]:
+    size = int(environ.get("CONTENT_LENGTH") or 0)
+    if size <= 0:
+        return {}
+    payload = environ["wsgi.input"].read(size).decode("utf-8")
+    if not payload:
+        return {}
+    return json.loads(payload)
 
 
 def _flat_query_params(query_string: str) -> dict[str, str]:

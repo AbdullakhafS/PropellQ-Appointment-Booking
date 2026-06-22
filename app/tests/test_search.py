@@ -68,6 +68,29 @@ class AppointmentSearchTests(unittest.TestCase):
             self.assertGreaterEqual(item["start_time"], "05:00")
             self.assertLessEqual(item["start_time"], "11:59")
 
+    def test_validation_rejects_non_integer_page(self):
+        status, payload = self._request("GET", "/api/appointments/search?page=first")
+        self.assertTrue(status.startswith("400"))
+        self.assertEqual(payload["error"]["code"], "VALIDATION_ERROR")
+
+    def test_sorting_by_provider_is_deterministic(self):
+        status, payload = self._request(
+            "GET",
+            "/api/appointments/search?sortBy=provider&sortDir=asc&page=1&pageSize=10",
+        )
+        self.assertTrue(status.startswith("200"))
+        names = [item["provider_name"] for item in payload["data"]["items"]]
+        self.assertEqual(names, sorted(names))
+
+    def test_empty_result_query_returns_zero_items(self):
+        status, payload = self._request(
+            "GET",
+            "/api/appointments/search?dateFrom=2099-01-01&dateTo=2099-01-05&pageSize=10",
+        )
+        self.assertTrue(status.startswith("200"))
+        self.assertEqual(payload["data"]["items"], [])
+        self.assertEqual(payload["data"]["pagination"]["total"], 0)
+
     def test_booking_endpoint_updates_status(self):
         status, payload = self._request("GET", "/api/appointments/search?page=1&pageSize=1")
         self.assertTrue(status.startswith("200"))
