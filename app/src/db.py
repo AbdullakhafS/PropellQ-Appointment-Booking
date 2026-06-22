@@ -26,6 +26,7 @@ def initialize_database(db_path: Path | None = None) -> None:
         schema_sql = SCHEMA_PATH.read_text(encoding="utf-8")
         connection.executescript(schema_sql)
         _seed_if_empty(connection)
+        _seed_supporting_records(connection)
 
 
 def _seed_if_empty(connection: sqlite3.Connection) -> None:
@@ -42,12 +43,60 @@ def _seed_if_empty(connection: sqlite3.Connection) -> None:
         (6, "Pediatrics"),
     ]
     providers = [
-        (1, "Dr. Ava Patel", "MD", 1, "https://example.com/providers/ava.jpg"),
-        (2, "Dr. Lucas Kim", "MD", 2, "https://example.com/providers/lucas.jpg"),
-        (3, "Dr. Nora Singh", "DO", 3, "https://example.com/providers/nora.jpg"),
-        (4, "Dr. Ethan Brooks", "MD", 4, "https://example.com/providers/ethan.jpg"),
-        (5, "Dr. Mia Chen", "MD", 5, "https://example.com/providers/mia.jpg"),
-        (6, "Dr. Sophia Diaz", "MD", 6, "https://example.com/providers/sophia.jpg"),
+        (
+            1,
+            "Dr. Ava Patel",
+            "MD",
+            1,
+            "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=640&q=80",
+            184,
+            "Heart rhythm specialist focused on preventive care and same-week access.",
+        ),
+        (
+            2,
+            "Dr. Lucas Kim",
+            "MD",
+            2,
+            "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=640&q=80",
+            126,
+            "Dermatology lead with fast virtual follow-up and procedural consults.",
+        ),
+        (
+            3,
+            "Dr. Nora Singh",
+            "DO",
+            3,
+            "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&w=640&q=80",
+            241,
+            "Primary care physician coordinating preventive visits and chronic care plans.",
+        ),
+        (
+            4,
+            "Dr. Ethan Brooks",
+            "MD",
+            4,
+            "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=640&q=80",
+            98,
+            "Neurology consultant specializing in migraine, balance, and diagnostic reviews.",
+        ),
+        (
+            5,
+            "Dr. Mia Chen",
+            "MD",
+            5,
+            "https://images.unsplash.com/photo-1651008376811-b90baee60c1f?auto=format&fit=crop&w=640&q=80",
+            153,
+            "Orthopedics surgeon focused on sports injuries, joint pain, and rehab planning.",
+        ),
+        (
+            6,
+            "Dr. Sophia Diaz",
+            "MD",
+            6,
+            "https://images.unsplash.com/photo-1614436163996-25cee5f54290?auto=format&fit=crop&w=640&q=80",
+            211,
+            "Pediatrics physician with extended family scheduling and vaccine counseling.",
+        ),
     ]
     locations = [
         "Downtown Clinic",
@@ -59,7 +108,19 @@ def _seed_if_empty(connection: sqlite3.Connection) -> None:
         "INSERT INTO specialties(id, name, is_active) VALUES (?, ?, 1)", specialties
     )
     connection.executemany(
-        "INSERT INTO providers(id, name, credentials, specialty_id, photo_url, is_active) VALUES (?, ?, ?, ?, ?, 1)",
+        """
+        INSERT INTO providers(
+            id,
+            name,
+            credentials,
+            specialty_id,
+            photo_url,
+            review_count,
+            bio,
+            is_active
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        """,
         providers,
     )
 
@@ -75,7 +136,7 @@ def _seed_if_empty(connection: sqlite3.Connection) -> None:
 
     for offset in range(0, 45):
         day_value = (start_day + timedelta(days=offset)).isoformat()
-        for provider_id, _name, _credentials, specialty_id, _photo_url in providers:
+        for provider_id, _name, _credentials, specialty_id, _photo_url, _review_count, _bio in providers:
             for start_time, end_time in time_blocks:
                 status = "available" if random.random() > 0.15 else "booked"
                 slots.append(
@@ -108,4 +169,73 @@ def _seed_if_empty(connection: sqlite3.Connection) -> None:
         """,
         slots,
     )
+    connection.commit()
+
+
+def _seed_supporting_records(connection: sqlite3.Connection) -> None:
+    patient_exists = connection.execute(
+        "SELECT COUNT(*) AS count FROM patient_profiles WHERE id = 1"
+    ).fetchone()["count"]
+    if patient_exists == 0:
+        connection.execute(
+            """
+            INSERT INTO patient_profiles(
+                id,
+                first_name,
+                last_name,
+                email,
+                phone,
+                preferred_timezone,
+                reminder_channels,
+                do_not_disturb
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+            """,
+            (
+                1,
+                "Alex",
+                "Morgan",
+                "alex.morgan@example.com",
+                "+1-312-555-0186",
+                "America/Chicago",
+                '["sms", "email"]',
+            ),
+        )
+
+    session_exists = connection.execute(
+        "SELECT COUNT(*) AS count FROM patient_sessions WHERE patient_profile_id = 1"
+    ).fetchone()["count"]
+    if session_exists == 0:
+        connection.execute(
+            """
+            INSERT INTO patient_sessions(
+                patient_profile_id,
+                google_auth_status,
+                outlook_auth_status
+            )
+            VALUES (?, 'revoked', 'revoked')
+            """,
+            (1,),
+        )
+
+    provider_rows = connection.execute("SELECT id FROM providers").fetchall()
+    for provider in provider_rows:
+        for calendar_type in ("google", "outlook"):
+            exists = connection.execute(
+                """
+                SELECT COUNT(*) AS count
+                FROM provider_calendar_state
+                WHERE provider_id = ? AND calendar_type = ?
+                """,
+                (provider["id"], calendar_type),
+            ).fetchone()["count"]
+            if exists == 0:
+                connection.execute(
+                    """
+                    INSERT INTO provider_calendar_state(provider_id, calendar_type, webhook_enabled)
+                    VALUES (?, ?, 0)
+                    """,
+                    (provider["id"], calendar_type),
+                )
+
     connection.commit()

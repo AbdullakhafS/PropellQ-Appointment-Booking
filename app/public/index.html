@@ -3,52 +3,86 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PropellQ Appointment Search</title>
+    <title>PropellQ Booking Experience</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="bg-orb orb-1" aria-hidden="true"></div>
-    <div class="bg-orb orb-2" aria-hidden="true"></div>
+    <div class="ambient ambient-a" aria-hidden="true"></div>
+    <div class="ambient ambient-b" aria-hidden="true"></div>
 
-    <header class="hero">
-      <p class="eyebrow">Patient Self-Service Booking</p>
-      <h1>Find Your Next Appointment in Seconds</h1>
-      <p class="lead">
-        Combine date, time, provider, and specialty filters to discover real-time available slots.
-      </p>
+    <header class="hero-shell">
+      <div class="hero-copy">
+        <p class="eyebrow">Unified Patient Booking</p>
+        <h1>Search, compare, reserve, and sync your appointment in one flow.</h1>
+        <p class="lead">
+          Mobile-first scheduling with calendar discovery, 60-second slot reservation, confirmation delivery, reminders,
+          and Google/Outlook calendar connections.
+        </p>
+      </div>
+      <aside class="hero-metrics" aria-label="Platform metrics">
+        <div class="metric-card">
+          <span class="metric-label">Response target</span>
+          <strong>&lt; 2s</strong>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Reminder windows</span>
+          <strong>48h / 24h / 2h</strong>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Calendar sync</span>
+          <strong>Google + Outlook</strong>
+        </div>
+      </aside>
     </header>
 
-    <main class="layout" id="mainContent">
-      <section class="filters-panel" aria-labelledby="filtersTitle">
-        <div class="panel-header">
-          <h2 id="filtersTitle">Search Filters</h2>
+    <main class="app-shell" id="mainContent">
+      <aside class="sidebar-panel" aria-labelledby="filtersTitle">
+        <div class="panel-header panel-header--stacked">
+          <div>
+            <h2 id="filtersTitle">Find availability</h2>
+            <p class="panel-copy">Filters stack at 375px, split into denser layout at tablet, and stay sticky on desktop.</p>
+          </div>
           <button id="clearFiltersButton" class="ghost-btn" type="button">Clear all</button>
         </div>
 
         <form id="searchFilters" class="filters-form" novalidate>
           <fieldset>
             <legend>Date range</legend>
-            <label for="dateFrom">From</label>
-            <input id="dateFrom" name="dateFrom" type="date" />
-            <label for="dateTo">To</label>
-            <input id="dateTo" name="dateTo" type="date" />
+            <div class="field-pair">
+              <div class="field">
+                <label for="dateFrom">From</label>
+                <input id="dateFrom" name="dateFrom" type="date" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="dateTo">To</label>
+                <input id="dateTo" name="dateTo" type="date" autocomplete="off" />
+              </div>
+            </div>
           </fieldset>
 
           <fieldset>
-            <legend>Time of day</legend>
-            <label for="timeOfDay">Preferred time</label>
-            <select id="timeOfDay" name="timeOfDay">
-              <option value="">Any</option>
-              <option value="morning">Morning</option>
-              <option value="afternoon">Afternoon</option>
-              <option value="evening">Evening</option>
-            </select>
+            <legend>Time and specialty</legend>
+            <div class="field">
+              <label for="timeOfDay">Time of day</label>
+              <select id="timeOfDay" name="timeOfDay">
+                <option value="">Any</option>
+                <option value="morning">Morning</option>
+                <option value="afternoon">Afternoon</option>
+                <option value="evening">Evening</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="specialty">Clinical specialty</label>
+              <select id="specialty" name="specialty">
+                <option value="">Any specialty</option>
+              </select>
+            </div>
           </fieldset>
 
           <fieldset>
@@ -57,7 +91,7 @@
             <input
               id="provider"
               name="provider"
-              type="text"
+              type="search"
               autocomplete="off"
               role="combobox"
               aria-autocomplete="list"
@@ -67,48 +101,214 @@
             />
             <ul id="providerSuggestions" class="suggestions" role="listbox" aria-label="Provider suggestions"></ul>
           </fieldset>
-
-          <fieldset>
-            <legend>Specialty</legend>
-            <label for="specialty">Clinical specialty</label>
-            <select id="specialty" name="specialty">
-              <option value="">Any specialty</option>
-            </select>
-          </fieldset>
         </form>
 
         <aside class="filter-summary" aria-live="polite" id="filterSummary">No active filters.</aside>
-      </section>
 
-      <section class="results-panel" aria-labelledby="resultsTitle">
-        <div class="results-toolbar">
-          <h2 id="resultsTitle">Available Slots</h2>
-          <div class="sort-group">
-            <label for="sortBy">Sort by</label>
-            <select id="sortBy" name="sortBy">
-              <option value="date">Date</option>
-              <option value="provider">Provider</option>
-            </select>
+        <section class="integration-panel" aria-labelledby="integrationTitle">
+          <div class="panel-header">
+            <div>
+              <h3 id="integrationTitle">Calendar connections</h3>
+              <p class="panel-copy">PropellQ will request access to manage your calendar events.</p>
+            </div>
           </div>
+          <div class="integration-card" id="googleIntegrationCard">
+            <div>
+              <strong>Google Calendar</strong>
+              <p class="small-copy">Create and manage Google events for confirmed appointments.</p>
+            </div>
+            <span class="badge" id="googleIntegrationBadge">Not Connected</span>
+            <div class="integration-actions">
+              <button id="connectGoogleButton" type="button">Connect Google</button>
+              <button id="disconnectGoogleButton" class="ghost-btn" type="button">Disconnect</button>
+            </div>
+          </div>
+          <div class="integration-card" id="outlookIntegrationCard">
+            <div>
+              <strong>Outlook Calendar</strong>
+              <p class="small-copy">Enable Microsoft sync with offline access for future updates.</p>
+            </div>
+            <span class="badge" id="outlookIntegrationBadge">Not Connected</span>
+            <div class="integration-actions">
+              <button id="connectOutlookButton" type="button">Connect Outlook</button>
+              <button id="disconnectOutlookButton" class="ghost-btn" type="button">Disconnect</button>
+            </div>
+          </div>
+          <p id="integrationStatusMessage" class="status-inline" aria-live="polite"></p>
+        </section>
+      </aside>
+
+      <section class="content-panel" aria-labelledby="calendarTitle">
+        <section class="results-shell" aria-labelledby="resultsTitle">
+          <div class="results-header">
+            <div>
+              <h2 id="resultsTitle">Search results</h2>
+              <p class="panel-copy">Live cards update as filters stack, with deterministic sorting and shareable query state.</p>
+            </div>
+            <div class="results-toolbar">
+              <div class="field compact-field">
+                <label for="sortBy">Sort by</label>
+                <select id="sortBy" name="sortBy">
+                  <option value="date">Date</option>
+                  <option value="provider">Provider</option>
+                </select>
+              </div>
+              <div class="field compact-field">
+                <label for="sortDir">Direction</label>
+                <select id="sortDir" name="sortDir">
+                  <option value="asc">Ascending</option>
+                  <option value="desc">Descending</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="status-row" aria-live="polite">
+            <p id="resultsSummary" class="results-summary">Searching available slots...</p>
+            <p id="searchMetricsSummary" class="results-summary"></p>
+          </div>
+
+          <div id="searchResults" class="results-grid"></div>
+
+          <div id="searchEmptyState" class="empty-state" hidden>
+            <h3>No slots available for selected filters.</h3>
+            <p>Try extending the date range, choosing a different specialty, or clearing the provider name filter.</p>
+            <div class="empty-actions">
+              <button id="expandDateRangeButton" class="ghost-btn" type="button">Extend date range by 7 days</button>
+              <button id="clearEmptyStateFiltersButton" type="button">Clear filters</button>
+            </div>
+          </div>
+
+          <div class="pagination-bar" aria-label="Search results pagination">
+            <button id="previousPageButton" class="ghost-btn" type="button">Previous page</button>
+            <span id="paginationLabel">Page 1 of 1</span>
+            <button id="nextPageButton" class="ghost-btn" type="button">Next page</button>
+          </div>
+        </section>
+
+        <div class="calendar-shell">
+          <div class="calendar-toolbar">
+            <div>
+              <h2 id="calendarTitle">Calendar discovery</h2>
+              <p class="panel-copy">Month view defaults on desktop, two-week calendar on tablet, week-first interaction on touch.</p>
+            </div>
+            <div class="toolbar-actions">
+              <div class="segmented-control" role="group" aria-label="Calendar view mode">
+                <button id="monthViewButton" type="button" class="is-active">Month</button>
+                <button id="weekViewButton" type="button">Week</button>
+              </div>
+              <button id="previousRangeButton" class="ghost-btn" type="button" aria-label="Previous calendar range">Previous</button>
+              <button id="nextRangeButton" class="ghost-btn" type="button" aria-label="Next calendar range">Next</button>
+            </div>
+          </div>
+
+          <div class="timezone-bar">
+            <span id="calendarRangeLabel">Loading range...</span>
+            <span id="timezoneLabel">Local timezone</span>
+          </div>
+
+          <div id="calendarGrid" class="calendar-grid" aria-live="polite"></div>
+          <p class="calendar-footnote" id="calendarFootnote">Times shown in patient local timezone; sync stored in UTC.</p>
         </div>
 
-        <p id="statusMessage" class="status" role="status" aria-live="polite"></p>
-        <div id="resultsList" class="cards" aria-live="polite"></div>
+        <div class="flow-grid">
+          <section class="details-panel" aria-labelledby="selectionTitle">
+            <div class="panel-header panel-header--stacked">
+              <div>
+                <h2 id="selectionTitle">Slot details</h2>
+                <p class="panel-copy">Tap a slot to preview provider details and reserve a 60-second checkout lock.</p>
+              </div>
+            </div>
+            <div id="selectedSlotDetails" class="slot-empty-state">
+              Select a slot from the calendar to view provider details, location, duration, and reserve it for checkout.
+            </div>
+          </section>
 
-        <div id="emptyState" class="empty-state" hidden>
-          <h3>No slots available for selected filters.</h3>
-          <p>Try extending your date range or choosing a different specialty.</p>
-          <div class="empty-actions">
-            <button type="button" id="expandRangeButton">Extend by 14 days</button>
-            <button type="button" id="emptyClearButton" class="ghost-btn">Clear filters</button>
-          </div>
+          <section class="checkout-panel" aria-labelledby="checkoutTitle">
+            <div class="panel-header panel-header--stacked">
+              <div>
+                <h2 id="checkoutTitle">Checkout</h2>
+                <p class="panel-copy">Single-flow mobile form with native inputs, autocomplete, inline validation, and sticky submit action.</p>
+              </div>
+              <div class="countdown-pill" id="reservationCountdown">No active reservation</div>
+            </div>
+
+            <form id="checkoutForm" class="checkout-form" novalidate>
+              <div class="checkout-grid">
+                <div class="field">
+                  <label for="firstName">First name</label>
+                  <input id="firstName" name="firstName" type="text" autocomplete="given-name" required />
+                  <small id="firstNameError" class="error-text" aria-live="polite"></small>
+                </div>
+                <div class="field">
+                  <label for="lastName">Last name</label>
+                  <input id="lastName" name="lastName" type="text" autocomplete="family-name" required />
+                  <small id="lastNameError" class="error-text" aria-live="polite"></small>
+                </div>
+                <div class="field">
+                  <label for="email">Email</label>
+                  <input id="email" name="email" type="email" autocomplete="email" required />
+                  <small id="emailError" class="error-text" aria-live="polite"></small>
+                </div>
+                <div class="field">
+                  <label for="phone">Phone</label>
+                  <input id="phone" name="phone" type="tel" autocomplete="tel" required />
+                  <small id="phoneError" class="error-text" aria-live="polite"></small>
+                </div>
+                <div class="field">
+                  <label for="timezone">Timezone</label>
+                  <input id="timezone" name="timezone" type="text" autocomplete="off" required />
+                </div>
+                <div class="field">
+                  <label for="preferredSlotId">Preferred slot swap</label>
+                  <select id="preferredSlotId" name="preferredSlotId">
+                    <option value="">No preferred slot</option>
+                  </select>
+                </div>
+                <div class="field field--full">
+                  <label for="notes">Booking notes</label>
+                  <textarea id="notes" name="notes" rows="3" placeholder="Optional details for the care team"></textarea>
+                </div>
+                <fieldset class="field field--full channel-group">
+                  <legend>Reminder channels</legend>
+                  <label><input type="checkbox" name="reminderChannel" value="sms" checked /> SMS</label>
+                  <label><input type="checkbox" name="reminderChannel" value="email" checked /> Email</label>
+                </fieldset>
+              </div>
+
+              <section class="summary-box" aria-labelledby="summaryTitle">
+                <h3 id="summaryTitle">Confirmation summary</h3>
+                <div id="bookingSummary">Choose a slot to populate your final summary.</div>
+              </section>
+
+              <div class="sticky-cta">
+                <button id="reserveSlotButton" class="ghost-btn full-width-button" type="button">Reserve slot</button>
+                <button id="bookNowButton" class="full-width-button" type="submit">Book Now</button>
+              </div>
+              <p id="checkoutStatusMessage" class="status-inline" aria-live="polite"></p>
+            </form>
+          </section>
         </div>
 
-        <nav class="pagination" aria-label="Search results pages">
-          <button id="prevPageButton" type="button">Previous</button>
-          <span id="pageLabel">Page 1</span>
-          <button id="nextPageButton" type="button">Next</button>
-        </nav>
+        <section class="ops-panel" aria-labelledby="opsTitle">
+          <div class="panel-header panel-header--stacked">
+            <div>
+              <h2 id="opsTitle">Delivery and sync operations</h2>
+              <p class="panel-copy">Use the background processors to simulate confirmation delivery, reminders, preferred swaps, and calendar fan-out.</p>
+            </div>
+            <button id="refreshMetricsButton" class="ghost-btn" type="button">Refresh metrics</button>
+          </div>
+
+          <div class="ops-actions">
+            <button id="processConfirmationsButton" type="button">Process confirmations</button>
+            <button id="processRemindersButton" type="button">Process reminders</button>
+            <button id="processSwapsButton" type="button">Process preferred swaps</button>
+            <button id="processCalendarSyncButton" type="button">Run calendar sync</button>
+          </div>
+
+          <div class="ops-metrics" id="dashboardMetrics"></div>
+          <p id="opsStatusMessage" class="status-inline" aria-live="polite"></p>
+        </section>
       </section>
     </main>
 
