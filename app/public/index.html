@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PropellQ Appointment Search</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="bg-orb orb-1" aria-hidden="true"></div>
+    <div class="bg-orb orb-2" aria-hidden="true"></div>
+
+    <header class="hero">
+      <p class="eyebrow">Patient Self-Service Booking</p>
+      <h1>Find Your Next Appointment in Seconds</h1>
+      <p class="lead">
+        Combine date, time, provider, and specialty filters to discover real-time available slots.
+      </p>
+    </header>
+
+    <main class="layout" id="mainContent">
+      <section class="filters-panel" aria-labelledby="filtersTitle">
+        <div class="panel-header">
+          <h2 id="filtersTitle">Search Filters</h2>
+          <button id="clearFiltersButton" class="ghost-btn" type="button">Clear all</button>
+        </div>
+
+        <form id="searchFilters" class="filters-form" novalidate>
+          <fieldset>
+            <legend>Date range</legend>
+            <label for="dateFrom">From</label>
+            <input id="dateFrom" name="dateFrom" type="date" />
+            <label for="dateTo">To</label>
+            <input id="dateTo" name="dateTo" type="date" />
+          </fieldset>
+
+          <fieldset>
+            <legend>Time of day</legend>
+            <label for="timeOfDay">Preferred time</label>
+            <select id="timeOfDay" name="timeOfDay">
+              <option value="">Any</option>
+              <option value="morning">Morning</option>
+              <option value="afternoon">Afternoon</option>
+              <option value="evening">Evening</option>
+            </select>
+          </fieldset>
+
+          <fieldset>
+            <legend>Provider</legend>
+            <label for="provider">Provider name</label>
+            <input
+              id="provider"
+              name="provider"
+              type="text"
+              autocomplete="off"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded="false"
+              aria-controls="providerSuggestions"
+              placeholder="Type at least 2 letters"
+            />
+            <ul id="providerSuggestions" class="suggestions" role="listbox" aria-label="Provider suggestions"></ul>
+          </fieldset>
+
+          <fieldset>
+            <legend>Specialty</legend>
+            <label for="specialty">Clinical specialty</label>
+            <select id="specialty" name="specialty">
+              <option value="">Any specialty</option>
+            </select>
+          </fieldset>
+        </form>
+
+        <aside class="filter-summary" aria-live="polite" id="filterSummary">No active filters.</aside>
+      </section>
+
+      <section class="results-panel" aria-labelledby="resultsTitle">
+        <div class="results-toolbar">
+          <h2 id="resultsTitle">Available Slots</h2>
+          <div class="sort-group">
+            <label for="sortBy">Sort by</label>
+            <select id="sortBy" name="sortBy">
+              <option value="date">Date</option>
+              <option value="provider">Provider</option>
+            </select>
+          </div>
+        </div>
+
+        <p id="statusMessage" class="status" role="status" aria-live="polite"></p>
+        <div id="resultsList" class="cards" aria-live="polite"></div>
+
+        <div id="emptyState" class="empty-state" hidden>
+          <h3>No slots available for selected filters.</h3>
+          <p>Try extending your date range or choosing a different specialty.</p>
+          <div class="empty-actions">
+            <button type="button" id="expandRangeButton">Extend by 14 days</button>
+            <button type="button" id="emptyClearButton" class="ghost-btn">Clear filters</button>
+          </div>
+        </div>
+
+        <nav class="pagination" aria-label="Search results pages">
+          <button id="prevPageButton" type="button">Previous</button>
+          <span id="pageLabel">Page 1</span>
+          <button id="nextPageButton" type="button">Next</button>
+        </nav>
+      </section>
+    </main>
+
+    <dialog id="providerDialog" aria-labelledby="providerDialogTitle">
+      <h3 id="providerDialogTitle">Provider details</h3>
+      <div id="providerDialogBody"></div>
+      <form method="dialog">
+        <button type="submit">Close</button>
+      </form>
+    </dialog>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
