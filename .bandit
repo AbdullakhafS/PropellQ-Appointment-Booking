@@ -1,0 +1,60 @@
+# Bandit SAST Configuration
+# See: https://bandit.readthedocs.io/
+
+[bandit]
+exclude_dirs = ['.git', '.venv', 'venv', 'tests', '.pytest_cache']
+tests = [
+  'B101',  # assert_used
+  'B102',  # exec_used
+  'B103',  # set_bad_file_permissions
+  'B104',  # hardcoded_bind_all_interfaces
+  'B105',  # hardcoded_password_string
+  'B106',  # hardcoded_password_funcarg
+  'B107',  # hardcoded_password_default
+  'B108',  # hardcoded_tmp_directory
+  'B110',  # try_except_pass
+  'B112',  # try_except_continue
+  'B201',  # flask_debug_true
+  'B301',  # pickle
+  'B302',  # marshal
+  'B303',  # md5
+  'B304',  # ciphers
+  'B305',  # cipher_modes
+  'B306',  # mktemp_q
+  'B307',  # eval
+  'B308',  # mark_safe
+  'B309',  # httpsconnection
+  'B310',  # urllib_urlopen
+  'B311',  # random
+  'B312',  # telnetlib
+  'B313',  # xml_bad_etree
+  'B314',  # xml_bad_expat
+  'B315',  # xml_bad_sax
+  'B316',  # xml_bad_pulldom
+  'B317',  # xml_bad_minidom
+  'B318',  # xml_bad_etree
+  'B319',  # xml_bad_etree
+  'B320',  # xml_bad_etree
+  'B321',  # ftplib
+  'B322',  # input
+  'B323',  # unverified_context
+  'B324',  # hashlib
+  'B325',  # tempnam
+]
+
+# Severity levels
+assert_used = 'LOW'
+exec_used = 'CRITICAL'
+eval_used = 'CRITICAL'
+hardcoded_password = 'CRITICAL'
+hardcoded_sql_expressions = 'MEDIUM'
+request_verify = 'MEDIUM'
+ssl_with_bad_version = 'CRITICAL'
+ssl_with_bad_defaults = 'CRITICAL'
+
+[bandit:assert_used]
+skips = ['*/tests/*', '*/test_*.py']
+
+# Skip specific files from checks
+[bandit:skip_dirs]
+skip = []
