@@ -4,7 +4,7 @@
 **Source File:** `.propel/context/tasks/EP-003/us_022/us_022.md`
 **Priority:** HIGH
 **Estimated Effort:** 3-4 dev days
-**Status:** Planned
+**Status:** Completed
 **Created:** 2026-06-18
 
 ---
@@ -80,11 +80,11 @@ Implement a tabbed patient profile UI presenting intake summary, medications, al
 
 ## 5. Definition of Done
 
-- [ ] Tabbed profile UI with four tabs implemented.
-- [ ] Source attribution and drill-down functioning.
-- [ ] Role-based PHI access enforced.
-- [ ] Responsive behavior validated.
-- [ ] AC-1 through AC-4 validated.
+- [x] Tabbed profile UI with four tabs implemented.
+- [x] Source attribution and drill-down functioning.
+- [x] Role-based PHI access enforced.
+- [x] Responsive behavior validated.
+- [x] AC-1 through AC-4 validated.
 
 ---
 

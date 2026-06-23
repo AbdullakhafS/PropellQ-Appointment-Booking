@@ -31,6 +31,20 @@ const state = {
     google: { connected: false, status: "revoked" },
     outlook: { connected: false, status: "revoked" },
   },
+  clinical: {
+    patientId: 1,
+    profile: null,
+    conflicts: [],
+    activeTab: "overview",
+  },
+  coding: {
+    patientId: 1,
+    suggestions: [],
+    allergyConflicts: [],
+    conflictQueue: [],
+    thresholds: { icd10: 0.70, cpt: 0.75 },
+    activeTab: "suggestions",
+  },
 };
 
 const elements = {
@@ -88,6 +102,46 @@ const elements = {
   opsStatusMessage: document.getElementById("opsStatusMessage"),
   conflictDialog: document.getElementById("conflictDialog"),
   conflictDialogDismiss: document.getElementById("conflictDialogDismiss"),
+  // EP-003: Clinical profile
+  loadClinicalProfileButton: document.getElementById("loadClinicalProfileButton"),
+  runConflictCheckButton: document.getElementById("runConflictCheckButton"),
+  clinicalFileInput: document.getElementById("clinicalFileInput"),
+  uploadDocumentButton: document.getElementById("uploadDocumentButton"),
+  uploadStatusMessage: document.getElementById("uploadStatusMessage"),
+  conflictAlertsContainer: document.getElementById("conflictAlertsContainer"),
+  conflictAlertsList: document.getElementById("conflictAlertsList"),
+  medicationsBadge: document.getElementById("medicationsBadge"),
+  profileOverviewContent: document.getElementById("profileOverviewContent"),
+  medicationsList: document.getElementById("medicationsList"),
+  allergiesList: document.getElementById("allergiesList"),
+  diagnosesList: document.getElementById("diagnosesList"),
+  medicationsEmpty: document.getElementById("medicationsEmpty"),
+  allergiesEmpty: document.getElementById("allergiesEmpty"),
+  diagnosesEmpty: document.getElementById("diagnosesEmpty"),
+  clinicalProfileStatus: document.getElementById("clinicalProfileStatus"),
+  // EP-003: Coding Review
+  generateSuggestionsButton: document.getElementById("generateSuggestionsButton"),
+  loadConflictQueueButton: document.getElementById("loadConflictQueueButton"),
+  reviewOnlyFilter: document.getElementById("reviewOnlyFilter"),
+  codeTypeFilter: document.getElementById("codeTypeFilter"),
+  suggestionsList: document.getElementById("suggestionsList"),
+  suggestionsEmpty: document.getElementById("suggestionsEmpty"),
+  reviewQueueBadge: document.getElementById("reviewQueueBadge"),
+  allergyConflictList: document.getElementById("allergyConflictList"),
+  allergyConflictEmpty: document.getElementById("allergyConflictEmpty"),
+  allergyConflictBadge: document.getElementById("allergyConflictBadge"),
+  conflictQueueList: document.getElementById("conflictQueueList"),
+  conflictQueueEmpty: document.getElementById("conflictQueueEmpty"),
+  conflictQueueBadge: document.getElementById("conflictQueueBadge"),
+  icd10ThresholdSlider: document.getElementById("icd10ThresholdSlider"),
+  icd10ThresholdValue: document.getElementById("icd10ThresholdValue"),
+  cptThresholdSlider: document.getElementById("cptThresholdSlider"),
+  cptThresholdValue: document.getElementById("cptThresholdValue"),
+  saveIcd10ThresholdButton: document.getElementById("saveIcd10ThresholdButton"),
+  saveCptThresholdButton: document.getElementById("saveCptThresholdButton"),
+  thresholdRoleInput: document.getElementById("thresholdRoleInput"),
+  thresholdHistoryList: document.getElementById("thresholdHistoryList"),
+  codingReviewStatus: document.getElementById("codingReviewStatus"),
 };
 
 let filterDebounceId;
@@ -106,6 +160,8 @@ async function bootstrap() {
   renderFilterSummary();
   await Promise.all([renderSearchResults(), renderCalendar()]);
   await refreshMetrics();
+  await loadClinicalProfile();
+  await loadCodingData();
 }
 
 function bindEvents() {
@@ -138,6 +194,29 @@ function bindEvents() {
       clearSuggestions();
     }
   });
+  // EP-003: Clinical profile
+  elements.loadClinicalProfileButton.addEventListener("click", loadClinicalProfile);
+  elements.runConflictCheckButton.addEventListener("click", runClinicalConflictCheck);
+  elements.uploadDocumentButton.addEventListener("click", uploadClinicalDocument);
+  document.querySelectorAll(".tab-btn[data-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => switchClinicalTab(btn.dataset.tab));
+  });
+  // EP-003: Coding review
+  document.querySelectorAll(".tab-btn[data-coding-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => switchCodingTab(btn.dataset.codingTab));
+  });
+  elements.generateSuggestionsButton.addEventListener("click", generateClinicalCodes);
+  elements.loadConflictQueueButton.addEventListener("click", loadConflictQueue);
+  elements.reviewOnlyFilter.addEventListener("change", renderSuggestions);
+  elements.codeTypeFilter.addEventListener("change", renderSuggestions);
+  elements.icd10ThresholdSlider.addEventListener("input", () => {
+    elements.icd10ThresholdValue.textContent = elements.icd10ThresholdSlider.value + "%";
+  });
+  elements.cptThresholdSlider.addEventListener("input", () => {
+    elements.cptThresholdValue.textContent = elements.cptThresholdSlider.value + "%";
+  });
+  elements.saveIcd10ThresholdButton.addEventListener("click", () => saveThreshold("icd10"));
+  elements.saveCptThresholdButton.addEventListener("click", () => saveThreshold("cpt"));
 }
 
 function hydrateFromQuery() {
@@ -793,4 +872,565 @@ async function postJson(url, payload) {
     body: JSON.stringify(payload),
   });
   return response.json();
+}
+
+// ================================================================
+// EP-003: 360° Clinical Patient Profile
+// ================================================================
+
+async function loadClinicalProfile() {
+  const patientId = state.clinical.patientId;
+  elements.clinicalProfileStatus.textContent = "Loading profile…";
+  try {
+    const payload = await fetchJson(`/api/clinical/patients/${patientId}/profile`);
+    if (!payload.success) {
+      elements.clinicalProfileStatus.textContent = payload.error?.message || "Failed to load profile.";
+      return;
+    }
+    state.clinical.profile = payload.data;
+    renderClinicalProfile(payload.data);
+    elements.clinicalProfileStatus.textContent = "";
+  } catch {
+    elements.clinicalProfileStatus.textContent = "Profile could not be loaded.";
+  }
+}
+
+function renderClinicalProfile(data) {
+  renderProfileOverview(data.overview);
+  renderProfileTab("medications", data.medications || []);
+  renderProfileTab("allergies", data.allergies || []);
+  renderProfileTab("diagnoses", data.diagnoses || []);
+
+  const medCount = (data.medications || []).length;
+  if (medCount > 0) {
+    elements.medicationsBadge.textContent = medCount;
+    elements.medicationsBadge.hidden = false;
+  } else {
+    elements.medicationsBadge.hidden = true;
+  }
+}
+
+function renderProfileOverview(overview) {
+  if (!overview) return;
+  const docs = overview.documents || [];
+  const docsHtml = docs.length
+    ? `<ul class="docs-list">${docs.map((d) => `
+        <li class="doc-item">
+          <span>${d.fileName}</span>
+          <span class="doc-status-pill doc-status-pill--${d.processingStatus}">${d.processingStatus}</span>
+        </li>`).join("")}</ul>`
+    : "<p class='muted-text'>No documents uploaded.</p>";
+
+  elements.profileOverviewContent.innerHTML = `
+    <div class="overview-field"><span class="overview-label">Name</span><span class="overview-value">${escHtml(overview.firstName || "")} ${escHtml(overview.lastName || "")}</span></div>
+    <div class="overview-field"><span class="overview-label">Email</span><span class="overview-value">${escHtml(overview.email || "—")}</span></div>
+    <div class="overview-field"><span class="overview-label">Phone</span><span class="overview-value">${escHtml(overview.phone || "—")}</span></div>
+    <div class="overview-field"><span class="overview-label">Timezone</span><span class="overview-value">${escHtml(overview.preferredTimezone || "—")}</span></div>
+    <div style="grid-column: 1 / -1"><p class="section-label" style="margin-top:.5rem">Uploaded Documents</p>${docsHtml}</div>
+  `;
+}
+
+function renderProfileTab(tabName, items) {
+  const list = elements[`${tabName}List`];
+  const empty = elements[`${tabName}Empty`];
+  if (!list) return;
+  list.innerHTML = "";
+  if (!items.length) {
+    if (empty) empty.hidden = false;
+    return;
+  }
+  if (empty) empty.hidden = true;
+  items.forEach((item) => {
+    const li = document.createElement("li");
+    li.className = "profile-item";
+    const badgeCls = item.sourceType === "intake" ? "source-badge--intake" : "source-badge--document";
+    const badgeLabel = item.sourceType === "intake" ? "Intake" : "Document";
+    li.innerHTML = `
+      <span class="profile-item-value">${escHtml(item.value)}</span>
+      <div style="display:flex;align-items:center;gap:.4rem;flex-shrink:0">
+        <span class="source-badge ${badgeCls}" title="Source: ${escHtml(item.sourceType)}">${badgeLabel}</span>
+        ${item.confidenceScore != null ? `<span class="muted-text" title="Confidence score">${Math.round(item.confidenceScore * 100)}%</span>` : ""}
+        <button class="source-detail-btn" data-element-id="${item.id}" type="button" aria-label="View source details for ${escHtml(item.value)}">Source</button>
+      </div>
+    `;
+    li.querySelector(".source-detail-btn").addEventListener("click", () => viewSourceDetail(item.id));
+    list.appendChild(li);
+  });
+}
+
+async function viewSourceDetail(elementId) {
+  const patientId = state.clinical.patientId;
+  try {
+    const payload = await fetchJson(`/api/clinical/elements/${elementId}/source?patientId=${patientId}`);
+    if (!payload.success) {
+      elements.clinicalProfileStatus.textContent = "Could not load source details.";
+      return;
+    }
+    const d = payload.data;
+    const detail = [
+      `Type: ${d.elementType}`,
+      `Source: ${d.sourceType}${d.documentName ? ` — ${d.documentName} (${d.documentType})` : ""}`,
+      d.confidenceScore != null ? `Confidence: ${Math.round(d.confidenceScore * 100)}%` : null,
+      d.extractedAt ? `Extracted: ${new Date(d.extractedAt).toLocaleString()}` : null,
+    ].filter(Boolean).join(" | ");
+    elements.clinicalProfileStatus.textContent = detail;
+  } catch {
+    elements.clinicalProfileStatus.textContent = "Source detail unavailable.";
+  }
+}
+
+async function runClinicalConflictCheck() {
+  const patientId = state.clinical.patientId;
+  elements.clinicalProfileStatus.textContent = "Running conflict check…";
+  try {
+    const payload = await fetchJson(`/api/clinical/patients/${patientId}/conflicts`);
+    if (!payload.success) {
+      elements.clinicalProfileStatus.textContent = payload.error?.message || "Conflict check failed.";
+      return;
+    }
+    state.clinical.conflicts = payload.data.conflicts || [];
+    renderConflictAlerts(payload.data);
+    const count = payload.data.conflictCount || 0;
+    elements.clinicalProfileStatus.textContent = payload.data.degraded
+      ? "Conflict detection temporarily unavailable."
+      : `${count} conflict${count !== 1 ? "s" : ""} detected.`;
+  } catch {
+    elements.clinicalProfileStatus.textContent = "Conflict check unavailable.";
+  }
+}
+
+function renderConflictAlerts(data) {
+  const conflicts = data.conflicts || [];
+  elements.conflictAlertsList.innerHTML = "";
+
+  if (!conflicts.length) {
+    elements.conflictAlertsContainer.hidden = true;
+    return;
+  }
+
+  conflicts.forEach((conflict) => {
+    const li = document.createElement("li");
+    li.className = "conflict-item";
+    li.dataset.severity = conflict.severity;
+    li.innerHTML = `
+      <span class="conflict-severity">${escHtml(conflict.severity)} — ${escHtml(conflict.conflictType.replace(/_/g, " "))}</span>
+      <span class="conflict-meds">${escHtml(conflict.medicationA)} + ${escHtml(conflict.medicationB)}</span>
+      <span class="conflict-impact">${escHtml(conflict.clinicalImpact)}</span>
+    `;
+    elements.conflictAlertsList.appendChild(li);
+  });
+
+  elements.conflictAlertsContainer.hidden = false;
+}
+
+async function uploadClinicalDocument() {
+  const file = elements.clinicalFileInput.files[0];
+  if (!file) {
+    elements.uploadStatusMessage.textContent = "Please select a PDF or DOCX file.";
+    return;
+  }
+  elements.uploadStatusMessage.textContent = "Uploading…";
+  elements.uploadDocumentButton.disabled = true;
+
+  try {
+    const patientId = state.clinical.patientId;
+    const params = new URLSearchParams({ fileName: file.name, patientId });
+    const response = await fetch(`/api/clinical/documents/upload?${params}`, {
+      method: "POST",
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      body: file,
+    });
+    const payload = await response.json();
+    if (payload.success) {
+      elements.uploadStatusMessage.textContent = `Uploaded. Document ID: ${payload.data.documentId}. Status: ${payload.data.status}.`;
+      elements.clinicalFileInput.value = "";
+      await loadClinicalProfile();
+    } else {
+      elements.uploadStatusMessage.textContent = payload.error?.message || "Upload failed.";
+    }
+  } catch {
+    elements.uploadStatusMessage.textContent = "Upload request failed.";
+  } finally {
+    elements.uploadDocumentButton.disabled = false;
+  }
+}
+
+function switchClinicalTab(tabName) {
+  state.clinical.activeTab = tabName;
+  document.querySelectorAll(".tab-btn[data-tab]").forEach((btn) => {
+    const active = btn.dataset.tab === tabName;
+    btn.classList.toggle("tab-btn--active", active);
+    btn.setAttribute("aria-selected", String(active));
+  });
+  document.querySelectorAll(".tab-panel").forEach((panel) => {
+    const show = panel.id === `tab${tabName.charAt(0).toUpperCase()}${tabName.slice(1)}`;
+    panel.classList.toggle("tab-panel--active", show);
+    panel.hidden = !show;
+  });
+}
+
+function escHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// ================================================================
+// EP-003: Coding Review + Conflict Resolution (TASK-025 to TASK-030)
+// ================================================================
+
+function switchCodingTab(tabName) {
+  state.coding.activeTab = tabName;
+  document.querySelectorAll(".tab-btn[data-coding-tab]").forEach((btn) => {
+    const active = btn.dataset.codingTab === tabName;
+    btn.classList.toggle("tab-btn--active", active);
+    btn.setAttribute("aria-selected", String(active));
+  });
+  const panels = {
+    suggestions: "codingTabSuggestions",
+    allergy: "codingTabAllergy",
+    conflicts: "codingTabConflicts",
+    thresholds: "codingTabThresholds",
+  };
+  Object.entries(panels).forEach(([key, id]) => {
+    const panel = document.getElementById(id);
+    if (!panel) return;
+    if (key === tabName) {
+      panel.classList.add("tab-panel--active");
+      panel.hidden = false;
+    } else {
+      panel.classList.remove("tab-panel--active");
+      panel.hidden = true;
+    }
+  });
+}
+
+async function loadCodingData() {
+  await Promise.all([
+    loadAllergyConflicts(),
+    loadThresholds(),
+  ]);
+}
+
+// TASK-026/027: Generate ICD-10 and CPT suggestions
+async function generateClinicalCodes() {
+  const btn = elements.generateSuggestionsButton;
+  btn.disabled = true;
+  btn.textContent = "Generating…";
+  setCodingStatus("");
+  try {
+    const pid = state.coding.patientId;
+    // Generate both ICD-10 and CPT
+    await Promise.all([
+      fetch(`/api/clinical/patients/${pid}/suggestions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code_type: "icd10", clinical_text: "" }),
+      }),
+      fetch(`/api/clinical/patients/${pid}/suggestions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code_type: "cpt", clinical_text: "" }),
+      }),
+    ]);
+    await loadSuggestions();
+    setCodingStatus("Codes generated successfully.");
+  } catch (err) {
+    setCodingStatus("Failed to generate codes: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Generate Codes";
+  }
+}
+
+async function loadSuggestions() {
+  try {
+    const pid = state.coding.patientId;
+    const res = await fetch(`/api/clinical/patients/${pid}/suggestions`);
+    if (!res.ok) throw new Error(res.status);
+    const envelope = await res.json();
+    const data = envelope.data || envelope;
+    state.coding.suggestions = data.suggestions || [];
+    renderSuggestions();
+  } catch (_) {
+    state.coding.suggestions = [];
+    renderSuggestions();
+  }
+}
+
+function renderSuggestions() {
+  const all = state.coding.suggestions;
+  const reviewOnly = elements.reviewOnlyFilter.checked;
+  const codeType = elements.codeTypeFilter.value;
+  const filtered = all.filter((s) => {
+    if (reviewOnly && !s.reviewRequired) return false;
+    if (codeType && s.codeType !== codeType) return false;
+    return true;
+  });
+  const pending = filtered.filter((s) => s.status === "pending" || !s.status).length;
+  if (pending > 0) {
+    elements.reviewQueueBadge.textContent = String(pending);
+    elements.reviewQueueBadge.hidden = false;
+  } else {
+    elements.reviewQueueBadge.hidden = true;
+  }
+  if (filtered.length === 0) {
+    elements.suggestionsList.innerHTML = "";
+    elements.suggestionsEmpty.hidden = false;
+    return;
+  }
+  elements.suggestionsEmpty.hidden = true;
+  elements.suggestionsList.innerHTML = filtered.map((s) => {
+    const pct = Math.round((s.confidenceScore ?? 0) * 100);
+    let fillClass = "confidence-fill--high";
+    if (pct < 60) fillClass = "confidence-fill--low";
+    else if (pct < 80) fillClass = "confidence-fill--medium";
+    const statusPill = s.status && s.status !== "pending"
+      ? `<span class="status-pill status-pill--${escHtml(s.status)}">${escHtml(s.status)}</span>`
+      : "";
+    const typeBadge = `<span class="source-badge source-badge--${escHtml(s.codeType || "")}">${escHtml((s.codeType || "").toUpperCase())}</span>`;
+    const isResolved = s.status && s.status !== "pending";
+    return `<li class="suggestion-item" data-review="${s.reviewRequired ? "true" : "false"}">
+      <div class="suggestion-header">
+        <span class="suggestion-code">${escHtml(s.code)}</span>
+        ${typeBadge}
+        ${statusPill}
+        ${s.reviewRequired ? '<span class="source-badge" style="background:rgba(180,83,9,0.1);color:var(--warning)">Review Required</span>' : ""}
+      </div>
+      <div class="suggestion-desc">${escHtml(s.description)}</div>
+      <div class="suggestion-meta">
+        <span class="confidence-bar-wrap">
+          <span class="confidence-bar"><span class="confidence-fill ${fillClass}" style="width:${pct}%"></span></span>
+          ${pct}% confidence
+        </span>
+        <span>Source: ${escHtml(s.sourceElementType || "N/A")}</span>
+      </div>
+      <div class="suggestion-actions">
+        <button class="action-btn action-btn--accept" onclick="reviewSuggestion(${s.id},'accept')" ${isResolved ? "disabled" : ""}>Accept</button>
+        <button class="action-btn action-btn--reject" onclick="reviewSuggestion(${s.id},'reject')" ${isResolved ? "disabled" : ""}>Reject</button>
+        <button class="action-btn action-btn--override" onclick="reviewSuggestion(${s.id},'override')" ${isResolved ? "disabled" : ""}>Override</button>
+      </div>
+    </li>`;
+  }).join("");
+}
+
+// TASK-028: Code review action
+async function reviewSuggestion(suggestionId, action) {
+  setCodingStatus("");
+  try {
+    const res = await fetch(`/api/coding/suggestions/${suggestionId}/review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, reviewerId: "frontend_user" }),
+    });
+    if (!res.ok) throw new Error(res.status);
+    await loadSuggestions();
+    setCodingStatus(`Suggestion ${action}d.`);
+  } catch (err) {
+    setCodingStatus("Review failed: " + err.message);
+  }
+}
+
+// TASK-025: Allergy-drug conflict check
+async function loadAllergyConflicts() {
+  try {
+    const pid = state.coding.patientId;
+    const res = await fetch(`/api/clinical/patients/${pid}/allergy-conflicts`);
+    if (!res.ok) throw new Error(res.status);
+    const envelope = await res.json();
+    const data = envelope.data || envelope;
+    state.coding.allergyConflicts = data.conflicts || [];
+    renderAllergyConflicts();
+  } catch (_) {
+    state.coding.allergyConflicts = [];
+    renderAllergyConflicts();
+  }
+}
+
+function renderAllergyConflicts() {
+  const conflicts = state.coding.allergyConflicts;
+  if (conflicts.length > 0) {
+    elements.allergyConflictBadge.textContent = String(conflicts.length);
+    elements.allergyConflictBadge.hidden = false;
+  } else {
+    elements.allergyConflictBadge.hidden = true;
+  }
+  if (conflicts.length === 0) {
+    elements.allergyConflictList.innerHTML = "";
+    elements.allergyConflictEmpty.hidden = false;
+    return;
+  }
+  elements.allergyConflictEmpty.hidden = true;
+  elements.allergyConflictList.innerHTML = conflicts.map((c) => {
+    const sev = (c.severity || "unknown").toLowerCase();
+    const sevColor = sev === "high" ? "var(--accent)" : sev === "medium" ? "var(--warning)" : "var(--muted)";
+    return `<div class="conflict-item" style="border-left:4px solid ${sevColor}">
+      <div class="conflict-header">
+        <strong>${escHtml(c.allergen)}</strong> ↔ <strong>${escHtml(c.drug_name)}</strong>
+        <span class="status-pill status-pill--pending" style="background:rgba(0,0,0,0.05);color:${sevColor}">${escHtml(c.severity || "")}</span>
+      </div>
+      <div class="muted-text">${escHtml(c.interaction_type || c.impact || "")}</div>
+    </div>`;
+  }).join("");
+}
+
+// TASK-030: Conflict resolution queue
+async function loadConflictQueue() {
+  const btn = elements.loadConflictQueueButton;
+  btn.disabled = true;
+  setCodingStatus("");
+  try {
+    const pid = state.coding.patientId;
+    const res = await fetch(`/api/clinical/conflicts/queue?patientId=${pid}`);
+    if (!res.ok) throw new Error(res.status);
+    const envelope = await res.json();
+    const data = envelope.data || envelope;
+    state.coding.conflictQueue = data.conflicts || [];
+    renderConflictQueue();
+    setCodingStatus("Conflict queue loaded.");
+  } catch (err) {
+    setCodingStatus("Failed to load conflict queue: " + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderConflictQueue() {
+  const conflicts = state.coding.conflictQueue;
+  if (conflicts.length > 0) {
+    elements.conflictQueueBadge.textContent = String(conflicts.length);
+    elements.conflictQueueBadge.hidden = false;
+  } else {
+    elements.conflictQueueBadge.hidden = true;
+  }
+  if (conflicts.length === 0) {
+    elements.conflictQueueList.innerHTML = "";
+    elements.conflictQueueEmpty.hidden = false;
+    return;
+  }
+  elements.conflictQueueEmpty.hidden = true;
+  elements.conflictQueueList.innerHTML = conflicts.map((c) => {
+    const conflictTable = c.conflict_table || "clinical_medication_conflicts";
+    return `<div class="conflict-resolution-item">
+      <div class="conflict-resolution-header">
+        <strong>${escHtml(c.conflict_type || "Conflict")}</strong>
+        <span class="muted-text">#${c.id}</span>
+      </div>
+      <div class="conflict-side-by-side">
+        <div class="conflict-side">
+          <span class="conflict-side-label">Value A</span>
+          <span class="conflict-side-value">${escHtml(c.value_a || c.medication_a || c.allergen || "—")}</span>
+        </div>
+        <div class="conflict-side">
+          <span class="conflict-side-label">Value B</span>
+          <span class="conflict-side-value">${escHtml(c.value_b || c.medication_b || c.drug_name || "—")}</span>
+        </div>
+      </div>
+      <div class="conflict-resolution-actions">
+        <button class="action-btn action-btn--resolve" onclick="resolveConflict(${c.id},'${escHtml(conflictTable)}','resolve')">Resolve</button>
+        <button class="action-btn action-btn--merge" onclick="resolveConflict(${c.id},'${escHtml(conflictTable)}','merge')">Merge</button>
+        <button class="action-btn action-btn--discard" onclick="resolveConflict(${c.id},'${escHtml(conflictTable)}','discard')">Discard</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+async function resolveConflict(conflictId, conflictTable, action) {
+  setCodingStatus("");
+  try {
+    const res = await fetch(`/api/clinical/conflicts/${conflictId}/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conflictTable: conflictTable, action, reviewerId: "frontend_user" }),
+    });
+    if (!res.ok) throw new Error(res.status);
+    await loadConflictQueue();
+    setCodingStatus(`Conflict ${action}d.`);
+  } catch (err) {
+    setCodingStatus("Resolve failed: " + err.message);
+  }
+}
+
+// TASK-029: Threshold configuration
+async function loadThresholds() {
+  try {
+    const res = await fetch("/api/clinical/thresholds");
+    if (!res.ok) throw new Error(res.status);
+    const envelope = await res.json();
+    const data = envelope.data || envelope;
+    // data.thresholds is {icd10: {value, updatedBy, ...}, cpt: {...}}
+    const raw = data.thresholds || {};
+    state.coding.thresholds = {
+      icd10: typeof raw.icd10 === "object" ? raw.icd10.value : (raw.icd10 ?? 0.70),
+      cpt: typeof raw.cpt === "object" ? raw.cpt.value : (raw.cpt ?? 0.75),
+    };
+    populateThresholdSliders();
+    await loadThresholdHistory();
+  } catch (_) {}
+}
+
+function populateThresholdSliders() {
+  const t = state.coding.thresholds;
+  const icd10Pct = Math.round((t.icd10 ?? 0.70) * 100);
+  const cptPct = Math.round((t.cpt ?? 0.75) * 100);
+  elements.icd10ThresholdSlider.value = icd10Pct;
+  elements.icd10ThresholdValue.textContent = icd10Pct + "%";
+  elements.cptThresholdSlider.value = cptPct;
+  elements.cptThresholdValue.textContent = cptPct + "%";
+}
+
+async function saveThreshold(codeType) {
+  const role = elements.thresholdRoleInput.value.trim();
+  if (!role) {
+    setCodingStatus("Enter your role before saving a threshold.");
+    return;
+  }
+  const sliderEl = codeType === "icd10" ? elements.icd10ThresholdSlider : elements.cptThresholdSlider;
+  const newValue = Number(sliderEl.value) / 100;
+  setCodingStatus("");
+  try {
+    const res = await fetch("/api/clinical/thresholds", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ codeType, thresholdValue: newValue, updatedBy: "frontend_user", role }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const msg = (err.error || err.data?.message || err.message) ?? String(res.status);
+      throw new Error(msg);
+    }
+    await loadThresholds();
+    setCodingStatus(`${codeType.toUpperCase()} threshold saved to ${Math.round(newValue * 100)}%.`);
+  } catch (err) {
+    setCodingStatus("Save failed: " + err.message);
+  }
+}
+
+async function loadThresholdHistory() {
+  try {
+    const res = await fetch("/api/clinical/thresholds/history");
+    if (!res.ok) throw new Error(res.status);
+    const envelope = await res.json();
+    const data = envelope.data || envelope;
+    const history = data.history || [];
+    if (history.length === 0) {
+      elements.thresholdHistoryList.innerHTML = '<li class="muted-text">No history yet.</li>';
+      return;
+    }
+    elements.thresholdHistoryList.innerHTML = history.map((h) => {
+      const pct = Math.round((h.newValue ?? 0) * 100);
+      const prev = Math.round((h.oldValue ?? 0) * 100);
+      const ts = h.changedAt ? new Date(h.changedAt).toLocaleString() : "";
+      return `<li class="threshold-history-item">
+        <span>${escHtml((h.codeType || "").toUpperCase())}: ${prev}% → ${pct}% by ${escHtml(h.changedBy || "")}</span>
+        <span>${escHtml(ts)}</span>
+      </li>`;
+    }).join("");
+  } catch (_) {
+    elements.thresholdHistoryList.innerHTML = '<li class="muted-text">Unable to load history.</li>';
+  }
+}
+
+function setCodingStatus(msg) {
+  if (elements.codingReviewStatus) {
+    elements.codingReviewStatus.textContent = msg;
+  }
 }

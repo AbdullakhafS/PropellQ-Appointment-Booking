@@ -4,7 +4,7 @@
 **Source File:** `.propel/context/tasks/EP-003/us_020/us_020.md`
 **Priority:** CRITICAL
 **Estimated Effort:** 3-4 dev days
-**Status:** Planned
+**Status:** Completed
 **Created:** 2026-06-18
 
 ---
@@ -81,10 +81,10 @@ Implement a secure document upload endpoint that accepts PDF and DOCX files, sto
 
 ## 5. Definition of Done
 
-- [ ] Upload, processing queue, and status tracking implemented.
-- [ ] PHI-safe storage and access controls in place.
-- [ ] Rejection and error flows validated.
-- [ ] AC-1 through AC-4 validated.
+- [x] Upload, processing queue, and status tracking implemented.
+- [x] PHI-safe storage and access controls in place.
+- [x] Rejection and error flows validated.
+- [x] AC-1 through AC-4 validated.
 
 ---
 

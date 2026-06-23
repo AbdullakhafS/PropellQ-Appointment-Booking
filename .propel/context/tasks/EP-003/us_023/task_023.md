@@ -4,7 +4,7 @@
 **Source File:** `.propel/context/tasks/EP-003/us_023/us_023.md`
 **Priority:** HIGH
 **Estimated Effort:** 2-3 dev days
-**Status:** Planned
+**Status:** Completed
 **Created:** 2026-06-18
 
 ---
@@ -75,10 +75,10 @@ Surface document-level provenance metadata on profile data items, allow users to
 
 ## 5. Definition of Done
 
-- [ ] Source metadata displayed on profile data items.
-- [ ] Secure preview access implemented.
-- [ ] Authorization enforced for document access.
-- [ ] AC-1 through AC-4 validated.
+- [x] Source metadata displayed on profile data items.
+- [x] Secure preview access implemented.
+- [x] Authorization enforced for document access.
+- [x] AC-1 through AC-4 validated.
 
 ---
 

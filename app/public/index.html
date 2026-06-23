@@ -310,6 +310,178 @@
           <p id="opsStatusMessage" class="status-inline" aria-live="polite"></p>
         </section>
       </section>
+
+      <!-- ================================================================
+           EP-003: 360° Clinical Patient Profile
+           ================================================================ -->
+      <section class="clinical-profile-panel" aria-labelledby="clinicalProfileTitle">
+        <div class="panel-header panel-header--stacked">
+          <div>
+            <h2 id="clinicalProfileTitle">360° Patient Profile</h2>
+            <p class="panel-copy">Unified clinical view — medications, allergies, diagnoses and source traceability.</p>
+          </div>
+          <div class="clinical-header-actions">
+            <button id="loadClinicalProfileButton" class="ghost-btn" type="button">Refresh Profile</button>
+            <button id="runConflictCheckButton" class="ghost-btn" type="button">Check Conflicts</button>
+          </div>
+        </div>
+
+        <!-- Document Upload -->
+        <div class="clinical-upload-area">
+          <h3 class="section-label">Upload Clinical Document</h3>
+          <div class="upload-row">
+            <input id="clinicalFileInput" type="file" accept=".pdf,.docx" aria-label="Select PDF or DOCX document" />
+            <button id="uploadDocumentButton" class="ghost-btn" type="button">Upload</button>
+          </div>
+          <p id="uploadStatusMessage" class="status-inline" aria-live="polite"></p>
+        </div>
+
+        <!-- Conflict Alerts -->
+        <div id="conflictAlertsContainer" class="conflict-alerts-container" aria-live="polite" hidden>
+          <h3 class="section-label conflict-label">
+            <span class="conflict-icon" aria-hidden="true">⚠</span>
+            Medication Conflicts
+          </h3>
+          <ul id="conflictAlertsList" class="conflict-list"></ul>
+        </div>
+
+        <!-- Profile Tabs -->
+        <div class="profile-tabs" role="tablist" aria-label="Patient profile sections">
+          <button class="tab-btn tab-btn--active" role="tab" aria-selected="true"
+                  aria-controls="tabOverview" id="tabBtnOverview" data-tab="overview">Overview</button>
+          <button class="tab-btn" role="tab" aria-selected="false"
+                  aria-controls="tabMedications" id="tabBtnMedications" data-tab="medications">
+            Medications
+            <span id="medicationsBadge" class="tab-badge" hidden></span>
+          </button>
+          <button class="tab-btn" role="tab" aria-selected="false"
+                  aria-controls="tabAllergies" id="tabBtnAllergies" data-tab="allergies">Allergies</button>
+          <button class="tab-btn" role="tab" aria-selected="false"
+                  aria-controls="tabDiagnoses" id="tabBtnDiagnoses" data-tab="diagnoses">Diagnoses</button>
+        </div>
+
+        <div class="tab-panels">
+          <div id="tabOverview" class="tab-panel tab-panel--active" role="tabpanel" aria-labelledby="tabBtnOverview">
+            <div id="profileOverviewContent" class="profile-overview-content">
+              <p class="muted-text">Load profile to view overview.</p>
+            </div>
+          </div>
+          <div id="tabMedications" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnMedications" hidden>
+            <ul id="medicationsList" class="profile-item-list"></ul>
+            <p id="medicationsEmpty" class="muted-text" hidden>No medications on record.</p>
+          </div>
+          <div id="tabAllergies" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnAllergies" hidden>
+            <ul id="allergiesList" class="profile-item-list"></ul>
+            <p id="allergiesEmpty" class="muted-text" hidden>No allergies on record.</p>
+          </div>
+          <div id="tabDiagnoses" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnDiagnoses" hidden>
+            <ul id="diagnosesList" class="profile-item-list"></ul>
+            <p id="diagnosesEmpty" class="muted-text" hidden>No diagnoses on record.</p>
+          </div>
+        </div>
+
+        <p id="clinicalProfileStatus" class="status-inline" aria-live="polite"></p>
+      </section>
+
+      <!-- ================================================================
+           EP-003: Coding Review + Conflict Resolution (TASK-025 to TASK-030)
+           ================================================================ -->
+      <section class="coding-review-panel" aria-labelledby="codingReviewTitle">
+        <div class="panel-header panel-header--stacked">
+          <div>
+            <h2 id="codingReviewTitle">Clinical Coding &amp; Conflict Review</h2>
+            <p class="panel-copy">ICD-10/CPT code suggestions, allergy-drug conflicts, threshold configuration, and conflict resolution queue.</p>
+          </div>
+          <div class="clinical-header-actions">
+            <button id="generateSuggestionsButton" class="ghost-btn" type="button">Generate Codes</button>
+            <button id="loadConflictQueueButton" class="ghost-btn" type="button">Load Conflicts</button>
+          </div>
+        </div>
+
+        <!-- Coding Review Tabs -->
+        <div class="profile-tabs" role="tablist" aria-label="Coding review sections">
+          <button class="tab-btn tab-btn--active" role="tab" aria-selected="true"
+                  aria-controls="codingTabSuggestions" id="codingBtnSuggestions" data-coding-tab="suggestions">
+            Code Suggestions
+            <span id="reviewQueueBadge" class="tab-badge" hidden></span>
+          </button>
+          <button class="tab-btn" role="tab" aria-selected="false"
+                  aria-controls="codingTabAllergy" id="codingBtnAllergy" data-coding-tab="allergy">
+            Allergy-Drug
+            <span id="allergyConflictBadge" class="tab-badge" hidden></span>
+          </button>
+          <button class="tab-btn" role="tab" aria-selected="false"
+                  aria-controls="codingTabConflicts" id="codingBtnConflicts" data-coding-tab="conflicts">
+            Conflict Queue
+            <span id="conflictQueueBadge" class="tab-badge" hidden></span>
+          </button>
+          <button class="tab-btn" role="tab" aria-selected="false"
+                  aria-controls="codingTabThresholds" id="codingBtnThresholds" data-coding-tab="thresholds">
+            Thresholds
+          </button>
+        </div>
+
+        <div class="tab-panels">
+          <!-- Code Suggestions Tab -->
+          <div id="codingTabSuggestions" class="tab-panel tab-panel--active" role="tabpanel" aria-labelledby="codingBtnSuggestions">
+            <div class="suggestions-toolbar">
+              <label class="filter-inline">
+                <input type="checkbox" id="reviewOnlyFilter" />
+                Show review-required only
+              </label>
+              <select id="codeTypeFilter" aria-label="Filter by code type">
+                <option value="">All types</option>
+                <option value="icd10">ICD-10</option>
+                <option value="cpt">CPT</option>
+              </select>
+            </div>
+            <ul id="suggestionsList" class="suggestion-list"></ul>
+            <p id="suggestionsEmpty" class="muted-text" hidden>No code suggestions. Click "Generate Codes" to populate.</p>
+          </div>
+
+          <!-- Allergy-Drug Conflicts Tab -->
+          <div id="codingTabAllergy" class="tab-panel" role="tabpanel" aria-labelledby="codingBtnAllergy" hidden>
+            <div id="allergyConflictList" class="conflict-list"></div>
+            <p id="allergyConflictEmpty" class="muted-text" hidden>No allergy-drug interactions detected.</p>
+          </div>
+
+          <!-- Conflict Resolution Queue Tab (TASK-030) -->
+          <div id="codingTabConflicts" class="tab-panel" role="tabpanel" aria-labelledby="codingBtnConflicts" hidden>
+            <div id="conflictQueueList" class="conflict-resolution-list"></div>
+            <p id="conflictQueueEmpty" class="muted-text" hidden>No active conflicts in queue.</p>
+          </div>
+
+          <!-- Threshold Configuration Tab (TASK-029) -->
+          <div id="codingTabThresholds" class="tab-panel" role="tabpanel" aria-labelledby="codingBtnThresholds" hidden>
+            <div class="threshold-config-grid">
+              <div class="threshold-card">
+                <h3 class="section-label">ICD-10 Threshold</h3>
+                <div class="threshold-control">
+                  <input type="range" id="icd10ThresholdSlider" min="0" max="100" step="1" aria-label="ICD-10 confidence threshold" />
+                  <span id="icd10ThresholdValue" class="threshold-value-display">70%</span>
+                </div>
+                <button id="saveIcd10ThresholdButton" class="ghost-btn" type="button">Save</button>
+              </div>
+              <div class="threshold-card">
+                <h3 class="section-label">CPT Threshold</h3>
+                <div class="threshold-control">
+                  <input type="range" id="cptThresholdSlider" min="0" max="100" step="1" aria-label="CPT confidence threshold" />
+                  <span id="cptThresholdValue" class="threshold-value-display">75%</span>
+                </div>
+                <button id="saveCptThresholdButton" class="ghost-btn" type="button">Save</button>
+              </div>
+            </div>
+            <div class="threshold-role-row">
+              <label for="thresholdRoleInput">Your role (required to save):</label>
+              <input id="thresholdRoleInput" type="text" placeholder="admin / coder / clinical_admin" />
+            </div>
+            <h3 class="section-label" style="margin-top:1rem">Change History</h3>
+            <ul id="thresholdHistoryList" class="threshold-history-list"></ul>
+          </div>
+        </div>
+
+        <p id="codingReviewStatus" class="status-inline" aria-live="polite"></p>
+      </section>
     </main>
 
     <dialog id="providerDialog" aria-labelledby="providerDialogTitle">

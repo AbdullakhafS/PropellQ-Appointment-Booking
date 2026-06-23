@@ -4,7 +4,7 @@
 **Source File:** `.propel/context/tasks/EP-003/us_026/us_026.md`
 **Priority:** CRITICAL
 **Estimated Effort:** 4-5 dev days
-**Status:** Planned
+**Status:** Completed
 **Created:** 2026-06-18
 
 ---
@@ -77,10 +77,10 @@ Build an ICD-10 code suggestion engine that uses aggregated patient data and ext
 
 ## 5. Definition of Done
 
-- [ ] ICD-10 suggestion engine implemented and integrated.
-- [ ] Confidence scoring and review flagging active.
-- [ ] Suggestions persisted and accessible for review.
-- [ ] AC-1 through AC-4 validated.
+- [x] ICD-10 suggestion engine implemented and integrated.
+- [x] Confidence scoring and review flagging active.
+- [x] Suggestions persisted and accessible for review.
+- [x] AC-1 through AC-4 validated.
 
 ---
 

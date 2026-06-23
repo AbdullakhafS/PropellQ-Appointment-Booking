@@ -4,7 +4,7 @@
 **Source File:** `.propel/context/tasks/EP-003/us_019/us_019.md`
 **Priority:** CRITICAL
 **Estimated Effort:** 3-4 dev days
-**Status:** Planned
+**Status:** Completed
 **Created:** 2026-06-18
 
 ---
@@ -76,10 +76,10 @@ Aggregate patient intake form responses and document-extracted clinical data int
 
 ## 5. Definition of Done
 
-- [ ] Aggregation pipeline and normalized profile schema implemented.
-- [ ] Source provenance preserved for all elements.
-- [ ] Profile data exposed for UI consumption.
-- [ ] AC-1 through AC-4 validated.
+- [x] Aggregation pipeline and normalized profile schema implemented.
+- [x] Source provenance preserved for all elements.
+- [x] Profile data exposed for UI consumption.
+- [x] AC-1 through AC-4 validated.
 
 ---
 

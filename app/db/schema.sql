@@ -449,6 +449,198 @@ CREATE INDEX IF NOT EXISTS idx_data_quality_runs_stage
 CREATE INDEX IF NOT EXISTS idx_data_quality_violations_rule
     ON data_quality_violations (rule_code, severity, status, detected_at);
 
+-- ============================================================
+-- EP-003: Clinical Intelligence Platform
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS clinical_documents (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER NOT NULL,
+    file_name TEXT NOT NULL,
+    file_type TEXT NOT NULL CHECK (file_type IN ('pdf', 'docx')),
+    storage_path TEXT NOT NULL,
+    file_size_bytes INTEGER NOT NULL,
+    upload_timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    uploaded_by TEXT NOT NULL DEFAULT 'patient',
+    FOREIGN KEY (patient_id) REFERENCES patient_profiles (id)
+);
+
+CREATE TABLE IF NOT EXISTS clinical_document_processing (
+    id INTEGER PRIMARY KEY,
+    document_id INTEGER NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'uploaded' CHECK (status IN ('uploaded', 'processing', 'complete', 'failed')),
+    review_required INTEGER NOT NULL DEFAULT 0,
+    failure_reason TEXT,
+    started_at TEXT,
+    completed_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (document_id) REFERENCES clinical_documents (id)
+);
+
+CREATE TABLE IF NOT EXISTS clinical_extracted_entities (
+    id INTEGER PRIMARY KEY,
+    document_id INTEGER NOT NULL,
+    patient_id INTEGER NOT NULL,
+    entity_type TEXT NOT NULL CHECK (entity_type IN ('medication', 'allergy', 'diagnosis', 'date', 'other')),
+    entity_value TEXT NOT NULL,
+    normalized_value TEXT,
+    unit TEXT,
+    date_context TEXT,
+    confidence_score REAL NOT NULL DEFAULT 0.0,
+    source_text TEXT,
+    extraction_model TEXT NOT NULL DEFAULT 'rule_engine_v1',
+    extracted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (document_id) REFERENCES clinical_documents (id),
+    FOREIGN KEY (patient_id) REFERENCES patient_profiles (id)
+);
+
+CREATE TABLE IF NOT EXISTS clinical_profile_elements (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER NOT NULL,
+    element_type TEXT NOT NULL CHECK (element_type IN ('medication', 'allergy', 'diagnosis', 'demographics', 'intake_field', 'date')),
+    element_value TEXT NOT NULL,
+    normalized_value TEXT,
+    source_type TEXT NOT NULL CHECK (source_type IN ('intake', 'document')),
+    source_id INTEGER NOT NULL,
+    confidence_score REAL,
+    extracted_at TEXT,
+    aggregated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY (patient_id) REFERENCES patient_profiles (id)
+);
+
+CREATE TABLE IF NOT EXISTS clinical_medication_conflicts (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER NOT NULL,
+    conflict_type TEXT NOT NULL CHECK (conflict_type IN ('drug_drug_interaction', 'duplicate_therapy')),
+    severity TEXT NOT NULL CHECK (severity IN ('high', 'medium', 'low')),
+    medication_a TEXT NOT NULL,
+    medication_b TEXT NOT NULL,
+    clinical_impact TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'rule_engine_v1',
+    detected_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TEXT,
+    resolution_note TEXT,
+    FOREIGN KEY (patient_id) REFERENCES patient_profiles (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_clinical_documents_patient
+    ON clinical_documents (patient_id, upload_timestamp);
+
+CREATE INDEX IF NOT EXISTS idx_clinical_doc_processing_status
+    ON clinical_document_processing (status, document_id);
+
+CREATE INDEX IF NOT EXISTS idx_clinical_entities_patient_type
+    ON clinical_extracted_entities (patient_id, entity_type, extracted_at);
+
+CREATE INDEX IF NOT EXISTS idx_clinical_profile_elements_patient
+    ON clinical_profile_elements (patient_id, element_type, is_active);
+
+CREATE INDEX IF NOT EXISTS idx_clinical_conflicts_patient
+    ON clinical_medication_conflicts (patient_id, severity, detected_at);
+
+-- ============================================================
+-- EP-003: Coding Engine (TASK-025 through TASK-030)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS clinical_allergy_drug_conflicts (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER NOT NULL,
+    allergen TEXT NOT NULL,
+    allergen_normalized TEXT NOT NULL,
+    medication TEXT NOT NULL,
+    medication_normalized TEXT NOT NULL,
+    severity TEXT NOT NULL CHECK (severity IN ('high', 'medium', 'low')),
+    clinical_impact TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'rule_engine_v1',
+    detected_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TEXT,
+    resolution_note TEXT,
+    FOREIGN KEY (patient_id) REFERENCES patient_profiles (id)
+);
+
+CREATE TABLE IF NOT EXISTS clinical_code_suggestions (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER NOT NULL,
+    code_type TEXT NOT NULL CHECK (code_type IN ('icd10', 'cpt')),
+    code TEXT NOT NULL,
+    description TEXT NOT NULL,
+    confidence_score REAL NOT NULL CHECK (confidence_score >= 0.0 AND confidence_score <= 1.0),
+    evidence_text TEXT,
+    review_required INTEGER NOT NULL DEFAULT 0 CHECK (review_required IN (0, 1)),
+    auto_accepted INTEGER NOT NULL DEFAULT 0 CHECK (auto_accepted IN (0, 1)),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'overridden')),
+    reviewer_id TEXT,
+    reviewed_at TEXT,
+    override_code TEXT,
+    override_description TEXT,
+    rejection_reason TEXT,
+    source TEXT NOT NULL DEFAULT 'rule_engine_v1',
+    suggested_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (patient_id) REFERENCES patient_profiles (id)
+);
+
+CREATE TABLE IF NOT EXISTS clinical_code_review_audit (
+    id INTEGER PRIMARY KEY,
+    suggestion_id INTEGER NOT NULL,
+    patient_id INTEGER NOT NULL,
+    action TEXT NOT NULL CHECK (action IN ('accept', 'reject', 'override')),
+    reviewer_id TEXT NOT NULL,
+    override_code TEXT,
+    override_description TEXT,
+    rejection_reason TEXT,
+    previous_status TEXT NOT NULL,
+    new_status TEXT NOT NULL,
+    decision_metadata TEXT,
+    acted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (suggestion_id) REFERENCES clinical_code_suggestions (id)
+);
+
+CREATE TABLE IF NOT EXISTS clinical_threshold_config (
+    id INTEGER PRIMARY KEY,
+    code_type TEXT NOT NULL UNIQUE CHECK (code_type IN ('icd10', 'cpt', 'all')),
+    threshold_value REAL NOT NULL CHECK (threshold_value >= 0.0 AND threshold_value <= 1.0),
+    updated_by TEXT NOT NULL DEFAULT 'system',
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS clinical_threshold_history (
+    id INTEGER PRIMARY KEY,
+    code_type TEXT NOT NULL,
+    old_value REAL,
+    new_value REAL NOT NULL,
+    changed_by TEXT NOT NULL,
+    changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS clinical_conflict_resolutions (
+    id INTEGER PRIMARY KEY,
+    conflict_id INTEGER NOT NULL,
+    conflict_table TEXT NOT NULL DEFAULT 'clinical_medication_conflicts',
+    patient_id INTEGER NOT NULL,
+    action TEXT NOT NULL CHECK (action IN ('resolve', 'merge', 'discard')),
+    chosen_value TEXT,
+    merge_value TEXT,
+    reviewer_id TEXT NOT NULL,
+    resolution_note TEXT,
+    version_a_snapshot TEXT,
+    version_b_snapshot TEXT,
+    resolved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (patient_id) REFERENCES patient_profiles (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_allergy_drug_conflicts_patient
+    ON clinical_allergy_drug_conflicts (patient_id, severity, detected_at);
+
+CREATE INDEX IF NOT EXISTS idx_code_suggestions_patient_type
+    ON clinical_code_suggestions (patient_id, code_type, status, review_required);
+
+CREATE INDEX IF NOT EXISTS idx_code_suggestions_review_queue
+    ON clinical_code_suggestions (review_required, status, suggested_at);
+
+CREATE INDEX IF NOT EXISTS idx_conflict_resolutions_conflict
+    ON clinical_conflict_resolutions (conflict_id, conflict_table);
+
 CREATE INDEX IF NOT EXISTS idx_data_quality_violations_domain
     ON data_quality_violations (domain_name, severity, detected_at);
 
