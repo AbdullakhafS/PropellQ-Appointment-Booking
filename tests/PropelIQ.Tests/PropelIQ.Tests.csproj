@@ -1,9 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
+    <RootNamespace>PropelIQ.Tests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,5 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\PropelIQ.Application\PropelIQ.Application.csproj" />
     <ProjectReference Include="..\..\src\PropelIQ.Infrastructure\PropelIQ.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\PropelIQ.Domain\PropelIQ.Domain.csproj" />
   </ItemGroup>
+
 </Project>

@@ -1,0 +1,82 @@
+.cancelBtn {
+  padding: 0.25rem 0.625rem;
+  background: transparent;
+  border: 1px solid #ced4da;
+  border-radius: 0.375rem;
+  color: #868e96;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.1s, color 0.1s, border-color 0.1s;
+  min-height: 32px;
+}
+
+.cancelBtn:hover {
+  background: #fff5f5;
+  color: #c92a2a;
+  border-color: #ffc9c9;
+}
+
+/* Inline confirmation dialog */
+.confirmBox {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  background: #fff5f5;
+  border: 1px solid #ffc9c9;
+  border-radius: 0.5rem;
+  min-width: 220px;
+  max-width: 320px;
+}
+
+.confirmMsg {
+  font-size: 0.8125rem;
+  color: #495057;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.confirmYes {
+  flex: 1;
+  padding: 0.3125rem 0.5rem;
+  background: #c92a2a;
+  color: #fff;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 32px;
+  transition: background-color 0.1s, opacity 0.1s;
+}
+
+.confirmYes:hover:not(:disabled) { background: #a61e1e; }
+.confirmYes:disabled { opacity: 0.65; cursor: not-allowed; }
+
+.confirmNo {
+  padding: 0.3125rem 0.625rem;
+  background: #fff;
+  border: 1px solid #ced4da;
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 32px;
+  transition: background-color 0.1s;
+}
+
+.confirmNo:hover:not(:disabled) { background: #f8f9fa; }
+.confirmNo:disabled { opacity: 0.65; cursor: not-allowed; }
+
+.error {
+  font-size: 0.75rem;
+  color: #c92a2a;
+  margin: 0;
+}

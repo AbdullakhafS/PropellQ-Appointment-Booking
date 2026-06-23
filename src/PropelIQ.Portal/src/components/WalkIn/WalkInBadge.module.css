@@ -1,0 +1,21 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1875rem 0.5625rem;
+  background: #fd7e14;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 0.25rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  /* WCAG AA: orange on white is borderline; enforce readable contrast with dark text fallback via outline */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.sm {
+  font-size: 0.6875rem;
+  padding: 0.125rem 0.4375rem;
+}
