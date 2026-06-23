@@ -1,0 +1,96 @@
+.summary {
+  padding: 2rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.heading {
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: #1a1a2e;
+}
+
+.subtext {
+  color: #495057;
+  margin-bottom: 1.5rem;
+  font-size: 0.9375rem;
+}
+
+.dataList {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: 0.5rem 1rem;
+  font-size: 0.9375rem;
+  margin-bottom: 2rem;
+}
+
+.dataList dt {
+  font-weight: 600;
+  color: #495057;
+  padding-top: 0.125rem;
+}
+
+.dataList dd {
+  margin: 0;
+  color: #1a1a2e;
+}
+
+.list {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.allergyType {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.5rem;
+  background-color: #ffe3e3;
+  color: #c92a2a;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.editBtn {
+  padding: 0.625rem 1.25rem;
+  background: transparent;
+  border: 1px solid #ced4da;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  color: #495057;
+  transition: background-color 0.15s;
+}
+
+.editBtn:hover { background-color: #f8f9fa; }
+
+.confirmBtn {
+  padding: 0.625rem 1.5rem;
+  background-color: #2f9e44;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.confirmBtn:hover { background-color: #2b8a3e; }
+
+@media (max-width: 520px) {
+  .dataList { grid-template-columns: 1fr; }
+  .dataList dt { margin-top: 0.75rem; }
+  .actions { flex-direction: column-reverse; }
+}
