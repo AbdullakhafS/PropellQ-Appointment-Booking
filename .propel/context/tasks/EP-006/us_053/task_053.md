@@ -3,7 +3,7 @@
 **User Story:** US-053 (EP-006)
 **Source File:** `.propel/context/tasks/EP-006/us_053/us_053.md`
 **Priority:** HIGH
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -44,7 +44,7 @@ Build a patient-facing dashboard with appointment, activity, profile, and notifi
 - Validate data updates without full page refresh.
 
 ## Definition of Done
-- [ ] Dashboard route and cards implemented.
-- [ ] Responsive behavior validated.
-- [ ] Incremental refresh working.
-- [ ] AC-1 through AC-4 validated.
+- [x] Dashboard route and cards implemented.
+- [x] Responsive behavior validated.
+- [x] Incremental refresh working.
+- [x] AC-1 through AC-4 validated.

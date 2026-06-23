@@ -3,7 +3,7 @@
 **User Story:** US-062 (EP-006)
 **Source File:** `.propel/context/tasks/EP-006/us_062/us_062.md`
 **Priority:** MEDIUM
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -44,6 +44,6 @@ Show average wait-time KPIs and trends for clinic operations, including threshol
 - Validate high-wait threshold warning behavior.
 
 ## Definition of Done
-- [ ] Wait-time metrics and trends implemented.
-- [ ] Filtered calculations and warning states verified.
-- [ ] AC-1 through AC-4 validated.
+- [x] Wait-time metrics and trends implemented.
+- [x] Filtered calculations and warning states verified.
+- [x] AC-1 through AC-4 validated.

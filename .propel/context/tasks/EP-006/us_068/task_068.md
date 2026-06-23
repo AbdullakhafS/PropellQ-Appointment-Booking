@@ -3,7 +3,7 @@
 **User Story:** US-068 (EP-006)
 **Source File:** `.propel/context/tasks/EP-006/us_068/us_068.md`
 **Priority:** MEDIUM
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -47,7 +47,7 @@ Implement accessible date/provider/location filters that apply server-side acros
 - Validate invalid selection fallback behavior.
 
 ## Definition of Done
-- [ ] Date/provider/location filters implemented.
-- [ ] Server-side filtering behavior validated.
-- [ ] Reset and fallback handling complete.
-- [ ] AC-1 through AC-4 validated.
+- [x] Date/provider/location filters implemented.
+- [x] Server-side filtering behavior validated.
+- [x] Reset and fallback handling complete.
+- [x] AC-1 through AC-4 validated.

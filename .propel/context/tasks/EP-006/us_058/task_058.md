@@ -3,7 +3,7 @@
 **User Story:** US-058 (EP-006)
 **Source File:** `.propel/context/tasks/EP-006/us_058/us_058.md`
 **Priority:** MEDIUM
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -41,7 +41,7 @@ Provide patient controls to manage notification channel preferences (email/SMS/i
 - Validate opted-out channels do not receive notifications.
 
 ## Definition of Done
-- [ ] Preference UI and persistence implemented.
-- [ ] Opt-out channel suppression enforced.
-- [ ] Settings reload correctly.
-- [ ] AC-1 through AC-4 validated.
+- [x] Preference UI and persistence implemented.
+- [x] Opt-out channel suppression enforced.
+- [x] Settings reload correctly.
+- [x] AC-1 through AC-4 validated.

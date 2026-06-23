@@ -28,6 +28,24 @@ from src.booking_service import (
     resend_confirmation,
     run_pull_reconciliation,
 )
+from src.dashboard_service import (
+    export_operational_metrics_csv,
+    get_admin_operational_metrics,
+    get_agreement_rate_metrics,
+    get_filter_options,
+    get_intake_completion_metrics,
+    get_insurance_verification_metrics,
+    get_no_show_metrics,
+    get_notification_preferences,
+    get_patient_appointment_history,
+    get_patient_dashboard,
+    get_patient_documents,
+    get_patient_health_profile,
+    get_patient_upcoming_appointments,
+    get_utilization_metrics,
+    get_wait_time_metrics,
+    set_notification_preferences,
+)
 from src.clinical_intelligence import (
     aggregate_patient_profile,
     detect_medication_conflicts,
@@ -232,6 +250,133 @@ def create_app(db_path: Path | None = None):
                 _, msg = scope_denial
                 return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
             return _handle_integration_status(start_response, selected_db)
+
+        # --- EP-006 US-053: Patient dashboard aggregate ---
+        if method == "GET" and path == "/api/patient/dashboard":
+            denial = require_permission(environ, "appointments:view")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_patient_dashboard(start_response, selected_db)
+
+        # --- EP-006 US-054: Upcoming appointments with action eligibility ---
+        if method == "GET" and path == "/api/patient/appointments/upcoming":
+            denial = require_permission(environ, "appointments:view")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_upcoming_appointments(start_response, selected_db)
+
+        # --- EP-006 US-055: Past appointment history with release policy ---
+        if method == "GET" and path == "/api/patient/appointments/history":
+            denial = require_permission(environ, "appointments:view")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_appointment_history(start_response, selected_db)
+
+        # --- EP-006 US-056: Patient health profile ---
+        if method == "GET" and path == "/api/patient/health-profile":
+            denial = require_permission(environ, "clinical:view_profile")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_patient_health_profile(start_response, selected_db)
+
+        # --- EP-006 US-057: Patient documents list ---
+        if method == "GET" and path == "/api/patient/documents":
+            denial = require_permission(environ, "clinical:view_profile")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_patient_documents(start_response, selected_db)
+
+        # --- EP-006 US-058: Notification preferences ---
+        if method == "GET" and path == "/api/patient/notifications/preferences":
+            denial = require_permission(environ, "appointments:view")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_get_notification_prefs(start_response, selected_db)
+
+        if method == "PUT" and path == "/api/patient/notifications/preferences":
+            denial = require_permission(environ, "appointments:view")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_set_notification_prefs(environ, start_response, selected_db)
+
+        # --- EP-006 US-060: Admin operational metrics ---
+        if method == "GET" and path == "/api/admin/operational-metrics":
+            denial = require_permission(environ, "admin:dashboard")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_admin_operational_metrics(environ, start_response, selected_db)
+
+        # --- EP-006 US-061: No-show metrics ---
+        if method == "GET" and path == "/api/admin/metrics/no-show":
+            denial = require_permission(environ, "admin:dashboard")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_no_show_metrics(environ, start_response, selected_db)
+
+        # --- EP-006 US-062: Wait time metrics ---
+        if method == "GET" and path == "/api/admin/metrics/wait-time":
+            denial = require_permission(environ, "admin:dashboard")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_wait_time_metrics(environ, start_response, selected_db)
+
+        # --- EP-006 US-063: Utilization metrics ---
+        if method == "GET" and path == "/api/admin/metrics/utilization":
+            denial = require_permission(environ, "admin:dashboard")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_utilization_metrics(environ, start_response, selected_db)
+
+        # --- EP-006 US-064: Intake completion metrics ---
+        if method == "GET" and path == "/api/admin/metrics/intake":
+            denial = require_permission(environ, "admin:dashboard")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_intake_completion_metrics(environ, start_response, selected_db)
+
+        # --- EP-006 US-065: Insurance verification metrics ---
+        if method == "GET" and path == "/api/admin/metrics/insurance":
+            denial = require_permission(environ, "admin:dashboard")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_insurance_verification_metrics(environ, start_response, selected_db)
+
+        # --- EP-006 US-066: AI-human agreement rate ---
+        if method == "GET" and path == "/api/admin/metrics/agreement":
+            denial = require_permission(environ, "admin:dashboard")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_agreement_rate_metrics(environ, start_response, selected_db)
+
+        # --- EP-006 US-068: Filter options ---
+        if method == "GET" and path == "/api/admin/filter-options":
+            denial = require_permission(environ, "admin:dashboard")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_filter_options(start_response, selected_db)
+
+        # --- EP-006 US-069: CSV export ---
+        if method == "GET" and path == "/api/admin/metrics/export":
+            denial = require_permission(environ, "admin:dashboard")
+            if denial:
+                _, msg = denial
+                return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
+            return _handle_csv_export(environ, start_response, selected_db)
 
         auth_authorize_match = re.match(r"^/api/auth/(google|outlook)/authorize$", path)
         if method == "GET" and auth_authorize_match:
@@ -1006,6 +1151,207 @@ def _handle_dashboard_metrics(start_response, db_path: Path):
     with get_connection(db_path) as connection:
         data = dashboard_metrics(connection)
     return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+# ---------------------------------------------------------------------------
+# EP-006: Patient Dashboard handlers (US-053 through US-058, US-060)
+# ---------------------------------------------------------------------------
+
+def _handle_patient_dashboard(start_response, db_path: Path):
+    """US-053 BE-1/BE-2 — Aggregate dashboard payload."""
+    with get_connection(db_path) as connection:
+        data = get_patient_dashboard(connection)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_upcoming_appointments(start_response, db_path: Path):
+    """US-054 BE-1/BE-2 — Future booked appointments with action eligibility."""
+    with get_connection(db_path) as connection:
+        data = get_patient_upcoming_appointments(connection)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_appointment_history(start_response, db_path: Path):
+    """US-055 BE-1/BE-2 — Past appointments with release policy filter."""
+    with get_connection(db_path) as connection:
+        data = get_patient_appointment_history(connection)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_patient_health_profile(start_response, db_path: Path):
+    """US-056 BE-1/BE-2 — Health profile sections with version metadata."""
+    with get_connection(db_path) as connection:
+        data = get_patient_health_profile(connection)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_patient_documents(start_response, db_path: Path):
+    """US-057 BE-3 — Patient document list with processing status."""
+    with get_connection(db_path) as connection:
+        data = get_patient_documents(connection)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_get_notification_prefs(start_response, db_path: Path):
+    """US-058 BE-1 — Retrieve notification preferences."""
+    with get_connection(db_path) as connection:
+        data = get_notification_preferences(connection)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_set_notification_prefs(environ, start_response, db_path: Path):
+    """US-058 BE-1 — Persist notification preferences."""
+    prefs = _read_json_body(environ)
+    if not isinstance(prefs, dict):
+        return _json_response(
+            start_response, 400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "Request body must be a JSON object."}},
+        )
+    with get_connection(db_path) as connection:
+        data = set_notification_preferences(connection, _DEFAULT_PATIENT_ID, prefs)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_admin_operational_metrics(environ, start_response, db_path: Path):
+    """US-060 BE-1/BE-2/BE-3 — Admin KPI metrics with filter support."""
+    params = _flat_query_params(environ.get("QUERY_STRING", ""))
+    date_from = params.get("date_from") or None
+    date_to = params.get("date_to") or None
+    location = params.get("location") or None
+    try:
+        provider_id = int(params["provider_id"]) if params.get("provider_id") else None
+    except ValueError:
+        provider_id = None
+    with get_connection(db_path) as connection:
+        data = get_admin_operational_metrics(connection, date_from, date_to, provider_id, location)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_no_show_metrics(environ, start_response, db_path: Path):
+    """US-061 BE-1/BE-2 — No-show rate with trend and prior-period comparison."""
+    p = _flat_query_params(environ.get("QUERY_STRING", ""))
+    date_from = p.get("date_from") or None
+    date_to = p.get("date_to") or None
+    try:
+        provider_id = int(p["provider_id"]) if p.get("provider_id") else None
+    except ValueError:
+        provider_id = None
+    with get_connection(db_path) as conn:
+        data = get_no_show_metrics(conn, date_from, date_to, provider_id)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_wait_time_metrics(environ, start_response, db_path: Path):
+    """US-062 BE-1/BE-2 — Wait time metrics with threshold warning."""
+    p = _flat_query_params(environ.get("QUERY_STRING", ""))
+    date_from = p.get("date_from") or None
+    date_to = p.get("date_to") or None
+    location = p.get("location") or None
+    try:
+        provider_id = int(p["provider_id"]) if p.get("provider_id") else None
+    except ValueError:
+        provider_id = None
+    try:
+        threshold = int(p["threshold_minutes"]) if p.get("threshold_minutes") else 30
+    except ValueError:
+        threshold = 30
+    with get_connection(db_path) as conn:
+        data = get_wait_time_metrics(conn, date_from, date_to, provider_id, location, threshold)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_utilization_metrics(environ, start_response, db_path: Path):
+    """US-063 BE-1 — Utilization analytics by provider/specialty."""
+    p = _flat_query_params(environ.get("QUERY_STRING", ""))
+    date_from = p.get("date_from") or None
+    date_to = p.get("date_to") or None
+    location = p.get("location") or None
+    try:
+        provider_id = int(p["provider_id"]) if p.get("provider_id") else None
+    except ValueError:
+        provider_id = None
+    try:
+        specialty_id = int(p["specialty_id"]) if p.get("specialty_id") else None
+    except ValueError:
+        specialty_id = None
+    with get_connection(db_path) as conn:
+        data = get_utilization_metrics(conn, date_from, date_to, provider_id, specialty_id, location)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_intake_completion_metrics(environ, start_response, db_path: Path):
+    """US-064 BE-1/BE-2 — Intake completion rate."""
+    p = _flat_query_params(environ.get("QUERY_STRING", ""))
+    date_from = p.get("date_from") or None
+    date_to = p.get("date_to") or None
+    try:
+        provider_id = int(p["provider_id"]) if p.get("provider_id") else None
+    except ValueError:
+        provider_id = None
+    with get_connection(db_path) as conn:
+        data = get_intake_completion_metrics(conn, date_from, date_to, provider_id)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_insurance_verification_metrics(environ, start_response, db_path: Path):
+    """US-065 BE-1/BE-2 — Insurance verification status."""
+    p = _flat_query_params(environ.get("QUERY_STRING", ""))
+    date_from = p.get("date_from") or None
+    date_to = p.get("date_to") or None
+    status_filter = p.get("status") or None
+    try:
+        provider_id = int(p["provider_id"]) if p.get("provider_id") else None
+    except ValueError:
+        provider_id = None
+    with get_connection(db_path) as conn:
+        data = get_insurance_verification_metrics(conn, date_from, date_to, provider_id, status_filter)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_agreement_rate_metrics(environ, start_response, db_path: Path):
+    """US-066 BE-1/BE-2 — AI-human agreement rate."""
+    p = _flat_query_params(environ.get("QUERY_STRING", ""))
+    date_from = p.get("date_from") or None
+    date_to = p.get("date_to") or None
+    try:
+        provider_id = int(p["provider_id"]) if p.get("provider_id") else None
+    except ValueError:
+        provider_id = None
+    with get_connection(db_path) as conn:
+        data = get_agreement_rate_metrics(conn, date_from, date_to, provider_id)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_filter_options(start_response, db_path: Path):
+    """US-068 BE-2 — Provider/specialty/location options for filter dropdowns."""
+    with get_connection(db_path) as conn:
+        data = get_filter_options(conn)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_csv_export(environ, start_response, db_path: Path):
+    """US-069 BE-1/BE-2/BE-3 — Streaming CSV export of filtered appointment data."""
+    from datetime import date as _date
+    p = _flat_query_params(environ.get("QUERY_STRING", ""))
+    date_from = p.get("date_from") or None
+    date_to = p.get("date_to") or None
+    location = p.get("location") or None
+    try:
+        provider_id = int(p["provider_id"]) if p.get("provider_id") else None
+    except ValueError:
+        provider_id = None
+    with get_connection(db_path) as conn:
+        csv_bytes = export_operational_metrics_csv(conn, date_from, date_to, provider_id, location)
+    filename = f"appointments_export_{_date.today().isoformat()}.csv"
+    start_response(
+        "200 OK",
+        [
+            ("Content-Type", "text/csv; charset=utf-8"),
+            ("Content-Disposition", f'attachment; filename="{filename}"'),
+            ("Content-Length", str(len(csv_bytes))),
+        ],
+    )
+    return [csv_bytes]
 
 
 def _serve_static(path: str, start_response):

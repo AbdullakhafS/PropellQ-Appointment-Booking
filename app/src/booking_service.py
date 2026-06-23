@@ -1271,3 +1271,376 @@ def run_pull_reconciliation(connection: sqlite3.Connection, reference_time: date
         handled += 1
     connection.commit()
     return {"handled": handled}
+
+
+# ---------------------------------------------------------------------------
+# EP-006: Patient Dashboard service functions (US-053 through US-058)
+# ---------------------------------------------------------------------------
+
+_RESCHEDULE_CUTOFF = timedelta(hours=24)
+_CANCEL_CUTOFF = timedelta(hours=2)
+
+
+def get_patient_upcoming_appointments(
+    connection: sqlite3.Connection,
+    patient_id: int = DEFAULT_PATIENT_ID,
+) -> dict[str, Any]:
+    """US-054 BE-1/BE-2 — Future booked appointments with action eligibility flags."""
+    today = date.today().isoformat()
+    rows = connection.execute(
+        """
+        SELECT a.*, p.name AS provider_name, s.name AS specialty
+        FROM appointments a
+        JOIN providers p ON p.id = a.provider_id
+        JOIN specialties s ON s.id = a.specialty_id
+        WHERE a.appointment_date >= ?
+          AND a.status = 'booked'
+        ORDER BY a.appointment_date ASC, a.start_time ASC
+        """,
+        [today],
+    ).fetchall()
+
+    now = utc_now()
+    items = []
+    for row in rows:
+        appt = dict(row)
+        try:
+            appt_start = _appointment_local_start(appt)
+            delta = appt_start - now
+            appt["can_reschedule"] = delta >= _RESCHEDULE_CUTOFF
+            appt["can_cancel"] = delta >= _CANCEL_CUTOFF
+        except Exception:
+            appt["can_reschedule"] = False
+            appt["can_cancel"] = False
+        items.append(appt)
+
+    return {"items": items, "total": len(items)}
+
+
+def get_patient_appointment_history(
+    connection: sqlite3.Connection,
+    patient_id: int = DEFAULT_PATIENT_ID,
+) -> dict[str, Any]:
+    """US-055 BE-1/BE-2 — Past booked appointments with release policy filter."""
+    today = date.today().isoformat()
+    rows = connection.execute(
+        """
+        SELECT a.*, p.name AS provider_name, s.name AS specialty
+        FROM appointments a
+        JOIN providers p ON p.id = a.provider_id
+        JOIN specialties s ON s.id = a.specialty_id
+        WHERE a.appointment_date < ?
+          AND a.status = 'booked'
+        ORDER BY a.appointment_date DESC, a.start_time DESC
+        """,
+        [today],
+    ).fetchall()
+
+    items = []
+    for row in rows:
+        appt = dict(row)
+        # Release policy: notes only available when confirmation was delivered and
+        # a signed confirmation PDF was generated (indicated by attachment_path).
+        delivery = connection.execute(
+            "SELECT attachment_path FROM confirmation_deliveries WHERE appointment_id = ? AND status = 'sent' LIMIT 1",
+            [appt["id"]],
+        ).fetchone()
+        if delivery and delivery["attachment_path"]:
+            appt["notes_available"] = True
+            appt["notes_url"] = f"/api/patient/appointments/{appt['id']}/notes"
+        else:
+            appt["notes_available"] = False
+            appt["notes_url"] = None
+            appt["notes_unavailable_reason"] = "Clinical notes have not been released yet."
+        items.append(appt)
+
+    return {"items": items, "total": len(items)}
+
+
+def get_patient_health_profile(
+    connection: sqlite3.Connection,
+    patient_id: int = DEFAULT_PATIENT_ID,
+) -> dict[str, Any]:
+    """US-056 BE-1/BE-2 — Structured patient health profile with version metadata."""
+    rows = connection.execute(
+        """
+        SELECT element_type, display_value, status, source_document_id, updated_at
+        FROM clinical_profile_elements
+        WHERE patient_id = ?
+        ORDER BY element_type, updated_at DESC
+        """,
+        [patient_id],
+    ).fetchall()
+
+    medications: list[dict[str, Any]] = []
+    allergies: list[dict[str, Any]] = []
+    diagnoses: list[dict[str, Any]] = []
+    chronic_conditions: list[dict[str, Any]] = []
+    alerts: list[dict[str, Any]] = []
+
+    for row in rows:
+        entry = {
+            "label": row["display_value"],
+            "status": row["status"],
+            "last_updated": row["updated_at"],
+        }
+        etype = (row["element_type"] or "").lower()
+        if etype == "medication":
+            medications.append(entry)
+        elif etype == "allergy":
+            allergies.append(entry)
+        elif etype in ("diagnosis", "icd10"):
+            diagnoses.append(entry)
+        elif etype in ("chronic_condition", "chronic"):
+            chronic_conditions.append(entry)
+        elif etype == "alert":
+            alerts.append(entry)
+
+    last_updated = to_iso(utc_now())
+    if rows:
+        timestamps = [r["updated_at"] for r in rows if r["updated_at"]]
+        if timestamps:
+            last_updated = max(timestamps)
+
+    version_row = connection.execute(
+        "SELECT MAX(rowid) AS v FROM clinical_profile_elements WHERE patient_id = ?",
+        [patient_id],
+    ).fetchone()
+    version = int(version_row["v"] or 0)
+
+    return {
+        "patient_id": patient_id,
+        "medications": medications,
+        "allergies": allergies,
+        "diagnoses": diagnoses,
+        "chronic_conditions": chronic_conditions,
+        "alerts": alerts,
+        "version": version,
+        "last_updated": last_updated,
+    }
+
+
+def get_patient_documents(
+    connection: sqlite3.Connection,
+    patient_id: int = DEFAULT_PATIENT_ID,
+) -> dict[str, Any]:
+    """US-057 BE-3 — Patient document list with processing status."""
+    rows = connection.execute(
+        """
+        SELECT d.id, d.file_name, d.file_type, d.upload_status,
+               d.created_at, cdp.status AS processing_status
+        FROM clinical_documents d
+        LEFT JOIN clinical_document_processing cdp ON cdp.document_id = d.id
+        WHERE d.patient_id = ?
+        ORDER BY d.created_at DESC
+        """,
+        [patient_id],
+    ).fetchall()
+
+    items = []
+    for row in rows:
+        items.append({
+            "id": row["id"],
+            "file_name": row["file_name"],
+            "file_type": row["file_type"],
+            "upload_status": row["upload_status"],
+            "processing_status": row["processing_status"] or "pending",
+            "uploaded_at": row["created_at"],
+        })
+
+    return {"items": items, "total": len(items)}
+
+
+def get_notification_preferences(
+    connection: sqlite3.Connection,
+    patient_id: int = DEFAULT_PATIENT_ID,
+) -> dict[str, Any]:
+    """US-058 BE-1 — Retrieve patient notification channel preferences."""
+    profile = get_patient_profile(connection, patient_id)
+    channels: list[str] = []
+    raw = profile.get("reminder_channels")
+    if raw:
+        try:
+            channels = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            channels = []
+
+    return {
+        "patient_id": patient_id,
+        "email": "email" in channels,
+        "sms": "sms" in channels,
+        "in_app": True,  # Always on; controlled by client opt-in
+        "do_not_disturb": bool(profile.get("do_not_disturb", 0)),
+    }
+
+
+def set_notification_preferences(
+    connection: sqlite3.Connection,
+    patient_id: int,
+    prefs: dict[str, Any],
+) -> dict[str, Any]:
+    """US-058 BE-1 — Persist notification channel preferences for opt-out enforcement."""
+    channels: list[str] = []
+    if prefs.get("email", True):
+        channels.append("email")
+    if prefs.get("sms", True):
+        channels.append("sms")
+    do_not_disturb = 1 if prefs.get("do_not_disturb", False) else 0
+    with connection:
+        connection.execute(
+            "UPDATE patient_profiles SET reminder_channels = ?, do_not_disturb = ? WHERE id = ?",
+            [json.dumps(channels), do_not_disturb, patient_id],
+        )
+    return get_notification_preferences(connection, patient_id)
+
+
+def is_notification_allowed(
+    connection: sqlite3.Connection,
+    patient_id: int,
+    channel: str,
+) -> bool:
+    """US-058 BE-2 — Check if a given notification channel is enabled for this patient."""
+    prefs = get_notification_preferences(connection, patient_id)
+    if prefs.get("do_not_disturb"):
+        return False
+    return bool(prefs.get(channel, False))
+
+
+def get_patient_dashboard(
+    connection: sqlite3.Connection,
+    patient_id: int = DEFAULT_PATIENT_ID,
+) -> dict[str, Any]:
+    """US-053 BE-1/BE-2 — Aggregate dashboard payload with partial-update metadata."""
+    upcoming = get_patient_upcoming_appointments(connection, patient_id)
+    profile = get_patient_profile(connection, patient_id)
+    prefs = get_notification_preferences(connection, patient_id)
+    documents = get_patient_documents(connection, patient_id)
+
+    recent_activity: list[dict[str, Any]] = []
+    history = connection.execute(
+        """
+        SELECT a.appointment_date, a.start_time, p.name AS provider_name, a.status
+        FROM appointments a
+        JOIN providers p ON p.id = a.provider_id
+        WHERE a.appointment_date < ?
+          AND a.status = 'booked'
+        ORDER BY a.appointment_date DESC, a.start_time DESC
+        LIMIT 5
+        """,
+        [date.today().isoformat()],
+    ).fetchall()
+    for row in history:
+        recent_activity.append({
+            "type": "appointment",
+            "date": row["appointment_date"],
+            "description": f"Visit with {row['provider_name']}",
+        })
+
+    unread_notifications = sum(
+        1 for doc in documents["items"] if doc["processing_status"] == "pending"
+    )
+
+    return {
+        "upcoming_count": upcoming["total"],
+        "upcoming_next": upcoming["items"][0] if upcoming["items"] else None,
+        "recent_activity": recent_activity,
+        "profile_summary": {
+            "name": f"{profile.get('first_name', '')} {profile.get('last_name', '')}".strip(),
+            "email": profile.get("email", ""),
+        },
+        "notification_prefs": prefs,
+        "documents_count": documents["total"],
+        "unread_notifications": unread_notifications,
+        "last_updated": to_iso(utc_now()),
+    }
+
+
+def get_admin_operational_metrics(
+    connection: sqlite3.Connection,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    provider_id: int | None = None,
+    location: str | None = None,
+) -> dict[str, Any]:
+    """US-060 BE-1/BE-2/BE-3 — Admin operational KPI metrics with filter support."""
+    where: list[str] = []
+    params: list[Any] = []
+
+    if date_from:
+        where.append("a.appointment_date >= ?")
+        params.append(date_from)
+    if date_to:
+        where.append("a.appointment_date <= ?")
+        params.append(date_to)
+    if provider_id:
+        where.append("a.provider_id = ?")
+        params.append(provider_id)
+    if location:
+        where.append("LOWER(a.location) LIKE ?")
+        params.append(f"%{location.lower()}%")
+
+    where_sql = f"WHERE {' AND '.join(where)}" if where else ""
+
+    total_row = connection.execute(
+        f"SELECT COUNT(*) AS cnt FROM appointments a {where_sql}",
+        params,
+    ).fetchone()
+    total = int(total_row["cnt"] or 0)
+
+    booked_row = connection.execute(
+        f"SELECT COUNT(*) AS cnt FROM appointments a {where_sql} {'AND' if where else 'WHERE'} a.status = 'booked'",
+        params,
+    ).fetchone()
+    booked = int(booked_row["cnt"] or 0)
+
+    cancelled_row = connection.execute(
+        f"SELECT COUNT(*) AS cnt FROM appointments a {where_sql} {'AND' if where else 'WHERE'} a.status = 'cancelled'",
+        params,
+    ).fetchone()
+    cancelled = int(cancelled_row["cnt"] or 0)
+
+    utilization_rate = round(booked / total * 100, 1) if total > 0 else 0.0
+    no_show_rate = round(cancelled / total * 100, 1) if total > 0 else 0.0
+
+    wait_row = connection.execute(
+        f"""
+        SELECT AVG(duration_minutes) AS avg_wait
+        FROM appointments a
+        {where_sql}
+        {'AND' if where else 'WHERE'} a.status = 'booked'
+        """,
+        params,
+    ).fetchone()
+    avg_wait_minutes = round(float(wait_row["avg_wait"] or 0), 1)
+
+    by_provider_rows = connection.execute(
+        f"""
+        SELECT p.name AS provider_name, COUNT(*) AS cnt
+        FROM appointments a
+        JOIN providers p ON p.id = a.provider_id
+        {where_sql}
+        GROUP BY p.id, p.name
+        ORDER BY cnt DESC
+        LIMIT 10
+        """,
+        params,
+    ).fetchall()
+
+    return {
+        "total_appointments": total,
+        "booked": booked,
+        "cancelled": cancelled,
+        "utilization_rate": utilization_rate,
+        "no_show_rate": no_show_rate,
+        "avg_wait_minutes": avg_wait_minutes,
+        "by_provider": [
+            {"provider": r["provider_name"], "count": r["cnt"]} for r in by_provider_rows
+        ],
+        "filters_applied": {
+            "date_from": date_from,
+            "date_to": date_to,
+            "provider_id": provider_id,
+            "location": location,
+        },
+        "last_updated": to_iso(utc_now()),
+    }

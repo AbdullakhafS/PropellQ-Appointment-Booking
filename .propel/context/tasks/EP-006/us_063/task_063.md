@@ -3,7 +3,7 @@
 **User Story:** US-063 (EP-006)
 **Source File:** `.propel/context/tasks/EP-006/us_063/us_063.md`
 **Priority:** MEDIUM
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -38,6 +38,6 @@ Provide utilization analytics showing booked vs available slots with provider/lo
 - Validate provider/location filtering behavior.
 
 ## Definition of Done
-- [ ] Utilization metrics and chart implemented.
-- [ ] Filtering by dimensions validated.
-- [ ] AC-1 through AC-4 validated.
+- [x] Utilization metrics and chart implemented.
+- [x] Filtering by dimensions validated.
+- [x] AC-1 through AC-4 validated.

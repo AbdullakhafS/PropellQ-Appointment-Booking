@@ -3,7 +3,7 @@
 **User Story:** US-056 (EP-006)
 **Source File:** `.propel/context/tasks/EP-006/us_056/us_056.md`
 **Priority:** HIGH
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -44,7 +44,7 @@ Show patient-friendly health profile sections for medications, allergies, diagno
 - Validate profile updates after source changes.
 
 ## Definition of Done
-- [ ] Profile sections rendered accurately.
-- [ ] Correction path available.
-- [ ] Update behavior validated.
-- [ ] AC-1 through AC-4 validated.
+- [x] Profile sections rendered accurately.
+- [x] Correction path available.
+- [x] Update behavior validated.
+- [x] AC-1 through AC-4 validated.
