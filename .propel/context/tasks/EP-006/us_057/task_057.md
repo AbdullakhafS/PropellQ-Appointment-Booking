@@ -3,7 +3,7 @@
 **User Story:** US-057 (EP-006)
 **Source File:** `.propel/context/tasks/EP-006/us_057/us_057.md`
 **Priority:** HIGH
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -47,7 +47,7 @@ Enable secure patient document uploads from dashboard, supporting PDF/JPG/PNG/DO
 - Validate dashboard status updates for uploaded documents.
 
 ## Definition of Done
-- [ ] Upload UI and backend integration complete.
-- [ ] Supported formats accepted, unsupported rejected.
-- [ ] Status tracking visible in dashboard.
-- [ ] AC-1 through AC-4 validated.
+- [x] Upload UI and backend integration complete.
+- [x] Supported formats accepted, unsupported rejected.
+- [x] Status tracking visible in dashboard.
+- [x] AC-1 through AC-4 validated.

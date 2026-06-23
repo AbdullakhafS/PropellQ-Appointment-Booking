@@ -1547,3 +1547,651 @@ dialog::backdrop {
 dialog .field {
   margin-bottom: 0.75rem;
 }
+
+/* =============================================================================
+   EP-006 US-053 – US-060: Patient Dashboard & Admin Operational Dashboard
+   ============================================================================= */
+
+/* --- Utility: visually hidden (accessible only to screen readers) --- */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Patient dashboard panel --- */
+.patient-dashboard-panel {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: var(--surface, #fff);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border, #e5e7eb);
+}
+
+/* US-053 FE-2 / FE-3: Responsive card grid — 1 col mobile → 2 col tablet → 3 col desktop */
+.dashboard-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .dashboard-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboard-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Individual dashboard card */
+.dash-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-raised, #f9fafb);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 0.625rem;
+  padding: 1rem;
+  min-height: 10rem;
+}
+
+.dash-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.dash-card__header h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, #6b7280);
+}
+
+.dash-card__body {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 16rem;
+}
+
+.dash-card__body--compact {
+  max-height: 12rem;
+}
+
+.dash-card__empty {
+  color: var(--text-secondary, #6b7280);
+  font-size: 0.85rem;
+}
+
+.dash-card__footer {
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.dash-card__action {
+  padding: 0.2rem 0.4rem;
+  font-size: 1rem;
+}
+
+.dash-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--accent, #6366f1);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* --- US-054: Appointment items --- */
+.appt-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.appt-item:last-child {
+  border-bottom: none;
+}
+
+.appt-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.appt-item__date {
+  font-weight: 600;
+}
+
+.appt-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.dash-action-btn {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  min-height: 2rem;           /* US-059 FE-3: min tap target */
+}
+
+.dash-action-btn--danger {
+  color: var(--error, #ef4444);
+  border-color: var(--error, #ef4444);
+}
+
+.appt-item--history .appt-item__notes {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+/* --- US-056: Health profile --- */
+.health-profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 767px) {
+  .health-profile-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.health-section__title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, #6b7280);
+  margin: 0 0 0.35rem;
+}
+
+.health-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.health-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+  font-size: 0.82rem;
+}
+
+.health-item__status {
+  font-size: 0.7rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.health-alerts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.health-alert-chip {
+  padding: 0.2rem 0.6rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.health-version {
+  margin-top: 0.75rem;
+  font-size: 0.72rem;
+}
+
+/* --- US-057: Document upload --- */
+.dash-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.dash-upload-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #6b7280);
+  border: 1px dashed var(--border, #e5e7eb);
+  border-radius: 0.375rem;
+  padding: 0.4rem 0.6rem;
+  min-height: 2.5rem;           /* US-059 FE-3: touch target */
+}
+
+.dash-upload-label:hover,
+.dash-upload-label:focus-within {
+  border-color: var(--accent, #6366f1);
+  color: var(--accent, #6366f1);
+}
+
+.progress-bar {
+  height: 0.35rem;
+  background: var(--border, #e5e7eb);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 0.4rem;
+}
+
+.progress-bar__fill {
+  height: 100%;
+  background: var(--accent, #6366f1);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+  width: 0%;
+}
+
+.documents-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.doc-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  font-size: 0.8rem;
+}
+
+.doc-item:last-child {
+  border-bottom: none;
+}
+
+.doc-item__name {
+  flex: 1;
+  font-weight: 500;
+  word-break: break-all;
+}
+
+/* --- US-058: Notification preferences --- */
+.notif-prefs-fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.notif-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  min-height: 2rem;             /* US-059 FE-3: tap target */
+}
+
+.notif-toggle input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--accent, #6366f1);
+  cursor: pointer;
+}
+
+.notif-toggle--dnd {
+  margin-top: 0.25rem;
+  color: var(--error, #ef4444);
+}
+
+/* --- US-060: Admin Operational Dashboard --- */
+.admin-ops-dashboard {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: var(--surface, #fff);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border, #e5e7eb);
+}
+
+.admin-ops-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 0.75rem;
+  background: var(--surface-raised, #f9fafb);
+  border-radius: 0.5rem;
+}
+
+.admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+@media (min-width: 640px) {
+  .admin-kpi-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.kpi-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-raised, #f9fafb);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 0.625rem;
+  padding: 1rem;
+  text-align: center;
+  gap: 0.25rem;
+}
+
+.kpi-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, #6b7280);
+}
+
+.kpi-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+  line-height: 1.2;
+}
+
+.kpi-unit {
+  font-size: 0.72rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.admin-provider-table-wrap {
+  margin-top: 1rem;
+  overflow-x: auto;
+}
+
+.admin-provider-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.admin-provider-table th,
+.admin-provider-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  text-align: left;
+}
+
+.admin-provider-table th {
+  font-weight: 600;
+  background: var(--surface-raised, #f9fafb);
+}
+
+/* =============================================================================
+   EP-006 US-059: Mobile Responsive — 375px breakpoint overrides
+   ============================================================================= */
+
+/* Stack all main panels vertically on small screens */
+@media (max-width: 374px) {
+  .app-shell {
+    flex-direction: column !important;
+    padding: 0.5rem !important;
+    overflow-x: hidden;
+  }
+
+  .sidebar-panel,
+  .content-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .dashboard-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .health-profile-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* US-059 FE-1/FE-2: 375–767px phone layout */
+@media (max-width: 767px) {
+  .patient-dashboard-panel,
+  .admin-ops-dashboard {
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+
+  .dash-card {
+    padding: 0.75rem;
+  }
+
+  .dash-card__body {
+    max-height: 14rem;         /* Prevent overflow on phone */
+  }
+
+  .appt-item__meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+  }
+
+  .admin-ops-filters {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .admin-ops-filters .field {
+    width: 100%;
+  }
+
+  .admin-ops-filters input,
+  .admin-ops-filters button {
+    width: 100%;
+    min-height: 2.5rem;        /* US-059 FE-3: touch targets */
+  }
+
+  /* Prevent horizontal overflow */
+  .app-shell,
+  main {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+}
+
+/* US-059 PERF-1: Lazy-load hint for below-fold sections */
+.patient-dashboard-panel,
+.admin-ops-dashboard {
+  content-visibility: auto;    /* Browser skips paint until near viewport */
+}
+
+/* Ensure minimum touch targets everywhere (US-059 FE-3) */
+button,
+a,
+input[type="checkbox"],
+input[type="radio"],
+select {
+  min-height: 2rem;
+}
+
+@media (max-width: 767px) {
+  button,
+  a[href],
+  input[type="checkbox"],
+  input[type="radio"],
+  select {
+    min-height: 2.75rem;       /* 44px equivalent for mobile */
+  }
+}
+
+/* ===========================================================================
+   EP-006 US-061–069: Admin Analytics Extension Styles
+   =========================================================================== */
+
+/* US-069 header action group */
+.admin-ops-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* US-067 auto-refresh toggle label */
+.auto-refresh-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #666);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* US-068 provider dropdown sized consistently with other filter inputs */
+#metricsProvider {
+  min-width: 9rem;
+  max-width: 14rem;
+}
+
+/* US-061–066 analytics grid: 3 columns on wide, 2 on tablet, 1 on mobile */
+.admin-analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-block: 1.25rem;
+}
+
+@media (max-width: 1023px) {
+  .admin-analytics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .admin-analytics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.analytics-card {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.analytics-card__title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, #666);
+  margin: 0 0 0.5rem;
+}
+
+.analytics-card__subtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #888);
+  margin: -0.25rem 0 0.5rem;
+}
+
+.analytics-card__warning {
+  font-size: 0.8rem;
+  color: var(--color-warning, #b45309);
+  background: var(--color-warning-bg, #fef3c7);
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* US-061: no-show delta indicator */
+.analytics-kpi {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.kpi-delta {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.kpi-delta--up   { color: var(--color-danger,  #dc2626); }
+.kpi-delta--down { color: var(--color-success, #16a34a); }
+.kpi-delta--flat { color: var(--color-text-muted, #666); }
+
+/* US-065 insurance status definition list */
+.analytics-status-dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem 0.75rem;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.analytics-status-dl dt { color: var(--color-text-muted, #666); }
+.analytics-status-dl dd { margin: 0; font-weight: 600; }
+
+/* US-066 category breakdown list */
+.analytics-category-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.analytics-category-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.analytics-category-name { color: var(--color-text-muted, #666); }
+.analytics-category-rate { font-weight: 600; }

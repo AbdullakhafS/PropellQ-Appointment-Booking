@@ -3,7 +3,7 @@
 **User Story:** US-055 (EP-006)
 **Source File:** `.propel/context/tasks/EP-006/us_055/us_055.md`
 **Priority:** MEDIUM
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -44,7 +44,7 @@ Provide a past appointment history view with released notes/download links and g
 - Validate selecting visit loads details correctly.
 
 ## Definition of Done
-- [ ] Past appointments rendered.
-- [ ] Released notes displayed securely.
-- [ ] Missing-note UX handled.
-- [ ] AC-1 through AC-4 validated.
+- [x] Past appointments rendered.
+- [x] Released notes displayed securely.
+- [x] Missing-note UX handled.
+- [x] AC-1 through AC-4 validated.

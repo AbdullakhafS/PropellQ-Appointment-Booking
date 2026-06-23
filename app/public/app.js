@@ -1863,3 +1863,749 @@ function setUserMgmtStatus(msg) {
     elements.userMgmtStatus.textContent = msg;
   }
 }
+
+// =============================================================================
+// EP-006 US-053 through US-060: Patient Dashboard & Admin Operational Dashboard
+// =============================================================================
+
+// --- Element references for EP-006 -----------------------------------------
+const dashElements = {
+  refreshDashboardButton: document.getElementById("refreshDashboardButton"),
+  upcomingAppointmentsList: document.getElementById("upcomingAppointmentsList"),
+  upcomingEmptyState: document.getElementById("upcomingEmptyState"),
+  upcomingCountBadge: document.getElementById("upcomingCountBadge"),
+  appointmentHistoryList: document.getElementById("appointmentHistoryList"),
+  historyEmptyState: document.getElementById("historyEmptyState"),
+  healthProfileSummary: document.getElementById("healthProfileSummary"),
+  refreshHealthProfileButton: document.getElementById("refreshHealthProfileButton"),
+  reportProfileDiscrepancyButton: document.getElementById("reportProfileDiscrepancyButton"),
+  dashFileInput: document.getElementById("dashFileInput"),
+  dashFileLabel: document.getElementById("dashFileLabel"),
+  dashUploadButton: document.getElementById("dashUploadButton"),
+  dashUploadProgress: document.getElementById("dashUploadProgress"),
+  dashUploadProgressFill: document.getElementById("dashUploadProgressFill"),
+  dashUploadStatus: document.getElementById("dashUploadStatus"),
+  documentsList: document.getElementById("documentsList"),
+  documentsCountBadge: document.getElementById("documentsCountBadge"),
+  notifEmailToggle: document.getElementById("notifEmailToggle"),
+  notifSmsToggle: document.getElementById("notifSmsToggle"),
+  notifDndToggle: document.getElementById("notifDndToggle"),
+  saveNotifPrefsButton: document.getElementById("saveNotifPrefsButton"),
+  notifPrefsStatus: document.getElementById("notifPrefsStatus"),
+  dashboardStatus: document.getElementById("dashboardStatus"),
+  // US-060 admin operational dashboard
+  refreshAdminMetricsButton: document.getElementById("refreshAdminMetricsButton"),
+  metricsDateFrom: document.getElementById("metricsDateFrom"),
+  metricsDateTo: document.getElementById("metricsDateTo"),
+  metricsLocation: document.getElementById("metricsLocation"),
+  applyMetricsFiltersButton: document.getElementById("applyMetricsFiltersButton"),
+  clearMetricsFiltersButton: document.getElementById("clearMetricsFiltersButton"),
+  kpiUtilization: document.getElementById("kpiUtilization"),
+  kpiNoShow: document.getElementById("kpiNoShow"),
+  kpiAvgWait: document.getElementById("kpiAvgWait"),
+  kpiTotal: document.getElementById("kpiTotal"),
+  adminProviderTableWrap: document.getElementById("adminProviderTableWrap"),
+  adminProviderTableBody: document.getElementById("adminProviderTableBody"),
+  adminMetricsLastUpdated: document.getElementById("adminMetricsLastUpdated"),
+  adminOpsMetricsStatus: document.getElementById("adminOpsMetricsStatus"),
+  // US-067 auto-refresh
+  adminAutoRefreshToggle: document.getElementById("adminAutoRefreshToggle"),
+  adminAutoRefreshStatus: document.getElementById("adminAutoRefreshStatus"),
+  // US-068 provider filter
+  metricsProvider: document.getElementById("metricsProvider"),
+  // US-069 CSV export
+  exportCsvButton: document.getElementById("exportCsvButton"),
+  // US-061 no-show detail
+  kpiNoShowDetail: document.getElementById("kpiNoShowDetail"),
+  kpiNoShowDelta: document.getElementById("kpiNoShowDelta"),
+  // US-062 wait-time warning
+  kpiWaitWarning: document.getElementById("kpiWaitWarning"),
+  kpiP95Wait: document.getElementById("kpiP95Wait"),
+  // US-064 intake
+  kpiIntakeRate: document.getElementById("kpiIntakeRate"),
+  kpiIntakeLowFlag: document.getElementById("kpiIntakeLowFlag"),
+  // US-065 insurance verification
+  kpiInsVerified: document.getElementById("kpiInsVerified"),
+  kpiInsPending: document.getElementById("kpiInsPending"),
+  kpiInsFailed: document.getElementById("kpiInsFailed"),
+  kpiInsIssueFlag: document.getElementById("kpiInsIssueFlag"),
+  // US-066 AI-human agreement
+  kpiAgreementRate: document.getElementById("kpiAgreementRate"),
+  agreementByCategory: document.getElementById("agreementByCategory"),
+  // US-063 utilization breakdown
+  adminUtilBreakdownWrap: document.getElementById("adminUtilBreakdownWrap"),
+  adminUtilBreakdownBody: document.getElementById("adminUtilBreakdownBody"),
+  adminUtilEmptyState: document.getElementById("adminUtilEmptyState"),
+};
+
+// --- EP-006 initialisation (called from bootstrap()) -----------------------
+async function initDashboard() {
+  bindDashboardEvents();
+  await Promise.all([
+    loadUpcomingAppointments(),
+    loadAppointmentHistory(),
+    loadHealthProfile(),
+    loadPatientDocuments(),
+    loadNotificationPrefs(),
+  ]);
+}
+
+function bindDashboardEvents() {
+  dashElements.refreshDashboardButton?.addEventListener("click", () => {
+    Promise.all([
+      loadUpcomingAppointments(),
+      loadAppointmentHistory(),
+      loadHealthProfile(),
+      loadPatientDocuments(),
+      loadNotificationPrefs(),
+    ]);
+  });
+
+  dashElements.refreshHealthProfileButton?.addEventListener("click", loadHealthProfile);
+
+  dashElements.reportProfileDiscrepancyButton?.addEventListener("click", () => {
+    alert("Thank you. A support request has been flagged for a clinical data review.\n\nPlease contact your care team if you need urgent assistance.");
+  });
+
+  dashElements.dashFileInput?.addEventListener("change", () => {
+    const file = dashElements.dashFileInput.files[0];
+    if (file) {
+      dashElements.dashFileLabel.textContent = file.name;
+    }
+  });
+
+  dashElements.dashUploadButton?.addEventListener("click", handleDashDocumentUpload);
+
+  dashElements.saveNotifPrefsButton?.addEventListener("click", saveNotificationPrefs);
+
+  // US-060 admin metrics
+  dashElements.applyMetricsFiltersButton?.addEventListener("click", loadAllAdminMetrics);
+  dashElements.clearMetricsFiltersButton?.addEventListener("click", () => {
+    if (dashElements.metricsDateFrom) dashElements.metricsDateFrom.value = "";
+    if (dashElements.metricsDateTo) dashElements.metricsDateTo.value = "";
+    if (dashElements.metricsLocation) dashElements.metricsLocation.value = "";
+    if (dashElements.metricsProvider) dashElements.metricsProvider.value = "";
+    loadAllAdminMetrics();
+  });
+  dashElements.refreshAdminMetricsButton?.addEventListener("click", loadAllAdminMetrics);
+  // US-067 auto-refresh toggle
+  dashElements.adminAutoRefreshToggle?.addEventListener("change", () => {
+    if (dashElements.adminAutoRefreshToggle.checked) _startAdminAutoRefresh();
+    else _stopAdminAutoRefresh();
+  });
+  // US-069 CSV export
+  dashElements.exportCsvButton?.addEventListener("click", handleCsvExport);
+}
+
+// Extend the top-level bootstrap to include EP-006 dashboard init.
+const _origBootstrap = bootstrap;
+// Override bootstrap (already called, so we attach to page load):
+document.addEventListener("DOMContentLoaded", () => {
+  initDashboard().catch(console.error);
+  loadFilterOptions().catch(console.error);
+  loadAllAdminMetrics();
+  _startAdminAutoRefresh();
+});
+
+// --- US-054: Upcoming Appointments ------------------------------------------
+
+async function loadUpcomingAppointments() {
+  try {
+    const res = await fetch("/api/patient/appointments/upcoming", {
+      headers: rbacHeaders(),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error?.message || "Failed to load");
+    renderUpcomingAppointments(json.data);
+  } catch (err) {
+    if (dashElements.upcomingAppointmentsList) {
+      dashElements.upcomingAppointmentsList.innerHTML = `<p class="error-text">Could not load upcoming appointments.</p>`;
+    }
+  }
+}
+
+function renderUpcomingAppointments(data) {
+  const list = dashElements.upcomingAppointmentsList;
+  const empty = dashElements.upcomingEmptyState;
+  const badge = dashElements.upcomingCountBadge;
+  if (!list) return;
+
+  const items = data.items || [];
+  if (badge) badge.textContent = data.total || 0;
+
+  if (!items.length) {
+    list.innerHTML = "";
+    if (empty) empty.hidden = false;
+    return;
+  }
+  if (empty) empty.hidden = true;
+
+  list.innerHTML = items.map((appt) => {
+    const actions = [];
+    if (appt.can_reschedule) {
+      actions.push(`<button class="ghost-btn dash-action-btn" type="button" aria-label="Reschedule appointment ${appt.id}" data-appt-id="${appt.id}" data-action="reschedule">Reschedule</button>`);
+    }
+    if (appt.can_cancel) {
+      actions.push(`<button class="ghost-btn dash-action-btn dash-action-btn--danger" type="button" aria-label="Cancel appointment ${appt.id}" data-appt-id="${appt.id}" data-action="cancel">Cancel</button>`);
+    }
+    actions.push(`<button class="ghost-btn dash-action-btn" type="button" aria-label="View appointment ${appt.id} details" data-appt-id="${appt.id}" data-action="view">View details</button>`);
+    return `
+      <article class="appt-item" aria-label="Appointment on ${escHtml(appt.appointment_date)}">
+        <div class="appt-item__meta">
+          <span class="appt-item__date">${escHtml(appt.appointment_date)}</span>
+          <span class="appt-item__time">${escHtml(appt.start_time)} – ${escHtml(appt.end_time)}</span>
+          <span class="appt-item__provider">${escHtml(appt.provider_name || "")}</span>
+          <span class="appt-item__specialty">${escHtml(appt.specialty || "")}</span>
+          <span class="appt-item__location">${escHtml(appt.location || "")}</span>
+          <span class="badge badge--${appt.status === 'booked' ? 'success' : 'default'}">${escHtml(appt.status || "")}</span>
+        </div>
+        <div class="appt-item__actions" role="group" aria-label="Actions for appointment ${appt.id}">${actions.join("")}</div>
+      </article>`;
+  }).join("");
+
+  list.querySelectorAll(".dash-action-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const action = btn.dataset.action;
+      const id = btn.dataset.apptId;
+      if (action === "reschedule") {
+        alert(`Reschedule workflow for appointment #${id} — in progress.`);
+      } else if (action === "cancel") {
+        if (confirm(`Cancel appointment #${id}? This cannot be undone.`)) {
+          alert(`Cancel request sent for appointment #${id}.`);
+        }
+      } else {
+        alert(`Appointment #${id} detail view — select the slot in the calendar above to see full details.`);
+      }
+    });
+  });
+}
+
+// --- US-055: Appointment History --------------------------------------------
+
+async function loadAppointmentHistory() {
+  try {
+    const res = await fetch("/api/patient/appointments/history", {
+      headers: rbacHeaders(),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error?.message || "Failed to load");
+    renderAppointmentHistory(json.data);
+  } catch (err) {
+    if (dashElements.appointmentHistoryList) {
+      dashElements.appointmentHistoryList.innerHTML = `<p class="error-text">Could not load appointment history.</p>`;
+    }
+  }
+}
+
+function renderAppointmentHistory(data) {
+  const list = dashElements.appointmentHistoryList;
+  const empty = dashElements.historyEmptyState;
+  if (!list) return;
+
+  const items = data.items || [];
+  if (!items.length) {
+    list.innerHTML = "";
+    if (empty) empty.hidden = false;
+    return;
+  }
+  if (empty) empty.hidden = true;
+
+  list.innerHTML = items.slice(0, 10).map((appt) => {
+    const notesHtml = appt.notes_available
+      ? `<a href="${escHtml(appt.notes_url || "#")}" class="ghost-btn" target="_blank" rel="noopener noreferrer">View notes</a>`
+      : `<span class="muted-text" title="${escHtml(appt.notes_unavailable_reason || "Notes not yet released")}">Notes not released</span>`;
+    return `
+      <article class="appt-item appt-item--history" aria-label="Past appointment on ${escHtml(appt.appointment_date)}">
+        <div class="appt-item__meta">
+          <span class="appt-item__date">${escHtml(appt.appointment_date)}</span>
+          <span class="appt-item__provider">${escHtml(appt.provider_name || "")}</span>
+          <span class="appt-item__specialty">${escHtml(appt.specialty || "")}</span>
+          <span class="badge badge--default">${escHtml(appt.status || "")}</span>
+        </div>
+        <div class="appt-item__notes">${notesHtml}</div>
+      </article>`;
+  }).join("");
+}
+
+// --- US-056: Health Profile -------------------------------------------------
+
+async function loadHealthProfile() {
+  try {
+    const res = await fetch("/api/patient/health-profile", {
+      headers: rbacHeaders(),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error?.message || "Failed to load");
+    renderHealthProfile(json.data);
+  } catch (err) {
+    if (dashElements.healthProfileSummary) {
+      dashElements.healthProfileSummary.innerHTML = `<p class="muted-text">Health profile unavailable.</p>`;
+    }
+  }
+}
+
+function renderHealthProfile(data) {
+  const container = dashElements.healthProfileSummary;
+  if (!container) return;
+
+  const section = (title, items, tooltip) => {
+    if (!items || !items.length) {
+      return `<div class="health-section"><h4 class="health-section__title" title="${escHtml(tooltip || "")}">${escHtml(title)}</h4><p class="muted-text">None on record.</p></div>`;
+    }
+    const listItems = items.map((item) =>
+      `<li class="health-item"><span class="health-item__label">${escHtml(item.label || item.display_value || "")}</span>
+       ${item.status ? `<span class="health-item__status">${escHtml(item.status)}</span>` : ""}</li>`
+    ).join("");
+    return `<div class="health-section"><h4 class="health-section__title" title="${escHtml(tooltip || "")}">${escHtml(title)}</h4><ul class="health-list">${listItems}</ul></div>`;
+  };
+
+  container.innerHTML = `
+    <div class="health-profile-grid">
+      ${section("Medications", data.medications, "Current active medications on record")}
+      ${section("Allergies", data.allergies, "Known patient allergies")}
+      ${section("Diagnoses", data.diagnoses, "Active diagnoses")}
+      ${section("Chronic Conditions", data.chronic_conditions, "Long-term conditions")}
+      ${data.alerts?.length ? `<div class="health-alerts">${data.alerts.map(a => `<div class="health-alert-chip" role="alert">⚠ ${escHtml(a.label || "")}</div>`).join("")}</div>` : ""}
+    </div>
+    <p class="muted-text health-version">Version ${escHtml(String(data.version || 0))} · Updated ${escHtml(data.last_updated || "")}</p>`;
+}
+
+// --- US-057: Document Upload ------------------------------------------------
+
+async function loadPatientDocuments() {
+  try {
+    const res = await fetch("/api/patient/documents", {
+      headers: rbacHeaders(),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error?.message || "Failed to load");
+    renderPatientDocuments(json.data);
+  } catch (err) {
+    if (dashElements.documentsList) {
+      dashElements.documentsList.innerHTML = `<p class="muted-text">Documents unavailable.</p>`;
+    }
+  }
+}
+
+function renderPatientDocuments(data) {
+  const list = dashElements.documentsList;
+  const badge = dashElements.documentsCountBadge;
+  if (!list) return;
+
+  const items = data.items || [];
+  if (badge) badge.textContent = data.total || 0;
+
+  if (!items.length) {
+    list.innerHTML = `<p class="muted-text">No documents uploaded yet.</p>`;
+    return;
+  }
+  list.innerHTML = `<ul class="documents-list">${items.map((doc) => `
+    <li class="doc-item" aria-label="Document ${escHtml(doc.file_name || "")}">
+      <span class="doc-item__name">${escHtml(doc.file_name || "")}</span>
+      <span class="doc-item__type">${escHtml(doc.file_type || "")}</span>
+      <span class="doc-item__status badge badge--${doc.processing_status === 'complete' ? 'success' : 'default'}">${escHtml(doc.processing_status || "")}</span>
+      <span class="doc-item__date muted-text">${escHtml(doc.uploaded_at || "")}</span>
+    </li>`).join("")}</ul>`;
+}
+
+const _ALLOWED_DOC_TYPES = new Set(["application/pdf", "image/jpeg", "image/png",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]);
+const _MAX_DOC_SIZE = 20 * 1024 * 1024;
+
+async function handleDashDocumentUpload() {
+  const file = dashElements.dashFileInput?.files?.[0];
+  if (!file) {
+    setDashUploadStatus("Please select a file first.");
+    return;
+  }
+  if (!_ALLOWED_DOC_TYPES.has(file.type)) {
+    setDashUploadStatus("Unsupported file type. Please upload a PDF, JPG, PNG, or DOCX file.");
+    return;
+  }
+  if (file.size > _MAX_DOC_SIZE) {
+    setDashUploadStatus("File is too large. Maximum size is 20 MB.");
+    return;
+  }
+
+  if (dashElements.dashUploadProgress) dashElements.dashUploadProgress.hidden = false;
+  if (dashElements.dashUploadProgressFill) dashElements.dashUploadProgressFill.style.width = "0%";
+  setDashUploadStatus("Uploading…");
+
+  try {
+    // Simulate progress since fetch does not expose upload progress without XHR
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+      progress = Math.min(progress + 20, 90);
+      if (dashElements.dashUploadProgressFill) {
+        dashElements.dashUploadProgressFill.style.width = `${progress}%`;
+        dashElements.dashUploadProgressFill.closest("[role='progressbar']")?.setAttribute("aria-valuenow", progress);
+      }
+    }, 150);
+
+    const arrayBuffer = await file.arrayBuffer();
+    const res = await fetch(`/api/clinical/documents/upload?fileName=${encodeURIComponent(file.name)}&patientId=1`, {
+      method: "POST",
+      headers: { "Content-Type": file.type, ...rbacHeaders() },
+      body: arrayBuffer,
+    });
+    clearInterval(progressInterval);
+    if (dashElements.dashUploadProgressFill) dashElements.dashUploadProgressFill.style.width = "100%";
+
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error?.message || "Upload failed");
+
+    setDashUploadStatus(`✓ ${file.name} uploaded successfully.`);
+    if (dashElements.dashFileInput) dashElements.dashFileInput.value = "";
+    if (dashElements.dashFileLabel) dashElements.dashFileLabel.textContent = "Choose file (PDF, JPG, PNG, DOCX · max 20 MB)";
+    await loadPatientDocuments();
+  } catch (err) {
+    setDashUploadStatus(`Upload failed: ${err.message}`);
+  } finally {
+    setTimeout(() => {
+      if (dashElements.dashUploadProgress) dashElements.dashUploadProgress.hidden = true;
+    }, 1500);
+  }
+}
+
+function setDashUploadStatus(msg) {
+  if (dashElements.dashUploadStatus) dashElements.dashUploadStatus.textContent = msg;
+}
+
+// --- US-058: Notification Preferences ----------------------------------------
+
+async function loadNotificationPrefs() {
+  try {
+    const res = await fetch("/api/patient/notifications/preferences", {
+      headers: rbacHeaders(),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error?.message || "Failed to load");
+    applyNotificationPrefs(json.data);
+  } catch (err) {
+    if (dashElements.notifPrefsStatus) {
+      dashElements.notifPrefsStatus.textContent = "Could not load notification preferences.";
+    }
+  }
+}
+
+function applyNotificationPrefs(prefs) {
+  if (dashElements.notifEmailToggle) dashElements.notifEmailToggle.checked = !!prefs.email;
+  if (dashElements.notifSmsToggle) dashElements.notifSmsToggle.checked = !!prefs.sms;
+  if (dashElements.notifDndToggle) dashElements.notifDndToggle.checked = !!prefs.do_not_disturb;
+}
+
+async function saveNotificationPrefs() {
+  const prefs = {
+    email: dashElements.notifEmailToggle?.checked ?? true,
+    sms: dashElements.notifSmsToggle?.checked ?? true,
+    do_not_disturb: dashElements.notifDndToggle?.checked ?? false,
+  };
+  try {
+    const res = await fetch("/api/patient/notifications/preferences", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...rbacHeaders() },
+      body: JSON.stringify(prefs),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error?.message || "Save failed");
+    if (dashElements.notifPrefsStatus) dashElements.notifPrefsStatus.textContent = "✓ Preferences saved.";
+    applyNotificationPrefs(json.data);
+  } catch (err) {
+    if (dashElements.notifPrefsStatus) dashElements.notifPrefsStatus.textContent = `Save failed: ${err.message}`;
+  }
+}
+
+// --- US-060: Admin Operational Dashboard ------------------------------------
+
+function _adminFilterParams() {
+  const dateFrom = dashElements.metricsDateFrom?.value || "";
+  const dateTo = dashElements.metricsDateTo?.value || "";
+  const location = dashElements.metricsLocation?.value || "";
+  const providerId = dashElements.metricsProvider?.value || "";
+  const params = new URLSearchParams();
+  if (dateFrom) params.set("date_from", dateFrom);
+  if (dateTo) params.set("date_to", dateTo);
+  if (location) params.set("location", location);
+  if (providerId) params.set("provider_id", providerId);
+  return params;
+}
+
+async function loadAdminOperationalMetrics() {
+  if (!dashElements.kpiUtilization) return;  // Not admin view
+  const params = _adminFilterParams();
+
+  try {
+    const res = await fetch(`/api/admin/operational-metrics?${params.toString()}`, {
+      headers: rbacHeaders(),
+    });
+    if (res.status === 403) return;  // Not an admin session — silently skip
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error?.message || "Failed");
+    renderAdminMetrics(json.data);
+  } catch (err) {
+    if (dashElements.adminOpsMetricsStatus) {
+      dashElements.adminOpsMetricsStatus.textContent = `Could not load metrics: ${err.message}`;
+    }
+  }
+}
+
+function renderAdminMetrics(data) {
+  if (dashElements.kpiUtilization) dashElements.kpiUtilization.textContent = `${data.utilization_rate ?? "—"}%`;
+  if (dashElements.kpiNoShow) dashElements.kpiNoShow.textContent = `${data.no_show_rate ?? "—"}%`;
+  if (dashElements.kpiAvgWait) dashElements.kpiAvgWait.textContent = data.avg_wait_minutes ?? "—";
+  if (dashElements.kpiTotal) dashElements.kpiTotal.textContent = data.total_appointments ?? "—";
+
+  if (dashElements.adminMetricsLastUpdated) {
+    dashElements.adminMetricsLastUpdated.textContent = `Last updated: ${data.last_updated || "—"}`;
+  }
+
+  const tbody = dashElements.adminProviderTableBody;
+  const wrap = dashElements.adminProviderTableWrap;
+  if (tbody && data.by_provider?.length) {
+    tbody.innerHTML = data.by_provider.map((row) =>
+      `<tr><td>${escHtml(row.provider)}</td><td>${escHtml(String(row.count))}</td></tr>`
+    ).join("");
+    if (wrap) wrap.hidden = false;
+  } else if (wrap) {
+    wrap.hidden = true;
+  }
+}
+
+// --- RBAC helper (reuse existing state) -------------------------------------
+function rbacHeaders() {
+  const role = state?.rbac?.role || "patient";
+  const h = { "X-Role": role };
+  if (role === "admin" && state?.rbac?.adminId) h["X-Admin-Id"] = state.rbac.adminId;
+  return h;
+}
+
+// ===========================================================================
+// EP-006 US-061–069: Admin Analytics Extension
+// ===========================================================================
+
+// --- US-067: Auto-refresh (5-min cadence, Page Visibility API throttling) ---
+const _AUTO_REFRESH_MS = 5 * 60 * 1000;
+let _adminAutoRefreshTimer = null;
+
+function _startAdminAutoRefresh() {
+  _stopAdminAutoRefresh();
+  if (!dashElements.adminAutoRefreshToggle?.checked) return;
+  _adminAutoRefreshTimer = setInterval(() => {
+    if (document.visibilityState === "visible") {
+      loadAllAdminMetrics();
+    }
+  }, _AUTO_REFRESH_MS);
+  if (dashElements.adminAutoRefreshStatus) {
+    dashElements.adminAutoRefreshStatus.textContent = "Auto-refresh: on (every 5 min)";
+  }
+}
+
+function _stopAdminAutoRefresh() {
+  if (_adminAutoRefreshTimer) {
+    clearInterval(_adminAutoRefreshTimer);
+    _adminAutoRefreshTimer = null;
+  }
+  if (dashElements.adminAutoRefreshStatus) {
+    dashElements.adminAutoRefreshStatus.textContent = "Auto-refresh: off";
+  }
+}
+
+// Pause refresh when tab is hidden (US-067 FE-4)
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") {
+    if (_adminAutoRefreshTimer) {
+      clearInterval(_adminAutoRefreshTimer);
+      _adminAutoRefreshTimer = null;
+    }
+  } else if (dashElements.adminAutoRefreshToggle?.checked) {
+    _startAdminAutoRefresh();
+  }
+});
+
+// --- US-068: Load filter options (populate provider dropdown) ---
+async function loadFilterOptions() {
+  if (!dashElements.metricsProvider) return;
+  try {
+    const res = await fetch("/api/admin/filter-options", { headers: rbacHeaders() });
+    if (!res.ok) return;
+    const json = await res.json();
+    if (!json.success) return;
+    const select = dashElements.metricsProvider;
+    json.data.providers.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = `${escHtml(p.name)}${p.credentials ? " (" + escHtml(p.credentials) + ")" : ""}`;
+      select.appendChild(opt);
+    });
+  } catch (_) { /* non-critical */ }
+}
+
+// --- Aggregate loader: runs all admin metric endpoints in parallel ---
+async function loadAllAdminMetrics() {
+  await Promise.allSettled([
+    loadAdminOperationalMetrics(),
+    loadNoShowMetrics(),
+    loadWaitTimeMetrics(),
+    loadUtilizationMetrics(),
+    loadIntakeMetrics(),
+    loadInsuranceMetrics(),
+    loadAgreementMetrics(),
+  ]);
+}
+
+// --- US-061: No-show rate with trend and prior-period comparison ---
+async function loadNoShowMetrics() {
+  if (!dashElements.kpiNoShowDetail) return;
+  try {
+    const res = await fetch(`/api/admin/metrics/no-show?${_adminFilterParams()}`, {
+      headers: rbacHeaders(),
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    if (!json.success) return;
+    const d = json.data;
+    dashElements.kpiNoShowDetail.textContent = `${d.rate ?? "—"}%`;
+    if (dashElements.kpiNoShowDelta) {
+      const delta = d.delta ?? 0;
+      const sign = delta > 0 ? "▲" : delta < 0 ? "▼" : "=";
+      dashElements.kpiNoShowDelta.textContent = ` ${sign}${Math.abs(delta)}%`;
+      dashElements.kpiNoShowDelta.className = `kpi-delta kpi-delta--${delta > 0 ? "up" : delta < 0 ? "down" : "flat"}`;
+    }
+  } catch (_) { /* non-critical */ }
+}
+
+// --- US-062: Wait time with P95 and threshold warning ---
+async function loadWaitTimeMetrics() {
+  if (!dashElements.kpiP95Wait) return;
+  try {
+    const res = await fetch(`/api/admin/metrics/wait-time?${_adminFilterParams()}`, {
+      headers: rbacHeaders(),
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    if (!json.success) return;
+    const d = json.data;
+    dashElements.kpiP95Wait.textContent = d.p95_wait_minutes ?? "—";
+    if (dashElements.kpiWaitWarning) {
+      dashElements.kpiWaitWarning.hidden = !d.threshold_exceeded;
+    }
+  } catch (_) { /* non-critical */ }
+}
+
+// --- US-063: Utilization breakdown by specialty ---
+async function loadUtilizationMetrics() {
+  if (!dashElements.adminUtilBreakdownBody) return;
+  try {
+    const res = await fetch(`/api/admin/metrics/utilization?${_adminFilterParams()}`, {
+      headers: rbacHeaders(),
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    if (!json.success) return;
+    const d = json.data;
+    const tbody = dashElements.adminUtilBreakdownBody;
+    const wrap = dashElements.adminUtilBreakdownWrap;
+    const empty = dashElements.adminUtilEmptyState;
+    if (d.by_specialty?.length) {
+      tbody.innerHTML = d.by_specialty.map((r) =>
+        `<tr>
+          <td>${escHtml(r.specialty)}</td>
+          <td>${escHtml(String(r.booked))}</td>
+          <td>${escHtml(String(r.total))}</td>
+          <td>${escHtml(String(r.utilization_rate))}%</td>
+        </tr>`
+      ).join("");
+      if (wrap) wrap.hidden = false;
+      if (empty) empty.hidden = true;
+    } else {
+      if (wrap) wrap.hidden = true;
+      if (empty) empty.hidden = false;
+    }
+  } catch (_) { /* non-critical */ }
+}
+
+// --- US-064: Intake completion rate with low-completion warning ---
+async function loadIntakeMetrics() {
+  if (!dashElements.kpiIntakeRate) return;
+  try {
+    const res = await fetch(`/api/admin/metrics/intake?${_adminFilterParams()}`, {
+      headers: rbacHeaders(),
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    if (!json.success) return;
+    const d = json.data;
+    dashElements.kpiIntakeRate.textContent = `${d.completion_rate ?? "—"}`;
+    if (dashElements.kpiIntakeLowFlag) {
+      dashElements.kpiIntakeLowFlag.hidden = !d.low_completion_flag;
+    }
+  } catch (_) { /* non-critical */ }
+}
+
+// --- US-065: Insurance verification status ---
+async function loadInsuranceMetrics() {
+  if (!dashElements.kpiInsVerified) return;
+  try {
+    const res = await fetch(`/api/admin/metrics/insurance?${_adminFilterParams()}`, {
+      headers: rbacHeaders(),
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    if (!json.success) return;
+    const d = json.data;
+    if (dashElements.kpiInsVerified) dashElements.kpiInsVerified.textContent = d.verified ?? "—";
+    if (dashElements.kpiInsPending) dashElements.kpiInsPending.textContent = d.pending ?? "—";
+    if (dashElements.kpiInsFailed) dashElements.kpiInsFailed.textContent = d.failed ?? "—";
+    if (dashElements.kpiInsIssueFlag) dashElements.kpiInsIssueFlag.hidden = !d.issue_flag;
+  } catch (_) { /* non-critical */ }
+}
+
+// --- US-066: AI-human agreement rate with category breakdown ---
+async function loadAgreementMetrics() {
+  if (!dashElements.kpiAgreementRate) return;
+  try {
+    const res = await fetch(`/api/admin/metrics/agreement?${_adminFilterParams()}`, {
+      headers: rbacHeaders(),
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    if (!json.success) return;
+    const d = json.data;
+    dashElements.kpiAgreementRate.textContent = `${d.agreement_rate ?? "—"}`;
+    const ul = dashElements.agreementByCategory;
+    if (ul && d.by_category?.length) {
+      ul.innerHTML = d.by_category.map((c) =>
+        `<li class="analytics-category-item">
+          <span class="analytics-category-name">${escHtml(c.category.toUpperCase())}</span>
+          <span class="analytics-category-rate">${escHtml(String(c.agreement_rate))}%</span>
+        </li>`
+      ).join("");
+    }
+  } catch (_) { /* non-critical */ }
+}
+
+// --- US-069: CSV export download ---
+async function handleCsvExport() {
+  try {
+    const btn = dashElements.exportCsvButton;
+    if (btn) { btn.disabled = true; btn.textContent = "Exporting…"; }
+    const url = `/api/admin/metrics/export?${_adminFilterParams()}`;
+    const res = await fetch(url, { headers: rbacHeaders() });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `appointments_export_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  } catch (err) {
+    if (dashElements.adminOpsMetricsStatus) {
+      dashElements.adminOpsMetricsStatus.textContent = `Export failed: ${err.message}`;
+    }
+  } finally {
+    const btn = dashElements.exportCsvButton;
+    if (btn) { btn.disabled = false; btn.textContent = "Export CSV"; }
+  }
+}

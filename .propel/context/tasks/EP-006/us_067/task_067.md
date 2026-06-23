@@ -3,7 +3,7 @@
 **User Story:** US-067 (EP-006)
 **Source File:** `.propel/context/tasks/EP-006/us_067/us_067.md`
 **Priority:** MEDIUM
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -44,7 +44,7 @@ Implement low-disruption dashboard auto-refresh every 5 minutes with loading ind
 - Validate throttling/pause when dashboard inactive.
 
 ## Definition of Done
-- [ ] 5-minute auto-refresh implemented.
-- [ ] Loading and last-updated UX implemented.
-- [ ] Inactive throttling behavior validated.
-- [ ] AC-1 through AC-4 validated.
+- [x] 5-minute auto-refresh implemented.
+- [x] Loading and last-updated UX implemented.
+- [x] Inactive throttling behavior validated.
+- [x] AC-1 through AC-4 validated.

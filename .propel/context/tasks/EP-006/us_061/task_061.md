@@ -3,7 +3,7 @@
 **User Story:** US-061 (EP-006)
 **Source File:** `.propel/context/tasks/EP-006/us_061/us_061.md`
 **Priority:** MEDIUM
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -44,6 +44,6 @@ Expose no-show rate KPI and trend charts with date filtering and period-over-per
 - Validate period-over-period calculations and labels.
 
 ## Definition of Done
-- [ ] No-show KPI and trends implemented.
-- [ ] Filter and comparison logic validated.
-- [ ] AC-1 through AC-4 validated.
+- [x] No-show KPI and trends implemented.
+- [x] Filter and comparison logic validated.
+- [x] AC-1 through AC-4 validated.

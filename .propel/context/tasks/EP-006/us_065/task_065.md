@@ -3,7 +3,7 @@
 **User Story:** US-065 (EP-006)
 **Source File:** `.propel/context/tasks/EP-006/us_065/us_065.md`
 **Priority:** MEDIUM
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -44,6 +44,6 @@ Expose insurance verification analytics (verified/pending/failed) with trend and
 - Validate issue states highlighted correctly.
 
 ## Definition of Done
-- [ ] Verification metrics and status breakdown implemented.
-- [ ] Filters and highlighting validated.
-- [ ] AC-1 through AC-4 validated.
+- [x] Verification metrics and status breakdown implemented.
+- [x] Filters and highlighting validated.
+- [x] AC-1 through AC-4 validated.

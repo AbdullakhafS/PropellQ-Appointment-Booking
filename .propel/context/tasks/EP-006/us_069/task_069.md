@@ -3,7 +3,7 @@
 **User Story:** US-069 (EP-006)
 **Source File:** `.propel/context/tasks/EP-006/us_069/us_069.md`
 **Priority:** MEDIUM
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -39,7 +39,7 @@ Enable admin dashboard CSV export that reflects current filter scope, includes c
 - Validate performance and stability for large export jobs.
 
 ## Definition of Done
-- [ ] CSV export endpoint and UI implemented.
-- [ ] Filter-matching export content validated.
-- [ ] Large export performance behavior validated.
-- [ ] AC-1 through AC-4 validated.
+- [x] CSV export endpoint and UI implemented.
+- [x] Filter-matching export content validated.
+- [x] Large export performance behavior validated.
+- [x] AC-1 through AC-4 validated.

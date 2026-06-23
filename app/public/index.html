@@ -529,6 +529,264 @@
 
         <p id="userMgmtStatus" class="status-inline" aria-live="polite"></p>
       </section>
+
+      <!-- ================================================================
+           EP-006 US-053: Patient Dashboard (card layout)
+           ================================================================ -->
+      <section class="patient-dashboard-panel" id="patientDashboardPanel" aria-labelledby="patientDashboardTitle" data-rbac-require="appointments:view">
+        <div class="panel-header panel-header--stacked">
+          <div>
+            <h2 id="patientDashboardTitle">My Dashboard</h2>
+            <p class="panel-copy">Upcoming appointments, recent activity, health profile summary, and documents — all in one place.</p>
+          </div>
+          <button id="refreshDashboardButton" class="ghost-btn" type="button" aria-label="Refresh dashboard">Refresh</button>
+        </div>
+
+        <!-- Dashboard cards grid -->
+        <div class="dashboard-cards" role="region" aria-label="Dashboard overview">
+
+          <!-- US-054: Upcoming Appointments card -->
+          <section class="dash-card dash-card--appointments" aria-labelledby="upcomingCardTitle">
+            <div class="dash-card__header">
+              <h3 id="upcomingCardTitle">Upcoming Appointments</h3>
+              <span class="dash-badge" id="upcomingCountBadge" aria-label="Upcoming appointment count">0</span>
+            </div>
+            <div id="upcomingAppointmentsList" class="dash-card__body" aria-live="polite">
+              <p class="muted-text">Loading…</p>
+            </div>
+            <div id="upcomingEmptyState" class="dash-card__empty" hidden>
+              <p>No upcoming appointments. Book one using the calendar above.</p>
+            </div>
+          </section>
+
+          <!-- US-055: Past Appointments card -->
+          <section class="dash-card dash-card--history" aria-labelledby="historyCardTitle">
+            <div class="dash-card__header">
+              <h3 id="historyCardTitle">Appointment History</h3>
+            </div>
+            <div id="appointmentHistoryList" class="dash-card__body" aria-live="polite">
+              <p class="muted-text">Loading…</p>
+            </div>
+            <div id="historyEmptyState" class="dash-card__empty" hidden>
+              <p>No past appointments on record.</p>
+            </div>
+          </section>
+
+          <!-- US-056: Health Profile card -->
+          <section class="dash-card dash-card--health" aria-labelledby="healthProfileCardTitle" data-rbac-require="clinical:view_profile">
+            <div class="dash-card__header">
+              <h3 id="healthProfileCardTitle">Health Profile</h3>
+              <button id="refreshHealthProfileButton" class="ghost-btn dash-card__action" type="button" aria-label="Refresh health profile">↻</button>
+            </div>
+            <div id="healthProfileSummary" class="dash-card__body" aria-live="polite">
+              <p class="muted-text">Loading…</p>
+            </div>
+            <div class="dash-card__footer">
+              <button id="reportProfileDiscrepancyButton" class="ghost-btn" type="button">Report discrepancy</button>
+            </div>
+          </section>
+
+          <!-- US-057: Document Upload card -->
+          <section class="dash-card dash-card--documents" aria-labelledby="documentsCardTitle" data-rbac-require="clinical:view_profile">
+            <div class="dash-card__header">
+              <h3 id="documentsCardTitle">Documents</h3>
+              <span class="dash-badge" id="documentsCountBadge" aria-label="Document count">0</span>
+            </div>
+            <div class="dash-upload-row">
+              <label class="dash-upload-label" for="dashFileInput" aria-label="Choose file to upload">
+                <span class="dash-upload-icon" aria-hidden="true">📎</span>
+                <span id="dashFileLabel">Choose file (PDF, JPG, PNG, DOCX · max 20 MB)</span>
+                <input id="dashFileInput" type="file" accept=".pdf,.jpg,.jpeg,.png,.docx" class="visually-hidden" aria-label="Select document to upload" />
+              </label>
+              <button id="dashUploadButton" class="ghost-btn" type="button" aria-label="Upload selected document">Upload</button>
+            </div>
+            <div id="dashUploadProgress" class="dash-upload-progress" hidden>
+              <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar__fill" id="dashUploadProgressFill"></div>
+              </div>
+            </div>
+            <p id="dashUploadStatus" class="status-inline" aria-live="polite"></p>
+            <div id="documentsList" class="dash-card__body dash-card__body--compact" aria-live="polite">
+              <p class="muted-text">Loading…</p>
+            </div>
+          </section>
+
+          <!-- US-058: Notification Preferences card -->
+          <section class="dash-card dash-card--notifications" aria-labelledby="notifPrefsCardTitle">
+            <div class="dash-card__header">
+              <h3 id="notifPrefsCardTitle">Notification Preferences</h3>
+            </div>
+            <div class="dash-card__body">
+              <fieldset class="notif-prefs-fieldset">
+                <legend class="visually-hidden">Notification channels</legend>
+                <label class="notif-toggle">
+                  <input type="checkbox" id="notifEmailToggle" name="notif_email" />
+                  <span>Email reminders</span>
+                </label>
+                <label class="notif-toggle">
+                  <input type="checkbox" id="notifSmsToggle" name="notif_sms" />
+                  <span>SMS reminders</span>
+                </label>
+                <label class="notif-toggle">
+                  <input type="checkbox" id="notifInAppToggle" name="notif_in_app" checked disabled />
+                  <span>In-app notifications <small class="muted-text">(always on)</small></span>
+                </label>
+                <label class="notif-toggle notif-toggle--dnd">
+                  <input type="checkbox" id="notifDndToggle" name="notif_dnd" />
+                  <span>Do Not Disturb</span>
+                </label>
+              </fieldset>
+              <button id="saveNotifPrefsButton" type="button">Save preferences</button>
+              <p id="notifPrefsStatus" class="status-inline" aria-live="polite"></p>
+            </div>
+          </section>
+
+        </div><!-- /.dashboard-cards -->
+        <p id="dashboardStatus" class="status-inline" aria-live="polite"></p>
+      </section>
+
+      <!-- ================================================================
+           EP-006 US-060: Admin Operational Dashboard
+           ================================================================ -->
+      <section class="admin-ops-dashboard" aria-labelledby="adminOpsDashTitle" data-rbac-require="admin:dashboard">
+        <div class="panel-header panel-header--stacked">
+          <div>
+            <h2 id="adminOpsDashTitle">Operational Dashboard</h2>
+            <p class="panel-copy">KPI summary with utilization, no-show rate, and wait-time metrics. Filter by date, provider, or location.</p>
+          </div>
+          <div class="admin-ops-header-actions">
+            <label class="auto-refresh-label" title="Auto-refresh every 5 minutes (US-067)">
+              <input id="adminAutoRefreshToggle" type="checkbox" checked aria-label="Auto-refresh every 5 minutes" />
+              Auto-refresh
+            </label>
+            <button id="exportCsvButton" class="ghost-btn" type="button">Export CSV</button>
+            <button id="refreshAdminMetricsButton" class="ghost-btn" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <!-- Filter bar (US-060 FE-3 + US-068 provider selector) -->
+        <div class="admin-ops-filters" role="group" aria-label="Metrics filters">
+          <div class="field compact-field">
+            <label for="metricsDateFrom">From</label>
+            <input id="metricsDateFrom" type="date" autocomplete="off" aria-label="Metrics from date" />
+          </div>
+          <div class="field compact-field">
+            <label for="metricsDateTo">To</label>
+            <input id="metricsDateTo" type="date" autocomplete="off" aria-label="Metrics to date" />
+          </div>
+          <div class="field compact-field">
+            <label for="metricsLocation">Location</label>
+            <input id="metricsLocation" type="search" placeholder="Filter by location" autocomplete="off" aria-label="Filter by location" />
+          </div>
+          <div class="field compact-field">
+            <label for="metricsProvider">Provider</label>
+            <select id="metricsProvider" aria-label="Filter by provider">
+              <option value="">All providers</option>
+            </select>
+          </div>
+          <button id="applyMetricsFiltersButton" type="button">Apply</button>
+          <button id="clearMetricsFiltersButton" class="ghost-btn" type="button">Clear</button>
+        </div>
+
+        <!-- KPI cards (US-060 FE-2) -->
+        <div class="admin-kpi-grid" role="list" aria-label="Key performance indicators">
+          <div class="kpi-card" role="listitem">
+            <span class="kpi-label">Utilization</span>
+            <strong class="kpi-value" id="kpiUtilization">—</strong>
+            <span class="kpi-unit">% booked</span>
+          </div>
+          <div class="kpi-card" role="listitem">
+            <span class="kpi-label">No-show rate</span>
+            <strong class="kpi-value" id="kpiNoShow">—</strong>
+            <span class="kpi-unit">% cancelled</span>
+          </div>
+          <div class="kpi-card" role="listitem">
+            <span class="kpi-label">Avg wait</span>
+            <strong class="kpi-value" id="kpiAvgWait">—</strong>
+            <span class="kpi-unit">min</span>
+          </div>
+          <div class="kpi-card" role="listitem">
+            <span class="kpi-label">Total appointments</span>
+            <strong class="kpi-value" id="kpiTotal">—</strong>
+            <span class="kpi-unit">slots</span>
+          </div>
+        </div>
+
+        <!-- Provider breakdown table -->
+        <div class="admin-provider-table-wrap" id="adminProviderTableWrap" hidden>
+          <h3 class="section-label">By Provider</h3>
+          <table class="admin-provider-table" aria-label="Appointments by provider">
+            <thead>
+              <tr><th scope="col">Provider</th><th scope="col">Appointments</th></tr>
+            </thead>
+            <tbody id="adminProviderTableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- US-061/062/064: Extended operational analytics -->
+        <div class="admin-analytics-grid" aria-label="Extended operational analytics">
+          <div class="analytics-card">
+            <h3 class="analytics-card__title">No-Show Trend</h3>
+            <p class="analytics-card__subtitle">vs prior period</p>
+            <div class="analytics-kpi">
+              <strong id="kpiNoShowDetail" class="kpi-value">—</strong>
+              <span class="kpi-unit">% this period</span>
+              <span id="kpiNoShowDelta" class="kpi-delta" aria-live="polite"></span>
+            </div>
+          </div>
+          <div class="analytics-card">
+            <h3 class="analytics-card__title">Wait Time P95</h3>
+            <div class="analytics-kpi">
+              <strong id="kpiP95Wait" class="kpi-value">—</strong>
+              <span class="kpi-unit">min</span>
+            </div>
+            <p id="kpiWaitWarning" class="analytics-card__warning" hidden aria-live="assertive">&#9888; Exceeds threshold</p>
+          </div>
+          <div class="analytics-card">
+            <h3 class="analytics-card__title">Intake Completion</h3>
+            <div class="analytics-kpi">
+              <strong id="kpiIntakeRate" class="kpi-value">—</strong>
+              <span class="kpi-unit">%</span>
+            </div>
+            <p id="kpiIntakeLowFlag" class="analytics-card__warning" hidden aria-live="assertive">&#9888; Below 70% threshold</p>
+          </div>
+        </div>
+
+        <!-- US-065/066/063: Insurance, AI agreement, utilization breakdown -->
+        <div class="admin-analytics-grid" aria-label="Insurance and AI analytics">
+          <div class="analytics-card">
+            <h3 class="analytics-card__title">Insurance Verification</h3>
+            <dl class="analytics-status-dl">
+              <div><dt>Verified</dt><dd id="kpiInsVerified">—</dd></div>
+              <div><dt>Pending</dt><dd id="kpiInsPending">—</dd></div>
+              <div><dt>Failed</dt><dd id="kpiInsFailed">—</dd></div>
+            </dl>
+            <p id="kpiInsIssueFlag" class="analytics-card__warning" hidden aria-live="assertive">&#9888; Cases need action</p>
+          </div>
+          <div class="analytics-card">
+            <h3 class="analytics-card__title">AI&#8209;Human Agreement</h3>
+            <div class="analytics-kpi">
+              <strong id="kpiAgreementRate" class="kpi-value">—</strong>
+              <span class="kpi-unit">% agreement</span>
+            </div>
+            <ul id="agreementByCategory" class="analytics-category-list" aria-label="Agreement by code type"></ul>
+          </div>
+          <div class="analytics-card">
+            <h3 class="analytics-card__title">Utilization by Specialty</h3>
+            <div id="adminUtilBreakdownWrap" hidden>
+              <table class="admin-provider-table" aria-label="Utilization by specialty">
+                <thead><tr><th scope="col">Specialty</th><th scope="col">Booked</th><th scope="col">Total</th><th scope="col">Rate</th></tr></thead>
+                <tbody id="adminUtilBreakdownBody"></tbody>
+              </table>
+            </div>
+            <p id="adminUtilEmptyState" class="dash-card__empty">No data available.</p>
+          </div>
+        </div>
+
+        <span id="adminAutoRefreshStatus" class="muted-text" aria-live="polite"></span>
+        <p class="muted-text" id="adminMetricsLastUpdated" aria-live="polite"></p>
+        <p id="adminOpsMetricsStatus" class="status-inline" aria-live="polite"></p>
+      </section>
     </main>
 
     <dialog id="providerDialog" aria-labelledby="providerDialogTitle">

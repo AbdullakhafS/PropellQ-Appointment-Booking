@@ -3,7 +3,7 @@
 **User Story:** US-064 (EP-006)
 **Source File:** `.propel/context/tasks/EP-006/us_064/us_064.md`
 **Priority:** MEDIUM
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -41,6 +41,6 @@ Show intake completion KPIs and trends to track pre-visit readiness, with date/p
 - Validate low-completion state appears correctly.
 
 ## Definition of Done
-- [ ] Intake completion KPI and trend components implemented.
-- [ ] Filter and threshold highlight behavior validated.
-- [ ] AC-1 through AC-4 validated.
+- [x] Intake completion KPI and trend components implemented.
+- [x] Filter and threshold highlight behavior validated.
+- [x] AC-1 through AC-4 validated.

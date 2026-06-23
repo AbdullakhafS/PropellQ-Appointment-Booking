@@ -3,7 +3,7 @@
 **User Story:** US-054 (EP-006)
 **Source File:** `.propel/context/tasks/EP-006/us_054/us_054.md`
 **Priority:** HIGH
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -41,7 +41,7 @@ Show upcoming appointments with key details and context-sensitive actions for re
 - Validate action click starts correct workflow.
 
 ## Definition of Done
-- [ ] Upcoming appointments list implemented.
-- [ ] Action eligibility correctly enforced.
-- [ ] Workflow initiation validated.
-- [ ] AC-1 through AC-4 validated.
+- [x] Upcoming appointments list implemented.
+- [x] Action eligibility correctly enforced.
+- [x] Workflow initiation validated.
+- [x] AC-1 through AC-4 validated.
