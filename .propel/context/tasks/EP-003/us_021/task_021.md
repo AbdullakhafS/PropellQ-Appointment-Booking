@@ -4,7 +4,7 @@
 **Source File:** `.propel/context/tasks/EP-003/us_021/us_021.md`
 **Priority:** CRITICAL
 **Estimated Effort:** 4-5 dev days
-**Status:** Planned
+**Status:** Completed
 **Created:** 2026-06-18
 
 ---
@@ -82,10 +82,10 @@ Extract structured clinical entities (medications, allergies, diagnoses, dates) 
 
 ## 5. Definition of Done
 
-- [ ] Extraction worker and service adapter implemented.
-- [ ] Confidence scores and provenance stored per entity.
-- [ ] Review flag and failure logging implemented.
-- [ ] AC-1 through AC-4 validated.
+- [x] Extraction worker and service adapter implemented.
+- [x] Confidence scores and provenance stored per entity.
+- [x] Review flag and failure logging implemented.
+- [x] AC-1 through AC-4 validated.
 
 ---
 

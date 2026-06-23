@@ -4,7 +4,7 @@
 **Source File:** `.propel/context/tasks/EP-003/us_030/us_030.md`
 **Priority:** HIGH
 **Estimated Effort:** 3-4 dev days
-**Status:** Planned
+**Status:** Completed
 **Created:** 2026-06-18
 
 ---
@@ -83,10 +83,10 @@ Build a conflict resolution UI that presents conflicting clinical data items sid
 
 ## 5. Definition of Done
 
-- [ ] Side-by-side conflict comparison UI implemented.
-- [ ] Resolution actions (resolve/merge/discard) persist and log.
-- [ ] Active queue clears on resolution.
-- [ ] AC-1 through AC-4 validated.
+- [x] Side-by-side conflict comparison UI implemented.
+- [x] Resolution actions (resolve/merge/discard) persist and log.
+- [x] Active queue clears on resolution.
+- [x] AC-1 through AC-4 validated.
 
 ---
 

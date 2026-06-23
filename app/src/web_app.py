@@ -26,6 +26,28 @@ from src.booking_service import (
     process_preferred_swaps,
     run_pull_reconciliation,
 )
+from src.clinical_intelligence import (
+    aggregate_patient_profile,
+    detect_medication_conflicts,
+    generate_signed_document_url,
+    get_360_profile,
+    get_document_status,
+    get_source_metadata,
+    process_document,
+    upload_document,
+    validate_signed_url,
+)
+from src.coding_engine import (
+    detect_allergy_drug_conflicts,
+    generate_code_suggestions,
+    get_conflict_queue,
+    get_suggestions,
+    get_threshold_history,
+    get_thresholds,
+    resolve_conflict,
+    review_code_suggestion,
+    update_threshold,
+)
 from src.db import DEFAULT_DB_PATH, initialize_database, get_connection
 from src.search_service import (
     book_appointment,
@@ -160,6 +182,73 @@ def create_app(db_path: Path | None = None):
 
         if method == "GET" and path == "/api/metrics/search":
             return _json_response(start_response, 200, {"success": True, "data": metrics.snapshot()})
+
+        # --- EP-003: Clinical Intelligence Platform ---
+        if method == "POST" and path == "/api/clinical/documents/upload":
+            return _handle_clinical_upload(environ, start_response, selected_db)
+
+        clinical_doc_status_match = re.match(r"^/api/clinical/documents/(\d+)/status$", path)
+        if method == "GET" and clinical_doc_status_match:
+            return _handle_clinical_doc_status(environ, start_response, selected_db, int(clinical_doc_status_match.group(1)))
+
+        clinical_doc_process_match = re.match(r"^/api/clinical/documents/(\d+)/process$", path)
+        if method == "POST" and clinical_doc_process_match:
+            return _handle_clinical_doc_process(environ, start_response, selected_db, int(clinical_doc_process_match.group(1)))
+
+        clinical_doc_signed_url_match = re.match(r"^/api/clinical/documents/(\d+)/signed-url$", path)
+        if method == "GET" and clinical_doc_signed_url_match:
+            return _handle_clinical_signed_url(environ, start_response, selected_db, int(clinical_doc_signed_url_match.group(1)))
+
+        clinical_doc_preview_match = re.match(r"^/api/clinical/documents/(\d+)/preview$", path)
+        if method == "GET" and clinical_doc_preview_match:
+            return _handle_clinical_doc_preview(environ, start_response, selected_db, int(clinical_doc_preview_match.group(1)))
+
+        clinical_profile_match = re.match(r"^/api/clinical/patients/(\d+)/profile$", path)
+        if method == "GET" and clinical_profile_match:
+            return _handle_clinical_profile(start_response, selected_db, int(clinical_profile_match.group(1)))
+
+        clinical_aggregate_match = re.match(r"^/api/clinical/patients/(\d+)/aggregate$", path)
+        if method == "POST" and clinical_aggregate_match:
+            return _handle_clinical_aggregate(environ, start_response, selected_db, int(clinical_aggregate_match.group(1)))
+
+        clinical_conflicts_match = re.match(r"^/api/clinical/patients/(\d+)/conflicts$", path)
+        if method == "GET" and clinical_conflicts_match:
+            return _handle_clinical_conflicts(start_response, selected_db, int(clinical_conflicts_match.group(1)))
+
+        clinical_element_source_match = re.match(r"^/api/clinical/elements/(\d+)/source$", path)
+        if method == "GET" and clinical_element_source_match:
+            return _handle_clinical_element_source(environ, start_response, selected_db, int(clinical_element_source_match.group(1)))
+
+        # --- EP-003: Coding Engine (TASK-025 through TASK-030) ---
+        clinical_allergy_conflicts_match = re.match(r"^/api/clinical/patients/(\d+)/allergy-conflicts$", path)
+        if method == "GET" and clinical_allergy_conflicts_match:
+            return _handle_allergy_conflicts(start_response, selected_db, int(clinical_allergy_conflicts_match.group(1)))
+
+        clinical_suggest_match = re.match(r"^/api/clinical/patients/(\d+)/suggestions$", path)
+        if method == "GET" and clinical_suggest_match:
+            return _handle_get_suggestions(environ, start_response, selected_db, int(clinical_suggest_match.group(1)))
+        if method == "POST" and clinical_suggest_match:
+            return _handle_generate_suggestions(environ, start_response, selected_db, int(clinical_suggest_match.group(1)))
+
+        coding_review_match = re.match(r"^/api/coding/suggestions/(\d+)/review$", path)
+        if method == "POST" and coding_review_match:
+            return _handle_code_review(environ, start_response, selected_db, int(coding_review_match.group(1)))
+
+        if method == "GET" and path == "/api/clinical/thresholds":
+            return _handle_get_thresholds(start_response, selected_db)
+
+        if method == "PUT" and path == "/api/clinical/thresholds":
+            return _handle_update_threshold(environ, start_response, selected_db)
+
+        if method == "GET" and path == "/api/clinical/thresholds/history":
+            return _handle_threshold_history(environ, start_response, selected_db)
+
+        if method == "GET" and path == "/api/clinical/conflicts/queue":
+            return _handle_conflict_queue(environ, start_response, selected_db)
+
+        conflict_resolve_match = re.match(r"^/api/clinical/conflicts/(\d+)/resolve$", path)
+        if method == "POST" and conflict_resolve_match:
+            return _handle_resolve_conflict(environ, start_response, selected_db, int(conflict_resolve_match.group(1)))
 
         if path.startswith("/api/"):
             return _json_response(
@@ -424,6 +513,178 @@ def _handle_auth_disconnect(start_response, db_path: Path, provider: str):
     )
 
 
+# ---------------------------------------------------------------------------
+# EP-003 Clinical Intelligence handlers
+# ---------------------------------------------------------------------------
+
+_DEFAULT_CLINICAL_PATIENT_ID = 1  # Single-patient demo environment
+
+
+def _handle_clinical_upload(environ, start_response, db_path: Path):
+    content_type = environ.get("CONTENT_TYPE", "application/octet-stream")
+    content_length = int(environ.get("CONTENT_LENGTH", 0) or 0)
+    file_data = environ["wsgi.input"].read(content_length)
+
+    query_params = _flat_query_params(environ.get("QUERY_STRING", ""))
+    file_name = query_params.get("fileName", "upload.pdf")
+    try:
+        patient_id = int(query_params.get("patientId", str(_DEFAULT_CLINICAL_PATIENT_ID)))
+    except ValueError:
+        patient_id = _DEFAULT_CLINICAL_PATIENT_ID
+
+    if patient_id <= 0:
+        return _json_response(
+            start_response,
+            400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "patientId must be a positive integer."}},
+        )
+
+    with get_connection(db_path) as connection:
+        status_code, data = upload_document(connection, patient_id, file_name, content_type, file_data)
+
+    success = status_code < 400
+    return _json_response(
+        start_response,
+        status_code,
+        {"success": success, "data": data} if success else {"success": False, "error": data},
+    )
+
+
+def _handle_clinical_doc_status(environ, start_response, db_path: Path, document_id: int):
+    query_params = _flat_query_params(environ.get("QUERY_STRING", ""))
+    try:
+        patient_id = int(query_params.get("patientId", str(_DEFAULT_CLINICAL_PATIENT_ID)))
+    except ValueError:
+        patient_id = _DEFAULT_CLINICAL_PATIENT_ID
+
+    with get_connection(db_path) as connection:
+        status_code, data = get_document_status(connection, document_id, patient_id)
+
+    success = status_code < 400
+    return _json_response(
+        start_response,
+        status_code,
+        {"success": success, "data": data} if success else {"success": False, "error": data},
+    )
+
+
+def _handle_clinical_doc_process(environ, start_response, db_path: Path, document_id: int):
+    payload = _read_json_body(environ)
+    document_text = payload.get("text", "")
+    if not document_text:
+        return _json_response(
+            start_response,
+            400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "text field is required for processing."}},
+        )
+
+    with get_connection(db_path) as connection:
+        result = process_document(connection, document_id, document_text)
+
+    return _json_response(start_response, 200, {"success": True, "data": result})
+
+
+def _handle_clinical_signed_url(environ, start_response, db_path: Path, document_id: int):
+    query_params = _flat_query_params(environ.get("QUERY_STRING", ""))
+    try:
+        patient_id = int(query_params.get("patientId", str(_DEFAULT_CLINICAL_PATIENT_ID)))
+    except ValueError:
+        patient_id = _DEFAULT_CLINICAL_PATIENT_ID
+
+    with get_connection(db_path) as connection:
+        status_code, data = generate_signed_document_url(connection, document_id, patient_id)
+
+    success = status_code < 400
+    return _json_response(
+        start_response,
+        status_code,
+        {"success": success, "data": data} if success else {"success": False, "error": data},
+    )
+
+
+def _handle_clinical_doc_preview(environ, start_response, db_path: Path, document_id: int):
+    params = _flat_query_params(environ.get("QUERY_STRING", ""))
+    try:
+        patient_id = int(params.get("patient", str(_DEFAULT_CLINICAL_PATIENT_ID)))
+        expires_at = int(params.get("expires", "0"))
+    except ValueError:
+        return _json_response(
+            start_response,
+            400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "Invalid preview URL parameters."}},
+        )
+    signature = params.get("sig", "")
+
+    if not validate_signed_url(document_id, patient_id, expires_at, signature):
+        return _json_response(
+            start_response,
+            403,
+            {"success": False, "error": {"code": "FORBIDDEN", "message": "Document preview URL is invalid or expired."}},
+        )
+
+    with get_connection(db_path) as connection:
+        status_code, data = get_document_status(connection, document_id, patient_id)
+
+    success = status_code < 400
+    return _json_response(
+        start_response,
+        status_code,
+        {"success": success, "data": data} if success else {"success": False, "error": data},
+    )
+
+
+def _handle_clinical_profile(start_response, db_path: Path, patient_id: int):
+    with get_connection(db_path) as connection:
+        status_code, data = get_360_profile(connection, patient_id)
+
+    success = status_code < 400
+    return _json_response(
+        start_response,
+        status_code,
+        {"success": success, "data": data} if success else {"success": False, "error": data},
+    )
+
+
+def _handle_clinical_aggregate(environ, start_response, db_path: Path, patient_id: int):
+    payload = _read_json_body(environ)
+    intake_data = payload.get("intakeData")
+
+    with get_connection(db_path) as connection:
+        result = aggregate_patient_profile(connection, patient_id, intake_data)
+
+    return _json_response(start_response, 200, {"success": True, "data": result})
+
+
+def _handle_clinical_conflicts(start_response, db_path: Path, patient_id: int):
+    with get_connection(db_path) as connection:
+        status_code, data = detect_medication_conflicts(connection, patient_id)
+
+    success = status_code < 400
+    return _json_response(
+        start_response,
+        status_code,
+        {"success": success, "data": data} if success else {"success": False, "error": data},
+    )
+
+
+def _handle_clinical_element_source(environ, start_response, db_path: Path, element_id: int):
+    query_params = _flat_query_params(environ.get("QUERY_STRING", ""))
+    try:
+        patient_id = int(query_params.get("patientId", str(_DEFAULT_CLINICAL_PATIENT_ID)))
+    except ValueError:
+        patient_id = _DEFAULT_CLINICAL_PATIENT_ID
+
+    with get_connection(db_path) as connection:
+        status_code, data = get_source_metadata(connection, element_id, patient_id)
+
+    success = status_code < 400
+    return _json_response(
+        start_response,
+        status_code,
+        {"success": success, "data": data} if success else {"success": False, "error": data},
+    )
+
+
 def _handle_process_confirmations(start_response, db_path: Path):
     with get_connection(db_path) as connection:
         data = process_confirmation_queue(connection)
@@ -522,3 +783,163 @@ def _read_json_body(environ) -> dict[str, Any]:
 def _flat_query_params(query_string: str) -> dict[str, str]:
     parsed = parse_qs(query_string, keep_blank_values=False)
     return {key: values[0] for key, values in parsed.items() if values}
+
+
+# ---------------------------------------------------------------------------
+# EP-003 Coding Engine handlers (TASK-025 through TASK-030)
+# ---------------------------------------------------------------------------
+
+
+def _handle_allergy_conflicts(start_response, db_path: Path, patient_id: int):
+    with get_connection(db_path) as connection:
+        status_code, data = detect_allergy_drug_conflicts(connection, patient_id)
+    success = status_code < 400
+    return _json_response(
+        start_response,
+        status_code,
+        {"success": success, "data": data} if success else {"success": False, "error": data},
+    )
+
+
+def _handle_get_suggestions(environ, start_response, db_path: Path, patient_id: int):
+    params = _flat_query_params(environ.get("QUERY_STRING", ""))
+    code_type = params.get("codeType")
+    review_only = params.get("reviewOnly", "").lower() in ("1", "true")
+    with get_connection(db_path) as connection:
+        status_code, data = get_suggestions(connection, patient_id, code_type, review_only)
+    return _json_response(start_response, status_code, {"success": True, "data": data})
+
+
+def _handle_generate_suggestions(environ, start_response, db_path: Path, patient_id: int):
+    payload = _read_json_body(environ)
+    code_type = payload.get("codeType", "all")
+    clinical_text = payload.get("clinicalText", "")
+    with get_connection(db_path) as connection:
+        status_code, data = generate_code_suggestions(connection, patient_id, code_type, clinical_text)
+    return _json_response(start_response, status_code, {"success": True, "data": data})
+
+
+def _handle_code_review(environ, start_response, db_path: Path, suggestion_id: int):
+    payload = _read_json_body(environ)
+    action = payload.get("action", "")
+    reviewer_id = (payload.get("reviewerId") or "anonymous").strip()
+    override_code = payload.get("overrideCode")
+    override_description = payload.get("overrideDescription")
+    rejection_reason = payload.get("rejectionReason")
+    decision_metadata = payload.get("decisionMetadata")
+
+    try:
+        patient_id = int(payload.get("patientId", str(_DEFAULT_CLINICAL_PATIENT_ID)))
+    except (ValueError, TypeError):
+        patient_id = _DEFAULT_CLINICAL_PATIENT_ID
+
+    with get_connection(db_path) as connection:
+        status_code, data = review_code_suggestion(
+            connection,
+            suggestion_id,
+            patient_id,
+            action,
+            reviewer_id,
+            override_code,
+            override_description,
+            rejection_reason,
+            decision_metadata,
+        )
+    success = status_code < 400
+    return _json_response(
+        start_response,
+        status_code,
+        {"success": success, "data": data} if success else {"success": False, "error": data},
+    )
+
+
+def _handle_get_thresholds(start_response, db_path: Path):
+    with get_connection(db_path) as connection:
+        status_code, data = get_thresholds(connection)
+    return _json_response(start_response, status_code, {"success": True, "data": data})
+
+
+def _handle_update_threshold(environ, start_response, db_path: Path):
+    payload = _read_json_body(environ)
+    code_type = payload.get("codeType", "")
+    new_value = payload.get("thresholdValue")
+    updated_by = (payload.get("updatedBy") or "anonymous").strip()
+    role = (payload.get("role") or "").strip()
+
+    if new_value is None:
+        return _json_response(
+            start_response,
+            400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "thresholdValue is required."}},
+        )
+    try:
+        new_value = float(new_value)
+    except (TypeError, ValueError):
+        return _json_response(
+            start_response,
+            400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "thresholdValue must be a number."}},
+        )
+
+    with get_connection(db_path) as connection:
+        status_code, data = update_threshold(connection, code_type, new_value, updated_by, role)
+    success = status_code < 400
+    return _json_response(
+        start_response,
+        status_code,
+        {"success": success, "data": data} if success else {"success": False, "error": data},
+    )
+
+
+def _handle_threshold_history(environ, start_response, db_path: Path):
+    params = _flat_query_params(environ.get("QUERY_STRING", ""))
+    code_type = params.get("codeType")
+    with get_connection(db_path) as connection:
+        status_code, data = get_threshold_history(connection, code_type)
+    return _json_response(start_response, status_code, {"success": True, "data": data})
+
+
+def _handle_conflict_queue(environ, start_response, db_path: Path):
+    params = _flat_query_params(environ.get("QUERY_STRING", ""))
+    patient_id_str = params.get("patientId")
+    try:
+        patient_id = int(patient_id_str) if patient_id_str else None
+    except ValueError:
+        patient_id = None
+    with get_connection(db_path) as connection:
+        status_code, data = get_conflict_queue(connection, patient_id)
+    return _json_response(start_response, status_code, {"success": True, "data": data})
+
+
+def _handle_resolve_conflict(environ, start_response, db_path: Path, conflict_id: int):
+    payload = _read_json_body(environ)
+    conflict_table = payload.get("conflictTable", "clinical_medication_conflicts")
+    action = payload.get("action", "")
+    reviewer_id = (payload.get("reviewerId") or "anonymous").strip()
+    chosen_value = payload.get("chosenValue")
+    merge_value = payload.get("mergeValue")
+    resolution_note = payload.get("resolutionNote")
+
+    try:
+        patient_id = int(payload.get("patientId", str(_DEFAULT_CLINICAL_PATIENT_ID)))
+    except (ValueError, TypeError):
+        patient_id = _DEFAULT_CLINICAL_PATIENT_ID
+
+    with get_connection(db_path) as connection:
+        status_code, data = resolve_conflict(
+            connection,
+            conflict_id,
+            conflict_table,
+            patient_id,
+            action,
+            reviewer_id,
+            chosen_value,
+            merge_value,
+            resolution_note,
+        )
+    success = status_code < 400
+    return _json_response(
+        start_response,
+        status_code,
+        {"success": success, "data": data} if success else {"success": False, "error": data},
+    )

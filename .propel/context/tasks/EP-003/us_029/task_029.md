@@ -4,7 +4,7 @@
 **Source File:** `.propel/context/tasks/EP-003/us_029/us_029.md`
 **Priority:** HIGH
 **Estimated Effort:** 2-3 dev days
-**Status:** Planned
+**Status:** Completed
 **Created:** 2026-06-18
 
 ---
@@ -83,10 +83,10 @@ Apply configurable confidence thresholds to ICD-10 and CPT suggestions to auto-a
 
 ## 5. Definition of Done
 
-- [ ] Threshold evaluation and auto-accept logic implemented.
-- [ ] Review queue and configuration UI complete.
-- [ ] Authorization enforced for configuration changes.
-- [ ] AC-1 through AC-4 validated.
+- [x] Threshold evaluation and auto-accept logic implemented.
+- [x] Review queue and configuration UI complete.
+- [x] Authorization enforced for configuration changes.
+- [x] AC-1 through AC-4 validated.
 
 ---
 

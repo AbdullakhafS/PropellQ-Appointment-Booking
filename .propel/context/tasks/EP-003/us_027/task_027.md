@@ -4,7 +4,7 @@
 **Source File:** `.propel/context/tasks/EP-003/us_027/us_027.md`
 **Priority:** CRITICAL
 **Estimated Effort:** 4-5 dev days
-**Status:** Planned
+**Status:** Completed
 **Created:** 2026-06-18
 
 ---
@@ -75,10 +75,10 @@ Build a CPT code suggestion engine that derives procedural codes from clinical n
 
 ## 5. Definition of Done
 
-- [ ] CPT suggestion engine implemented and integrated.
-- [ ] Confidence scoring and review flagging active.
-- [ ] Suggestions persisted with evidence for review.
-- [ ] AC-1 through AC-4 validated.
+- [x] CPT suggestion engine implemented and integrated.
+- [x] Confidence scoring and review flagging active.
+- [x] Suggestions persisted with evidence for review.
+- [x] AC-1 through AC-4 validated.
 
 ---
 

@@ -4,7 +4,7 @@
 **Source File:** `.propel/context/tasks/EP-003/us_028/us_028.md`
 **Priority:** HIGH
 **Estimated Effort:** 3-4 dev days
-**Status:** Planned
+**Status:** Completed
 **Created:** 2026-06-18
 
 ---
@@ -81,10 +81,10 @@ Build a code review UI that displays AI-suggested ICD-10 and CPT codes with conf
 
 ## 5. Definition of Done
 
-- [ ] Code review UI with accept/reject/override implemented.
-- [ ] Audit log captures all decisions with metadata.
-- [ ] Rejected items retained.
-- [ ] AC-1 through AC-4 validated.
+- [x] Code review UI with accept/reject/override implemented.
+- [x] Audit log captures all decisions with metadata.
+- [x] Rejected items retained.
+- [x] AC-1 through AC-4 validated.
 
 ---
 

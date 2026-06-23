@@ -4,7 +4,7 @@
 **Source File:** `.propel/context/tasks/EP-003/us_025/us_025.md`
 **Priority:** CRITICAL
 **Estimated Effort:** 3-4 dev days
-**Status:** Planned
+**Status:** Completed
 **Created:** 2026-06-18
 
 ---
@@ -79,10 +79,10 @@ Cross-reference extracted patient allergies against current medications, surface
 
 ## 5. Definition of Done
 
-- [ ] Allergy-drug interaction check implemented with service adapter.
-- [ ] Conflicts displayed in profile with severity and source details.
-- [ ] Graceful failure behavior validated.
-- [ ] AC-1 through AC-4 validated.
+- [x] Allergy-drug interaction check implemented with service adapter.
+- [x] Conflicts displayed in profile with severity and source details.
+- [x] Graceful failure behavior validated.
+- [x] AC-1 through AC-4 validated.
 
 ---
 
