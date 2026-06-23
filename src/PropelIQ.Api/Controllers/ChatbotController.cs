@@ -37,7 +37,7 @@ public sealed class ChatbotController : ControllerBase
             ct);
 
         return Ok(ApiResponse<StartChatResponseDto>.Ok(
-            new StartChatResponseDto(result.ConversationId, result.WelcomeMessage)));
+            new StartChatResponseDto(result.ConversationId, result.WelcomeMessage, result.CurrentStage, result.TotalStages)));
     }
 
     /// <summary>
@@ -108,7 +108,9 @@ public sealed class ChatbotController : ControllerBase
             MapExtracted(r.ExtractedData),
             MapScores(r.ConfidenceScores),
             r.IsComplete,
-            r.SuggestManualFallback);
+            r.SuggestManualFallback,
+            r.CurrentStage,
+            r.TotalStages);
 
     private static ExtractedDataDto MapExtracted(ExtractedIntakeDataDto d)
         => new(
@@ -116,7 +118,7 @@ public sealed class ChatbotController : ControllerBase
             d.MedicalHistory,
             d.Medications.Select(m => new MedicationDto(m.Name, m.Dosage, m.Frequency)).ToList(),
             d.Allergies.Select(a => new AllergyDto(a.Allergen, a.Reaction, a.Type)).ToList(),
-            d.InsuranceInfo is { } ins ? new InsuranceInfoDto(ins.Provider, ins.MemberId, ins.GroupNumber) : null);
+            d.InsuranceInfo is { } ins ? new InsuranceInfoDto(ins.Provider, ins.MemberId, ins.GroupNumber, ins.PlanName) : null);
 
     private static ConfidenceScoresResponseDto MapScores(ConfidenceScoresDto s)
         => new(s.ChiefComplaint, s.MedicalHistory, s.Medications, s.Allergies, s.InsuranceInfo);

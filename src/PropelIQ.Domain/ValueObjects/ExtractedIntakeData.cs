@@ -19,7 +19,8 @@ public sealed record AllergyEntry(string Allergen, string? Reaction, AllergyType
 public sealed record InsuranceInfo(
     string? Provider,
     string? MemberId,
-    string? GroupNumber
+    string? GroupNumber,
+    string? PlanName = null
 );
 
 public enum AllergyType

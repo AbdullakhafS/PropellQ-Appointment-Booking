@@ -1,0 +1,306 @@
+.tab {
+  padding: 1.25rem 0;
+}
+
+/* ---- Metadata bar ---- */
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.875rem 1.5rem;
+  padding: 0.75rem 1rem;
+  background: #f8f9fa;
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  color: #495057;
+}
+
+.metaActions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.625rem;
+}
+
+.editBtn {
+  padding: 0.375rem 0.875rem;
+  background: #0070f3;
+  color: #fff;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 36px;
+  transition: background-color 0.15s;
+}
+.editBtn:hover { background: #0060d8; }
+
+.exportBtn {
+  padding: 0.375rem 0.875rem;
+  background: #fff;
+  color: #343a40;
+  border: 1px solid #ced4da;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 36px;
+  transition: background-color 0.15s;
+}
+.exportBtn:hover { background: #f1f3f5; }
+
+/* ---- Sections ---- */
+.section {
+  margin-bottom: 1.75rem;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 1.5rem;
+}
+
+.section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sectionHeading {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.8125rem;
+  color: #6c757d;
+}
+
+.none {
+  font-style: italic;
+  color: #868e96;
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.complaint {
+  font-size: 0.9375rem;
+  color: #1a1a2e;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ---- Medical History ---- */
+.conditionList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.conditionRow {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.9375rem;
+  flex-wrap: wrap;
+}
+
+.conditionName { font-weight: 600; color: #1a1a2e; }
+
+.code {
+  font-size: 0.8125rem;
+  background: #f1f3f5;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  color: #495057;
+}
+
+.statusTag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 999px;
+}
+.statusActive { background: #d3f9d8; color: #2b8a3e; }
+.statusInactive { background: #f1f3f5; color: #6c757d; }
+
+/* ---- Medications table ---- */
+.tableWrapper { overflow-x: auto; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  background: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+  font-weight: 600;
+  color: #343a40;
+  white-space: nowrap;
+}
+
+.td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+  color: #1a1a2e;
+  vertical-align: middle;
+}
+
+/* ---- Allergies ---- */
+.allergyList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.allergyRow {
+  padding: 0.625rem 0.75rem;
+  background: #f8f9fa;
+  border-radius: 0.5rem;
+  border-left: 3px solid #ffc9c9;
+}
+
+.allergyMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+}
+
+.allergyType {
+  font-size: 0.75rem;
+  color: #6c757d;
+  background: #f1f3f5;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  text-transform: capitalize;
+}
+
+.reactionTag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 999px;
+}
+.reactionAllergic { background: #ffe3e3; color: #c92a2a; }
+.reactionSide { background: #fff3bf; color: #e67700; }
+
+.severityTag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 999px;
+  background: #e7f5ff;
+  color: #1971c2;
+}
+
+.allergyDesc {
+  margin: 0.375rem 0 0;
+  font-size: 0.875rem;
+  color: #495057;
+}
+
+/* ---- Insurance grid ---- */
+.insuranceGrid {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  gap: 0.375rem 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.insuranceGrid dt { font-weight: 600; color: #495057; }
+.insuranceGrid dd { margin: 0; color: #1a1a2e; }
+
+/* ---- Badges & pills ---- */
+.badge {
+  display: inline-block;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.badgeGreen { background: #d3f9d8; color: #2b8a3e; }
+.badgeAmber { background: #fff3bf; color: #e67700; }
+.badgeBlue { background: #e7f5ff; color: #1971c2; }
+
+.pill {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.375rem;
+  border-radius: 999px;
+}
+.pillGreen { background: #d3f9d8; color: #2b8a3e; }
+.pillAmber { background: #fff3bf; color: #e67700; }
+
+/* ---- Loading / error / empty ---- */
+.centred {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 2.5rem;
+  color: #495057;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #dee2e6;
+  border-top-color: #0070f3;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.errorState {
+  padding: 1.5rem;
+  background: #fff5f5;
+  border: 1px solid #ffc9c9;
+  border-radius: 0.5rem;
+  color: #c92a2a;
+  text-align: center;
+}
+
+.retryBtn {
+  margin-top: 0.75rem;
+  padding: 0.375rem 0.875rem;
+  background: transparent;
+  border: 1px solid #c92a2a;
+  border-radius: 0.375rem;
+  color: #c92a2a;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.875rem;
+}
+
+.emptyState {
+  padding: 2.5rem;
+  text-align: center;
+  color: #495057;
+}
+
+.emptyIcon { font-size: 2.5rem; margin: 0 0 0.625rem; }
+.emptyTitle { font-size: 1.0625rem; font-weight: 700; color: #1a1a2e; margin: 0 0 0.375rem; }
+.emptySubtitle { margin: 0; font-size: 0.9375rem; }
+
+/* ---- Mobile ---- */
+@media (max-width: 599px) {
+  .meta { flex-direction: column; align-items: flex-start; }
+  .metaActions { margin-left: 0; width: 100%; }
+  .editBtn, .exportBtn { flex: 1; }
+  .insuranceGrid { grid-template-columns: 1fr; }
+  .th, .td { padding: 0.4375rem 0.5rem; font-size: 0.8125rem; }
+}

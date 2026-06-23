@@ -13,6 +13,8 @@ interface ChatState {
   error: string | null;
   suggestManualFallback: boolean;
   isComplete: boolean;
+  currentStage: number;
+  totalStages: number;
 }
 
 export function useChatSession(appointmentId: number, patientId: number, patientName: string) {
@@ -25,6 +27,8 @@ export function useChatSession(appointmentId: number, patientId: number, patient
     error: null,
     suggestManualFallback: false,
     isComplete: false,
+    currentStage: 0,
+    totalStages: 6,
   });
 
   const retryCountRef = useRef(0);
@@ -43,6 +47,8 @@ export function useChatSession(appointmentId: number, patientId: number, patient
         conversationId: result.conversationId,
         messages: [welcomeMsg],
         status: 'active',
+        currentStage: result.currentStage,
+        totalStages: result.totalStages,
       }));
     } catch {
       setState(prev => ({
@@ -91,6 +97,8 @@ export function useChatSession(appointmentId: number, patientId: number, patient
         status: result.isComplete ? 'complete' : 'active',
         isComplete: result.isComplete,
         suggestManualFallback: result.suggestManualFallback,
+        currentStage: result.currentStage,
+        totalStages: result.totalStages,
       }));
     } catch {
       retryCountRef.current += 1;

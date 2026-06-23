@@ -20,6 +20,12 @@ public sealed class IntakeConversationRepository : IIntakeConversationRepository
             .OrderByDescending(c => c.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
+    public async Task<IntakeConversation?> GetLastCompletedByPatientIdAsync(int patientId, CancellationToken ct = default)
+        => await _db.IntakeConversations
+            .Where(c => c.PatientId == patientId && c.CompletedAt != null)
+            .OrderByDescending(c => c.CompletedAt)
+            .FirstOrDefaultAsync(ct);
+
     public async Task<int> CreateAsync(IntakeConversation conversation, CancellationToken ct = default)
     {
         _db.IntakeConversations.Add(conversation);

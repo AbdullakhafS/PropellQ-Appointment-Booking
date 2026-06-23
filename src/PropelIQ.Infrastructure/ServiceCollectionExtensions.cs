@@ -5,8 +5,12 @@ using PropelIQ.Application.Interfaces.Repositories;
 using PropelIQ.Application.Interfaces.Services;
 using PropelIQ.Infrastructure.Chatbot;
 using PropelIQ.Infrastructure.Data;
+using PropelIQ.Infrastructure.Draft;
+using PropelIQ.Infrastructure.Insurance;
+using PropelIQ.Infrastructure.ManualIntake;
 using PropelIQ.Infrastructure.Repositories;
 using PropelIQ.Infrastructure.Security;
+using PropelIQ.Infrastructure.Storage;
 
 namespace PropelIQ.Infrastructure;
 
@@ -30,7 +34,13 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IIntakeConversationRepository, IntakeConversationRepository>();
         services.AddScoped<IChatbotPromptRepository, ChatbotPromptRepository>();
+        services.AddScoped<IIntakeDraftRepository, IntakeDraftRepository>();
         services.AddScoped<IChatbotService, ChatbotService>();
+        services.AddScoped<IManualIntakeService, ManualIntakeService>();
+        services.AddScoped<IIntakeDraftService, IntakeDraftService>();
+        services.AddScoped<IInsurancePreCheckService, InsurancePreCheckService>();
+        services.AddScoped<IInsuranceReviewService, InsuranceReviewService>();
+        services.AddScoped<IIntakeStorageService, IntakeStorageService>();
 
         return services;
     }

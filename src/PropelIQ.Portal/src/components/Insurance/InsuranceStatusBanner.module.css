@@ -1,0 +1,35 @@
+.verified,
+.unverified {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.verified {
+  background: #ebfbee;
+  border: 1px solid #b2f2bb;
+  color: #2b8a3e;
+}
+
+.unverified {
+  background: #fff9db;
+  border: 1px solid #ffec99;
+  color: #e67700;
+}
+
+.icon {
+  font-size: 1.125rem;
+  flex-shrink: 0;
+  margin-top: 0.0625rem;
+}
+
+.reason {
+  color: inherit;
+  opacity: 0.8;
+  font-style: italic;
+}

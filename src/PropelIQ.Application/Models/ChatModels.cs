@@ -16,7 +16,9 @@ public sealed record SendMessageRequest(
 
 public sealed record StartChatResult(
     int ConversationId,
-    string WelcomeMessage
+    string WelcomeMessage,
+    int CurrentStage,
+    int TotalStages
 );
 
 public sealed record SendMessageResult(
@@ -25,7 +27,9 @@ public sealed record SendMessageResult(
     ExtractedIntakeDataDto ExtractedData,
     ConfidenceScoresDto ConfidenceScores,
     bool IsComplete,
-    bool SuggestManualFallback
+    bool SuggestManualFallback,
+    int CurrentStage,
+    int TotalStages
 );
 
 public sealed record ConversationHistoryResult(
@@ -54,7 +58,7 @@ public sealed record MedicationEntryDto(string Name, string? Dosage, string? Fre
 
 public sealed record AllergyEntryDto(string Allergen, string? Reaction, string Type);
 
-public sealed record InsuranceInfoDto(string? Provider, string? MemberId, string? GroupNumber);
+public sealed record InsuranceInfoDto(string? Provider, string? MemberId, string? GroupNumber, string? PlanName = null);
 
 public sealed record ConfidenceScoresDto(
     double ChiefComplaint,
