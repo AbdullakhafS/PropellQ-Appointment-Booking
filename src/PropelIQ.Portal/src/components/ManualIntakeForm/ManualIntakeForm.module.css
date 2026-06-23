@@ -1,0 +1,369 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 6rem; /* bottom pad for sticky bar */
+  font-size: 0.9375rem;
+}
+
+.formTitle {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 1.25rem;
+}
+
+/* --- Consent dialog --- */
+.consent {
+  max-width: 480px;
+  margin: 3rem auto;
+  padding: 2rem;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.consentHeading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 0.75rem;
+}
+
+.consentBody {
+  color: #495057;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.consentActions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* --- Tabs --- */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #e9ecef;
+  padding-bottom: 0;
+}
+
+.tab {
+  padding: 0.5rem 0.875rem;
+  border: none;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6c757d;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  border-radius: 0.25rem 0.25rem 0 0;
+  transition: color 0.15s;
+  min-height: 44px;
+}
+
+.tab:hover {
+  color: #343a40;
+}
+
+.tabActive {
+  color: #0070f3;
+  border-bottom-color: #0070f3;
+  font-weight: 600;
+}
+
+/* --- Sections --- */
+.section {
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.sectionHeading {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0 0 1rem;
+}
+
+/* --- Fields --- */
+.field {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #343a40;
+}
+
+.required {
+  color: #c92a2a;
+  margin-left: 0.125rem;
+}
+
+.optional {
+  font-weight: 400;
+  color: #868e96;
+  font-size: 0.8125rem;
+}
+
+.input,
+.textarea {
+  padding: 0.5625rem 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 0.375rem;
+  font-size: 0.9375rem;
+  font-family: inherit;
+  color: #1a1a2e;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: #0070f3;
+  box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.15);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 6rem;
+}
+
+.fieldError {
+  border-color: #c92a2a;
+}
+
+.fieldError:focus {
+  border-color: #c92a2a;
+  box-shadow: 0 0 0 3px rgba(201, 42, 42, 0.15);
+}
+
+/* --- Checkboxes --- */
+.checkboxGroup {
+  border: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+/* --- Repeating rows --- */
+.repeatRow {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 0.75rem;
+  padding: 0.875rem;
+  border: 1px solid #e9ecef;
+  border-radius: 0.5rem;
+  background: #f8f9fa;
+}
+
+.repeatFields {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.emptyHint {
+  color: #868e96;
+  font-style: italic;
+  margin-bottom: 0.75rem;
+}
+
+/* --- Buttons --- */
+.primaryBtn,
+.secondaryBtn,
+.addBtn,
+.deleteBtn,
+.submitBtn {
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  min-height: 44px;
+  padding: 0.5rem 1.25rem;
+  transition: background-color 0.15s, opacity 0.15s;
+}
+
+.primaryBtn {
+  background: #0070f3;
+  color: #fff;
+  border: none;
+}
+
+.primaryBtn:hover {
+  background: #0060d8;
+}
+
+.secondaryBtn {
+  background: #fff;
+  color: #343a40;
+  border: 1px solid #ced4da;
+}
+
+.secondaryBtn:hover {
+  background: #f1f3f5;
+}
+
+.addBtn {
+  background: transparent;
+  color: #0070f3;
+  border: 1px dashed #0070f3;
+  margin-top: 0.25rem;
+  width: 100%;
+}
+
+.addBtn:hover {
+  background: rgba(0, 112, 243, 0.05);
+}
+
+.deleteBtn {
+  background: transparent;
+  color: #c92a2a;
+  border: 1px solid #ffc9c9;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.75rem;
+  align-self: flex-start;
+}
+
+.deleteBtn:hover {
+  background: #fff5f5;
+}
+
+/* --- Error display --- */
+.errorSummary {
+  background: #fff5f5;
+  border: 1px solid #ffc9c9;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  color: #c92a2a;
+  margin-bottom: 1.25rem;
+  font-size: 0.875rem;
+}
+
+.errorSummary ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.errorMsg {
+  font-size: 0.8125rem;
+  color: #c92a2a;
+}
+
+.errorText {
+  color: #c92a2a;
+  text-align: center;
+}
+
+/* --- Two-column grid (insurance) --- */
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* --- Sticky submit --- */
+.submitBar {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  border-top: 1px solid #dee2e6;
+  padding: 0.875rem 1rem;
+  margin: 0 -1rem;
+  z-index: 10;
+}
+
+.submitBtn {
+  background: #0070f3;
+  color: #fff;
+  border: none;
+  width: 100%;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: #0060d8;
+}
+
+.submitBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* --- Loading spinner --- */
+.centred {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem;
+  color: #495057;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #dee2e6;
+  border-top-color: #0070f3;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* --- Mobile (375px) --- */
+@media (max-width: 599px) {
+  .form { padding: 1rem 0.75rem 5.5rem; }
+  .twoCol { grid-template-columns: 1fr; }
+  .checkboxGroup { grid-template-columns: 1fr; }
+  .repeatFields { grid-template-columns: 1fr; }
+  .tabs { gap: 0; }
+  .tab { font-size: 0.8125rem; padding: 0.5rem 0.625rem; }
+}
+
+/* --- Desktop two-column (768px+) --- */
+@media (min-width: 768px) {
+  .form { padding: 2rem 1.5rem 6rem; }
+}

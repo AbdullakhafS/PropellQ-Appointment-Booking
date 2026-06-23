@@ -1,4 +1,7 @@
 {
+  "chat.promptFilesLocations": {
+    "prompts": true
+  },
   "chat.tools.terminal.enableAutoApprove": true,
   "chat.tools.terminal.autoApprove": {
     "/^\\.\\/\\.propel\\/tools\\/ingest\\.sh(\\s.*)?$/": true,

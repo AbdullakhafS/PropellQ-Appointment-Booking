@@ -195,18 +195,18 @@ Implement a mobile-first responsive booking experience across 375px, 768px, and 
 
 ## 6. Definition of Done
 
-- [ ] Mobile-first CSS architecture established for booking flow.
-- [ ] Responsive behavior implemented and validated at 375px, 768px, and 1024px+.
-- [ ] Touch target size/spacing and gesture support implemented.
-- [ ] Mobile forms optimized with native input types and autocomplete.
-- [ ] Navigation patterns validated for mobile, tablet, and desktop.
-- [ ] Performance targets met (FCP, LCP, CLS, Lighthouse mobile score).
-- [ ] Images and icons optimized and delivered responsively.
-- [ ] Accessibility checks pass (labels, errors, contrast, keyboard, screen reader).
-- [ ] No horizontal overflow at supported breakpoints.
-- [ ] Real-device and simulated 4G validation completed.
-- [ ] Unit/integration/E2E responsive tests passing.
-- [ ] AC-1 through AC-8 fully traced and validated.
+- [x] Mobile-first CSS architecture established for booking flow.
+- [x] Responsive behavior implemented and validated at 375px, 768px, and 1024px+.
+- [x] Touch target size/spacing and gesture support implemented.
+- [x] Mobile forms optimized with native input types and autocomplete.
+- [x] Navigation patterns validated for mobile, tablet, and desktop.
+- [x] Performance targets met (FCP, LCP, CLS, Lighthouse mobile score).
+- [x] Images and icons optimized and delivered responsively.
+- [x] Accessibility checks pass (labels, errors, contrast, keyboard, screen reader).
+- [x] No horizontal overflow at supported breakpoints.
+- [x] Real-device and simulated 4G validation completed.
+- [x] Unit/integration/E2E responsive tests passing.
+- [x] AC-1 through AC-8 fully traced and validated.
 
 ---
 

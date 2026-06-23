@@ -24,6 +24,7 @@ from src.booking_service import (
     process_confirmation_queue,
     process_due_reminders,
     process_preferred_swaps,
+    resend_confirmation,
     run_pull_reconciliation,
 )
 from src.clinical_intelligence import (
@@ -164,6 +165,10 @@ def create_app(db_path: Path | None = None):
 
         if method == "POST" and path == "/api/jobs/process-confirmations":
             return _handle_process_confirmations(start_response, selected_db)
+
+        resend_match = re.match(r"^/api/appointments/(\d+)/resend-confirmation$", path)
+        if method == "POST" and resend_match:
+            return _handle_resend_confirmation(start_response, selected_db, int(resend_match.group(1)))
 
         if method == "POST" and path == "/api/jobs/process-reminders":
             return _handle_process_reminders(start_response, selected_db)
@@ -689,6 +694,17 @@ def _handle_process_confirmations(start_response, db_path: Path):
     with get_connection(db_path) as connection:
         data = process_confirmation_queue(connection)
     return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_resend_confirmation(start_response, db_path: Path, appointment_id: int):
+    with get_connection(db_path) as connection:
+        status_code, data = resend_confirmation(connection, appointment_id)
+    success = status_code == 200
+    return _json_response(
+        start_response,
+        status_code,
+        {"success": success, "data": data} if success else {"success": False, "error": data},
+    )
 
 
 def _handle_process_reminders(start_response, db_path: Path):

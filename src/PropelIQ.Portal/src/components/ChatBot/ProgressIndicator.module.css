@@ -1,0 +1,42 @@
+.container {
+  padding: 0.5rem 1.25rem;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  flex-shrink: 0;
+}
+
+.stepInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.375rem;
+}
+
+.stepLabel {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #343a40;
+}
+
+.stepCounter {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.track {
+  height: 4px;
+  background-color: #dee2e6;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background-color: #0070f3;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+@media (max-width: 600px) {
+  .container { padding: 0.5rem 1rem; }
+}

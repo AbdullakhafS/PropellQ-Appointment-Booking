@@ -210,16 +210,16 @@ Implement reliable bidirectional synchronization between PropellQ appointments a
 
 ## 6. Definition of Done
 
-- [ ] Appointment event ID columns and queue schema implemented.
-- [ ] Push sync worker updates/deletes external events for Google and Outlook.
-- [ ] Pull sync scheduler runs every 30 minutes with reconciliation rules.
-- [ ] Cancellation propagation and audit logging implemented.
-- [ ] Conflict resolution enforces PropellQ as source of truth.
-- [ ] Retry/backoff queue with max-attempt alerting implemented.
-- [ ] Optional webhook handlers implemented or explicitly feature-flagged off.
-- [ ] Metrics dashboards and alerts operational for sync latency/failures.
-- [ ] Unit, integration, conflict, failure, and load tests passing.
-- [ ] AC-1 through AC-7 fully traced and validated.
+- [x] Appointment event ID columns and queue schema implemented.
+- [x] Push sync worker updates/deletes external events for Google and Outlook.
+- [x] Pull sync scheduler runs every 30 minutes with reconciliation rules.
+- [x] Cancellation propagation and audit logging implemented.
+- [x] Conflict resolution enforces PropellQ as source of truth.
+- [x] Retry/backoff queue with max-attempt alerting implemented.
+- [x] Optional webhook handlers implemented or explicitly feature-flagged off.
+- [x] Metrics dashboards and alerts operational for sync latency/failures.
+- [x] Unit, integration, conflict, failure, and load tests passing.
+- [x] AC-1 through AC-7 fully traced and validated.
 
 ---
 

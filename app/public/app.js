@@ -100,6 +100,8 @@ const elements = {
   refreshMetricsButton: document.getElementById("refreshMetricsButton"),
   dashboardMetrics: document.getElementById("dashboardMetrics"),
   opsStatusMessage: document.getElementById("opsStatusMessage"),
+  conflictDialog: document.getElementById("conflictDialog"),
+  conflictDialogDismiss: document.getElementById("conflictDialogDismiss"),
   // EP-003: Clinical profile
   loadClinicalProfileButton: document.getElementById("loadClinicalProfileButton"),
   runConflictCheckButton: document.getElementById("runConflictCheckButton"),
@@ -186,6 +188,7 @@ function bindEvents() {
   elements.processSwapsButton.addEventListener("click", () => runOpsJob("/api/jobs/process-swaps", "Preferred slot swap engine processed."));
   elements.processCalendarSyncButton.addEventListener("click", () => runOpsJob("/api/jobs/process-calendar-sync", "Calendar sync queue processed."));
   elements.refreshMetricsButton.addEventListener("click", refreshMetrics);
+  elements.conflictDialogDismiss.addEventListener("click", returnToCalendarAfterConflict);
   elements.provider.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       clearSuggestions();
@@ -660,6 +663,19 @@ function renderBookingSummary() {
   `;
 }
 
+function returnToCalendarAfterConflict() {
+  state.selectedSlot = null;
+  state.reservationToken = "";
+  state.reservationExpiresAt = "";
+  clearInterval(state.reservationTimerId);
+  elements.reservationCountdown.textContent = "No active reservation";
+  elements.checkoutStatusMessage.textContent = "";
+  elements.selectedSlotDetails.textContent = "Select a slot from the calendar to view provider details, location, duration, and reserve it for checkout.";
+  elements.bookingSummary.textContent = "Choose a slot to populate your final summary.";
+  document.getElementById("calendarTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+  renderCalendar();
+}
+
 async function reserveSelectedSlot() {
   if (!state.selectedSlot) {
     elements.checkoutStatusMessage.textContent = "Select a slot before reserving it.";
@@ -671,7 +687,12 @@ async function reserveSelectedSlot() {
   };
   const response = await postJson(`/api/appointments/${state.selectedSlot.id}/checkout`, payload);
   if (!response.success) {
-    elements.checkoutStatusMessage.textContent = response.error.message;
+    const code = response.error?.code;
+    if (code === "UNAVAILABLE_SLOT" || code === "RESERVED") {
+      elements.conflictDialog.showModal();
+    } else {
+      elements.checkoutStatusMessage.textContent = response.error.message;
+    }
     return;
   }
   state.reservationToken = response.data.reservationToken;
@@ -739,7 +760,12 @@ async function onBookNow(event) {
   };
   const response = await postJson("/api/appointments/book", payload);
   if (!response.success) {
-    elements.checkoutStatusMessage.textContent = response.error.message;
+    const code = response.error?.code;
+    if (code === "UNAVAILABLE_SLOT" || code === "RESERVATION_EXPIRED") {
+      elements.conflictDialog.showModal();
+    } else {
+      elements.checkoutStatusMessage.textContent = response.error.message;
+    }
     return;
   }
   clearInterval(state.reservationTimerId);

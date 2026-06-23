@@ -1,0 +1,232 @@
+/* ---- Mode selection screen ---- */
+.modeSelect {
+  max-width: 600px;
+  margin: 3rem auto;
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.modeHeading {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 0.5rem;
+}
+
+.modeSubtext {
+  color: #6c757d;
+  margin-bottom: 2rem;
+}
+
+.modeCards {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.modeCard {
+  flex: 1 1 220px;
+  max-width: 260px;
+  padding: 1.5rem 1rem;
+  border: 2px solid #e9ecef;
+  border-radius: 0.75rem;
+  background: #fff;
+  cursor: pointer;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+}
+
+.modeCard:hover,
+.modeCard:focus-visible {
+  border-color: #0070f3;
+  box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.15);
+  outline: none;
+}
+
+.modeIcon {
+  font-size: 2rem;
+}
+
+.modeCardTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.modeCardDesc {
+  font-size: 0.875rem;
+  color: #6c757d;
+  line-height: 1.4;
+}
+
+/* ---- Shell wrapper ---- */
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---- Top toolbar ---- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.modeTag {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #343a40;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.switchBtn {
+  padding: 0.4rem 0.875rem;
+  background: #fff;
+  border: 1px solid #0070f3;
+  border-radius: 0.375rem;
+  color: #0070f3;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 36px;
+  transition: background-color 0.15s;
+  font-family: inherit;
+}
+
+.switchBtn:hover {
+  background: rgba(0, 112, 243, 0.06);
+}
+
+.switchDisabled {
+  font-size: 0.8125rem;
+  color: #868e96;
+}
+
+.switchRemaining {
+  font-size: 0.75rem;
+  color: #868e96;
+}
+
+.switchBanner {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #2f9e44;
+  animation: fadeOut 3s forwards;
+}
+
+@keyframes fadeOut {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ---- Content area ---- */
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* ---- Confirmation modal overlay ---- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 0.75rem;
+  padding: 2rem;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.modalHeading {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 0.625rem;
+}
+
+.modalBody {
+  color: #495057;
+  font-size: 0.9375rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.modalActions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.confirmYes {
+  padding: 0.5rem 1.25rem;
+  background: #0070f3;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+  font-family: inherit;
+  transition: background-color 0.15s;
+}
+
+.confirmYes:hover {
+  background: #0060d8;
+}
+
+.confirmNo {
+  padding: 0.5rem 1.25rem;
+  background: #fff;
+  color: #343a40;
+  border: 1px solid #ced4da;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+  font-family: inherit;
+  transition: background-color 0.15s;
+}
+
+.confirmNo:hover {
+  background: #f1f3f5;
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 599px) {
+  .modeSelect { margin: 1.5rem auto; }
+  .modeCards { flex-direction: column; align-items: center; }
+  .modeCard { max-width: 100%; width: 100%; }
+  .toolbar { padding: 0.5rem 0.75rem; }
+}

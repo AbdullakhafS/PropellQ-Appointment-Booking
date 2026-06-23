@@ -208,17 +208,17 @@ Implement a secure Google Calendar OAuth 2.0 authorization flow that lets patien
 
 ## 6. Definition of Done
 
-- [ ] Connect button available in booking confirmation and settings.
-- [ ] OAuth authorize endpoint implemented with required scopes/state.
-- [ ] Callback endpoint exchanges auth code for tokens successfully.
-- [ ] Refresh token encrypted and stored securely.
-- [ ] Linked account success messaging and manage-permissions path implemented.
-- [ ] Disconnect flow removes token data and marks account revoked.
-- [ ] Error handling and retry UX implemented for denied/failed authorization.
-- [ ] Security controls validated (state, redirect allowlist, redaction).
-- [ ] Metrics and alerts configured for OAuth success/failure monitoring.
-- [ ] Unit + integration + negative tests passing.
-- [ ] AC-1 through AC-8 fully traced and validated.
+- [x] Connect button available in booking confirmation and settings.
+- [x] OAuth authorize endpoint implemented with required scopes/state.
+- [x] Callback endpoint exchanges auth code for tokens successfully.
+- [x] Refresh token encrypted and stored securely.
+- [x] Linked account success messaging and manage-permissions path implemented.
+- [x] Disconnect flow removes token data and marks account revoked.
+- [x] Error handling and retry UX implemented for denied/failed authorization.
+- [x] Security controls validated (state, redirect allowlist, redaction).
+- [x] Metrics and alerts configured for OAuth success/failure monitoring.
+- [x] Unit + integration + negative tests passing.
+- [x] AC-1 through AC-8 fully traced and validated.
 
 ---
 
