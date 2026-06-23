@@ -16,6 +16,7 @@ public sealed class IntakeConversation
     public DateTimeOffset? SwitchedToManualAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public int MisunderstandingCount { get; private set; }
+    public ConversationStage CurrentStage { get; private set; } = ConversationStage.Greeting;
 
     private IntakeConversation() { }
 
@@ -25,6 +26,15 @@ public sealed class IntakeConversation
             AppointmentId = appointmentId,
             PatientId = patientId,
             Mode = IntakeMode.Ai,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+    public static IntakeConversation StartManual(int appointmentId, int patientId)
+        => new()
+        {
+            AppointmentId = appointmentId,
+            PatientId = patientId,
+            Mode = IntakeMode.Manual,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -38,6 +48,12 @@ public sealed class IntakeConversation
     }
 
     public void IncrementMisunderstanding() => MisunderstandingCount++;
+
+    public void AdvanceStage(ConversationStage stage)
+    {
+        if (stage > CurrentStage)
+            CurrentStage = stage;
+    }
 
     public void MarkCompleted()
         => CompletedAt = DateTimeOffset.UtcNow;

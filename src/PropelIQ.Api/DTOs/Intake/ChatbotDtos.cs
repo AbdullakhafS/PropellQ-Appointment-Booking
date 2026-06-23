@@ -10,7 +10,9 @@ public sealed record StartChatRequestDto(
 
 public sealed record StartChatResponseDto(
     int ConversationId,
-    string WelcomeMessage
+    string WelcomeMessage,
+    int CurrentStage,
+    int TotalStages
 );
 
 public sealed record SendMessageRequestDto(
@@ -25,7 +27,9 @@ public sealed record SendMessageResponseDto(
     ExtractedDataDto ExtractedData,
     ConfidenceScoresResponseDto ConfidenceScores,
     bool IsComplete,
-    bool SuggestManualFallback
+    bool SuggestManualFallback,
+    int CurrentStage,
+    int TotalStages
 );
 
 public sealed record ConversationHistoryResponseDto(
@@ -52,7 +56,7 @@ public sealed record MedicationDto(string Name, string? Dosage, string? Frequenc
 
 public sealed record AllergyDto(string Allergen, string? Reaction, string Type);
 
-public sealed record InsuranceInfoDto(string? Provider, string? MemberId, string? GroupNumber);
+public sealed record InsuranceInfoDto(string? Provider, string? MemberId, string? GroupNumber, string? PlanName = null);
 
 public sealed record ConfidenceScoresResponseDto(
     double ChiefComplaint,

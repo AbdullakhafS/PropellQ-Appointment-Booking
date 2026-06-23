@@ -2,8 +2,10 @@ import { useEffect, useRef, useCallback } from 'react';
 import { MessageList } from './MessageList';
 import { ChatInput } from './ChatInput';
 import { IntakeSummary } from './IntakeSummary';
+import { ProgressIndicator } from './ProgressIndicator';
 import { useChatSession } from '../../hooks/useChatSession';
 import { chatApi } from '../../api/chatApi';
+import type { ExtractedData } from '../../types/chat';
 import styles from './ChatbotScreen.module.css';
 
 interface ChatbotScreenProps {
@@ -12,6 +14,8 @@ interface ChatbotScreenProps {
   patientName: string;
   onSwitchToManual: () => void;
   onIntakeComplete: () => void;
+  /** Called whenever the chatbot updates extracted intake data (used by the mode shell). */
+  onExtractedDataChange?: (data: ExtractedData) => void;
 }
 
 export function ChatbotScreen({
@@ -20,6 +24,7 @@ export function ChatbotScreen({
   patientName,
   onSwitchToManual,
   onIntakeComplete,
+  onExtractedDataChange,
 }: ChatbotScreenProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -31,6 +36,8 @@ export function ChatbotScreen({
     extractedData,
     suggestManualFallback,
     isComplete,
+    currentStage,
+    totalStages,
     startSession,
     sendMessage,
     dismissError,
@@ -45,6 +52,11 @@ export function ChatbotScreen({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  // Notify parent of extracted data changes for cross-mode data capture
+  useEffect(() => {
+    if (extractedData) onExtractedDataChange?.(extractedData);
+  }, [extractedData, onExtractedDataChange]);
 
   const handleEdit = useCallback(() => {
     // Sends a request to continue editing — re-opens the chat
@@ -87,6 +99,8 @@ export function ChatbotScreen({
           Switch to Manual Form
         </button>
       </header>
+
+      <ProgressIndicator currentStage={currentStage} totalStages={totalStages} />
 
       {error && (
         <div className={styles.errorBanner} role="alert">

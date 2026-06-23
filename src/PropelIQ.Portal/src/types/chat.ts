@@ -7,6 +7,8 @@ export interface StartChatRequest {
 export interface StartChatResponse {
   conversationId: number;
   welcomeMessage: string;
+  currentStage: number;
+  totalStages: number;
 }
 
 export interface SendMessageRequest {
@@ -22,6 +24,8 @@ export interface SendMessageResponse {
   confidenceScores: ConfidenceScores;
   isComplete: boolean;
   suggestManualFallback: boolean;
+  currentStage: number;
+  totalStages: number;
 }
 
 export interface ConversationHistoryResponse {

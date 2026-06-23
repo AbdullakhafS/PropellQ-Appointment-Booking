@@ -39,7 +39,7 @@ public static class ExtractionParser
                 .ToList();
 
             InsuranceInfo? insurance = raw.InsuranceInfo is { } ins
-                ? new InsuranceInfo(ins.Provider, ins.MemberId, ins.GroupNumber)
+                ? new InsuranceInfo(ins.Provider, ins.MemberId, ins.GroupNumber, ins.PlanName)
                 : null;
 
             var data = new ExtractedIntakeData(
@@ -101,6 +101,7 @@ public static class ExtractionParser
         [JsonPropertyName("provider")] public string? Provider { get; init; }
         [JsonPropertyName("member_id")] public string? MemberId { get; init; }
         [JsonPropertyName("group_number")] public string? GroupNumber { get; init; }
+        [JsonPropertyName("plan_name")] public string? PlanName { get; init; }
     }
 
     private sealed class ConfidenceRaw

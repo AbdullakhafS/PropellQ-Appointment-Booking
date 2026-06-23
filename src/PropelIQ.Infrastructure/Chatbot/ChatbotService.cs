@@ -9,6 +9,7 @@ using PropelIQ.Application.Interfaces.Repositories;
 using PropelIQ.Application.Interfaces.Services;
 using PropelIQ.Application.Models;
 using PropelIQ.Domain.Entities;
+using PropelIQ.Domain.Enums;
 using PropelIQ.Domain.ValueObjects;
 
 namespace PropelIQ.Infrastructure.Chatbot;
@@ -18,6 +19,8 @@ public sealed class ChatbotService : IChatbotService
     private const int MaxMisunderstandings = 2;
     private static readonly Regex PiiSanitizePattern =
         new(@"\b\d{9}\b|\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b", RegexOptions.Compiled);
+    private static readonly Regex StageMarkerPattern =
+        new(@"^\[STAGE:([1-6])\]\s*", RegexOptions.Compiled | RegexOptions.Multiline);
 
     private readonly IIntakeConversationRepository _conversationRepo;
     private readonly IChatbotPromptRepository _promptRepo;
@@ -59,9 +62,10 @@ public sealed class ChatbotService : IChatbotService
                       PromptTemplates.ChiefComplaintPrompt;
 
         conversation.AppendMessage(ConversationMessage.Assistant(welcome));
+        conversation.AdvanceStage(ConversationStage.ChiefComplaint);
 
         var conversationId = await _conversationRepo.CreateAsync(conversation, ct);
-        return new StartChatResult(conversationId, welcome);
+        return new StartChatResult(conversationId, welcome, (int)ConversationStage.ChiefComplaint, PromptTemplates.TotalStages);
     }
 
     public async Task<SendMessageResult> SendMessageAsync(SendMessageRequest request, CancellationToken ct = default)
@@ -102,6 +106,10 @@ public sealed class ChatbotService : IChatbotService
         }
         else
         {
+            var (cleanedResponse, parsedStage) = ParseStageMarker(assistantResponse);
+            assistantResponse = cleanedResponse;
+            if (parsedStage.HasValue)
+                conversation.AdvanceStage(parsedStage.Value);
             conversation.AppendMessage(ConversationMessage.Assistant(assistantResponse));
         }
 
@@ -122,7 +130,9 @@ public sealed class ChatbotService : IChatbotService
             MapExtracted(conversation.ExtractedData),
             MapScores(conversation.ConfidenceScores),
             isComplete,
-            SuggestManualFallback: conversation.MisunderstandingCount >= MaxMisunderstandings
+            SuggestManualFallback: conversation.MisunderstandingCount >= MaxMisunderstandings,
+            CurrentStage: (int)conversation.CurrentStage,
+            TotalStages: PromptTemplates.TotalStages
         );
     }
 
@@ -173,6 +183,16 @@ public sealed class ChatbotService : IChatbotService
     private static bool IsMisunderstanding(string response)
         => response.Contains("[MISUNDERSTOOD]", StringComparison.OrdinalIgnoreCase);
 
+    private static (string CleanedResponse, ConversationStage? Stage) ParseStageMarker(string response)
+    {
+        var match = StageMarkerPattern.Match(response);
+        if (!match.Success) return (response, null);
+
+        var stage = (ConversationStage)int.Parse(match.Groups[1].Value);
+        var cleaned = StageMarkerPattern.Replace(response, string.Empty).TrimStart('\r', '\n', ' ');
+        return (cleaned, stage);
+    }
+
     private static SendMessageResult BuildFallbackResult(
         IntakeConversation conversation, int conversationId, string message)
         => new(
@@ -181,7 +201,9 @@ public sealed class ChatbotService : IChatbotService
             MapExtracted(conversation.ExtractedData),
             MapScores(conversation.ConfidenceScores),
             IsComplete: false,
-            SuggestManualFallback: true
+            SuggestManualFallback: true,
+            CurrentStage: (int)conversation.CurrentStage,
+            TotalStages: PromptTemplates.TotalStages
         );
 
     private static string SanitizeName(string name)
@@ -197,7 +219,7 @@ public sealed class ChatbotService : IChatbotService
             data.MedicalHistory,
             data.Medications.Select(m => new MedicationEntryDto(m.Name, m.Dosage, m.Frequency)).ToList(),
             data.Allergies.Select(a => new AllergyEntryDto(a.Allergen, a.Reaction, a.Type.ToString())).ToList(),
-            data.InsuranceInfo is { } ins ? new InsuranceInfoDto(ins.Provider, ins.MemberId, ins.GroupNumber) : null
+            data.InsuranceInfo is { } ins ? new InsuranceInfoDto(ins.Provider, ins.MemberId, ins.GroupNumber, ins.PlanName) : null
         );
 
     private static ConfidenceScoresDto MapScores(ConfidenceScores scores)
