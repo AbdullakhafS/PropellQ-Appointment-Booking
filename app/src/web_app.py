@@ -541,36 +541,23 @@ def create_app(db_path: Path | None = None):
 def _handle_search(environ, start_response, db_path: Path, metrics: SearchMetrics, started_at: float):
     query_params = _flat_query_params(environ.get("QUERY_STRING", ""))
 
-    try:
-        with get_connection(db_path) as connection:
-            validated = parse_filters(query_params, connection)
-            if validated.errors:
-                return _json_response(
-                    start_response,
-                    400,
-                    {
-                        "success": False,
-                        "error": {
-                            "code": "VALIDATION_ERROR",
-                            "message": "Invalid search parameters",
-                            "details": validated.errors,
-                        },
+    with get_connection(db_path) as connection:
+        validated = parse_filters(query_params, connection)
+        if validated.errors:
+            return _json_response(
+                start_response,
+                400,
+                {
+                    "success": False,
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "Invalid search parameters",
+                        "details": validated.errors,
                     },
-                )
-
-            results = search_appointments(connection, validated.data)
-    except Exception:
-        return _json_response(
-            start_response,
-            500,
-            {
-                "success": False,
-                "error": {
-                    "code": "SEARCH_FAILED",
-                    "message": "Unable to complete appointment search",
                 },
-            },
-        )
+            )
+
+        results = search_appointments(connection, validated.data)
 
     elapsed_ms = (perf_counter() - started_at) * 1000
     metrics.record(elapsed_ms, len(results["items"]))
