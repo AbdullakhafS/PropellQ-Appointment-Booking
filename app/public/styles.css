@@ -1331,3 +1331,219 @@ dialog {
     border-bottom: 1px solid var(--line);
   }
 }
+
+/* =============================================================================
+   EP-005 US-043: RBAC Role Selector Banner
+   ============================================================================= */
+
+.rbac-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.rbac-banner__label {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.rbac-banner__status {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.rbac-role-group {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.rbac-role-btn {
+  min-height: 32px;
+  padding: 0.2rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.rbac-role-btn:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.rbac-role-btn--active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.rbac-role-btn--active:hover {
+  background: var(--brand-strong);
+  border-color: var(--brand-strong);
+  color: #fff;
+}
+
+/* Sections hidden by RBAC gating */
+[data-rbac-require][hidden] {
+  display: none !important;
+}
+
+/* =============================================================================
+   EP-005 US-047: Admin User Management Panel
+   ============================================================================= */
+
+.user-mgmt-panel {
+  padding: 1.5rem;
+  background: var(--panel);
+  border-radius: var(--radius);
+  margin-top: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.user-mgmt-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+
+.user-mgmt-filter-bar input,
+.user-mgmt-filter-bar select {
+  flex: 1 1 160px;
+  min-height: var(--touch);
+  padding: 0 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-strong);
+}
+
+.user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.user-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-strong);
+}
+
+.user-row__info {
+  min-width: 0;
+}
+
+.user-row__id {
+  font-weight: 600;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-row__email {
+  font-size: 0.8rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-row--deactivated {
+  opacity: 0.55;
+}
+
+.user-row--deactivated .user-row__id {
+  text-decoration: line-through;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.status-badge--active   { background: rgba(22, 101, 52, 0.12); color: var(--success); }
+.status-badge--inactive { background: rgba(22, 35, 48, 0.08);  color: var(--muted); }
+.status-badge--suspended { background: rgba(194, 65, 12, 0.12); color: var(--accent); }
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--brand);
+}
+
+.user-row-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.confirm-deactivate {
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: rgba(194, 65, 12, 0.08);
+  border: 1px solid rgba(194, 65, 12, 0.25);
+  color: var(--accent);
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+}
+
+.confirm-deactivate label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  min-height: auto;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  justify-content: flex-end;
+}
+
+dialog {
+  border: none;
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  max-width: min(92vw, 460px);
+  width: 100%;
+}
+
+dialog::backdrop {
+  background: rgba(22, 35, 48, 0.45);
+}
+
+dialog .field {
+  margin-bottom: 0.75rem;
+}

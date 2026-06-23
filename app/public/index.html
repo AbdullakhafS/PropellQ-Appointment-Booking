@@ -25,7 +25,7 @@
           and Google/Outlook calendar connections.
         </p>
       </div>
-      <aside class="hero-metrics" aria-label="Platform metrics">
+      <aside class="hero-metrics" aria-label="Platform metrics" data-rbac-require="admin:dashboard">
         <div class="metric-card">
           <span class="metric-label">Response target</span>
           <strong>&lt; 2s</strong>
@@ -40,6 +40,17 @@
         </div>
       </aside>
     </header>
+
+    <!-- EP-005: RBAC role selector (demo / QA tool) -->
+    <div class="rbac-banner" role="region" aria-label="Role selector">
+      <span class="rbac-banner__label">Active role:</span>
+      <div class="rbac-role-group" role="group" aria-label="Select role">
+        <button class="rbac-role-btn rbac-role-btn--active" data-role="patient" type="button">Patient</button>
+        <button class="rbac-role-btn" data-role="staff" type="button">Staff</button>
+        <button class="rbac-role-btn" data-role="admin" type="button">Admin</button>
+      </div>
+      <span class="rbac-banner__status" id="rbacRoleStatus" aria-live="polite">Role: patient</span>
+    </div>
 
     <main class="app-shell" id="mainContent">
       <aside class="sidebar-panel" aria-labelledby="filtersTitle">
@@ -165,7 +176,7 @@
 
           <div class="status-row" aria-live="polite">
             <p id="resultsSummary" class="results-summary">Searching available slots...</p>
-            <p id="searchMetricsSummary" class="results-summary"></p>
+            <p id="searchMetricsSummary" class="results-summary" data-rbac-require="admin:dashboard"></p>
           </div>
 
           <div id="searchResults" class="results-grid"></div>
@@ -290,7 +301,7 @@
           </section>
         </div>
 
-        <section class="ops-panel" aria-labelledby="opsTitle">
+        <section class="ops-panel" aria-labelledby="opsTitle" data-rbac-require="admin:ops_jobs">
           <div class="panel-header panel-header--stacked">
             <div>
               <h2 id="opsTitle">Delivery and sync operations</h2>
@@ -314,7 +325,7 @@
       <!-- ================================================================
            EP-003: 360° Clinical Patient Profile
            ================================================================ -->
-      <section class="clinical-profile-panel" aria-labelledby="clinicalProfileTitle">
+      <section class="clinical-profile-panel" aria-labelledby="clinicalProfileTitle" data-rbac-require="clinical:view_profile">
         <div class="panel-header panel-header--stacked">
           <div>
             <h2 id="clinicalProfileTitle">360° Patient Profile</h2>
@@ -386,7 +397,7 @@
       <!-- ================================================================
            EP-003: Coding Review + Conflict Resolution (TASK-025 to TASK-030)
            ================================================================ -->
-      <section class="coding-review-panel" aria-labelledby="codingReviewTitle">
+      <section class="coding-review-panel" aria-labelledby="codingReviewTitle" data-rbac-require="clinical:code_review">
         <div class="panel-header panel-header--stacked">
           <div>
             <h2 id="codingReviewTitle">Clinical Coding &amp; Conflict Review</h2>
@@ -482,6 +493,42 @@
 
         <p id="codingReviewStatus" class="status-inline" aria-live="polite"></p>
       </section>
+
+      <!-- ================================================================
+           EP-005 US-047: Admin User Management (task_047_001 – task_047_003)
+           ================================================================ -->
+      <section class="user-mgmt-panel" aria-labelledby="userMgmtTitle" data-rbac-require="admin:user_management">
+        <div class="panel-header panel-header--stacked">
+          <div>
+            <h2 id="userMgmtTitle">User Management</h2>
+            <p class="panel-copy">Create, edit roles, and deactivate staff and patient accounts. All changes are audit-logged.</p>
+          </div>
+          <button id="openCreateUserButton" type="button">Create User</button>
+        </div>
+
+        <div class="user-mgmt-filter-bar">
+          <input id="userSearchInput" type="search" placeholder="Search by name or email…" autocomplete="off" aria-label="Search users" />
+          <select id="userRoleFilter" aria-label="Filter by role">
+            <option value="">All roles</option>
+            <option value="admin">Admin</option>
+            <option value="staff">Staff</option>
+            <option value="patient">Patient</option>
+          </select>
+          <select id="userStatusFilter" aria-label="Filter by status">
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="suspended">Suspended</option>
+          </select>
+          <button id="loadAdminUsersButton" class="ghost-btn" type="button">Refresh</button>
+        </div>
+
+        <div id="userListContainer" class="user-list" aria-live="polite" aria-label="User list">
+          <p class="muted-text">Loading users…</p>
+        </div>
+
+        <p id="userMgmtStatus" class="status-inline" aria-live="polite"></p>
+      </section>
     </main>
 
     <dialog id="providerDialog" aria-labelledby="providerDialogTitle">
@@ -498,6 +545,98 @@
       <form method="dialog">
         <button type="submit" id="conflictDialogDismiss">Choose another slot</button>
       </form>
+    </dialog>
+
+    <!-- EP-005 US-047: Create User dialog -->
+    <dialog id="createUserDialog" aria-labelledby="createUserDialogTitle">
+      <h3 id="createUserDialogTitle">Create User</h3>
+      <form id="createUserForm" novalidate>
+        <div class="field">
+          <label for="newUserId">User ID</label>
+          <input id="newUserId" name="userId" type="text" autocomplete="off" required aria-describedby="newUserIdError" />
+          <small id="newUserIdError" class="error-text" aria-live="polite"></small>
+        </div>
+        <div class="field">
+          <label for="newUserEmail">Email</label>
+          <input id="newUserEmail" name="email" type="email" autocomplete="off" required aria-describedby="newUserEmailError" />
+          <small id="newUserEmailError" class="error-text" aria-live="polite"></small>
+        </div>
+        <div class="field">
+          <label for="newUserRole">Role</label>
+          <select id="newUserRole" name="role" required aria-describedby="newUserRoleError">
+            <option value="">Select role…</option>
+            <option value="admin">Admin</option>
+            <option value="staff">Staff</option>
+            <option value="patient">Patient</option>
+          </select>
+          <small id="newUserRoleError" class="error-text" aria-live="polite"></small>
+        </div>
+        <div class="field">
+          <label for="newUserStatus">Status</label>
+          <select id="newUserStatus" name="status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="suspended">Suspended</option>
+          </select>
+        </div>
+        <p id="createUserFormStatus" class="status-inline" aria-live="polite"></p>
+        <div class="dialog-actions">
+          <button type="submit">Create</button>
+          <button type="button" id="cancelCreateUserButton" class="ghost-btn">Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- EP-005 US-047: Edit Role dialog -->
+    <dialog id="editRoleDialog" aria-labelledby="editRoleDialogTitle">
+      <h3 id="editRoleDialogTitle">Edit User Role</h3>
+      <p class="muted-text">User: <strong id="editRoleUserId"></strong></p>
+      <div class="field">
+        <label for="editRoleSelect">New Role</label>
+        <select id="editRoleSelect">
+          <option value="admin">Admin</option>
+          <option value="staff">Staff</option>
+          <option value="patient">Patient</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="editRoleReason">Reason</label>
+        <input id="editRoleReason" type="text" placeholder="Reason for change (optional)" />
+      </div>
+      <p id="editRoleStatus" class="status-inline" aria-live="polite"></p>
+      <div class="dialog-actions">
+        <button id="confirmEditRoleButton" type="button">Save</button>
+        <button id="cancelEditRoleButton" type="button" class="ghost-btn">Cancel</button>
+      </div>
+    </dialog>
+
+    <!-- EP-005 US-047: Edit Status / Deactivate dialog -->
+    <dialog id="editStatusDialog" aria-labelledby="editStatusDialogTitle">
+      <h3 id="editStatusDialogTitle">Edit User Status</h3>
+      <p class="muted-text">User: <strong id="editStatusUserId"></strong></p>
+      <div class="field">
+        <label for="editStatusSelect">New Status</label>
+        <select id="editStatusSelect">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="suspended">Suspended</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="editStatusReason">Reason</label>
+        <input id="editStatusReason" type="text" placeholder="Reason for change (optional)" />
+      </div>
+      <div id="deactivateConfirmArea" class="confirm-deactivate" hidden>
+        <label>
+          <input id="deactivateConfirmCheck" type="checkbox" />
+          I confirm this account should be deactivated
+        </label>
+      </div>
+      <p id="editStatusStatus" class="status-inline" aria-live="polite"></p>
+      <div class="dialog-actions">
+        <button id="confirmEditStatusButton" type="button">Save</button>
+        <button id="cancelEditStatusButton" type="button" class="ghost-btn">Cancel</button>
+      </div>
     </dialog>
 
     <script src="/app.js"></script>

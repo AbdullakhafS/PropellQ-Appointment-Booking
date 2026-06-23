@@ -1,10 +1,10 @@
-# TASK-003: Implement Slot Reservation and Checkout Locking
+﻿# TASK-003: Implement Slot Reservation and Checkout Locking
 
 **User Story:** US-003 (EP-001)  
 **Source File:** `.propel/context/tasks/EP-001/us_003/us_003.md`  
 **Priority:** CRITICAL  
 **Estimated Effort:** 5-6 dev days + concurrency validation  
-**Status:** Planned  
+**Status:** Completed  
 **Created:** 2026-06-18
 
 ---

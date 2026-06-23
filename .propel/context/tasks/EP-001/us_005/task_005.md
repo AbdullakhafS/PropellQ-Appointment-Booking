@@ -1,10 +1,10 @@
-# TASK-005: Implement Preferred Slot Auto-Swap Orchestration
+﻿# TASK-005: Implement Preferred Slot Auto-Swap Orchestration
 
 **User Story:** US-005 (EP-001)  
 **Source File:** `.propel/context/tasks/EP-001/us_005/us_005.md`  
 **Priority:** CRITICAL  
 **Estimated Effort:** 5-6 dev days + concurrency validation  
-**Status:** Planned  
+**Status:** Completed  
 **Created:** 2026-06-18
 
 ---
