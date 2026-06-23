@@ -1,0 +1,149 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 2rem;
+  font-size: 0.9375rem;
+}
+
+/* ---- Header ---- */
+.header { display: flex; flex-direction: column; gap: 0.25rem; }
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+.dateLabel {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin: 0;
+}
+
+.summary {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin: 0;
+}
+
+/* ---- Connection status badge ---- */
+.connBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1875rem 0.5625rem;
+  border-radius: 999px;
+}
+
+.connGreen  { background: #d3f9d8; color: #2b8a3e; }
+.connAmber  { background: #fff3bf; color: #e67700; }
+.connGrey   { background: #f1f3f5; color: #495057; }
+
+.connDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* Animate dot when live */
+.connGreen .connDot {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* ---- Table ---- */
+.tableWrapper { overflow-x: auto; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  background: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+  font-weight: 600;
+  color: #343a40;
+  white-space: nowrap;
+}
+
+.td {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+  color: #1a1a2e;
+  vertical-align: middle;
+}
+
+.tr { transition: background-color 0.15s; }
+.tr:hover .td { background-color: #f8f9fa; }
+
+.trWalkIn .td   { border-left: 3px solid #fd7e14; }
+.trArrived .td  { background-color: #f3faf4; }
+
+/* ---- Patient name ---- */
+.patientName { font-weight: 600; }
+
+/* ---- Type column ---- */
+.preBooked { font-size: 0.75rem; color: #6c757d; font-weight: 500; }
+
+/* ---- Status badges ---- */
+.statusBadge {
+  display: inline-block;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.statusScheduled { background: #e7f5ff; color: #1971c2; }
+.statusArrived   { background: #d3f9d8; color: #2b8a3e; }
+.statusCompleted { background: #f1f3f5; color: #495057; }
+.statusCancelled { background: #ffe3e3; color: #c92a2a; }
+
+/* ---- Wait time ---- */
+.waitUpcoming { font-size: 0.8125rem; color: #1971c2; font-weight: 500; }
+.waitNow      { font-size: 0.8125rem; color: #2b8a3e; font-weight: 700; }
+.waitWaiting  { font-size: 0.8125rem; color: #495057; font-weight: 500; }
+.waitLong     { color: #c92a2a; font-weight: 700; }
+
+/* ---- Empty state ---- */
+.emptyState {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #495057;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.emptyIcon    { font-size: 2.5rem; margin: 0 0 0.375rem; }
+.emptyTitle   { font-size: 1rem; font-weight: 700; color: #1a1a2e; margin: 0; }
+.emptySubtitle { font-size: 0.875rem; margin: 0; }
+
+/* ---- Mobile ---- */
+@media (max-width: 599px) {
+  .container { padding: 1rem 0.75rem 2rem; }
+  .th, .td   { padding: 0.4375rem 0.5rem; font-size: 0.8125rem; }
+}

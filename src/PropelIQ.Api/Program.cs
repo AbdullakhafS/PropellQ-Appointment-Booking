@@ -2,7 +2,7 @@ using PropelIQ.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Infrastructure (EF Core, OpenAI, repositories, chatbot service)
+// Infrastructure (EF Core, OpenAI, repositories, chatbot + EP-004 queue/waitlist/notification services)
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddControllers();
@@ -13,6 +13,9 @@ builder.Services.AddSwaggerGen(options =>
     options.EnableAnnotations();
 });
 
+builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
+    p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -21,8 +24,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors();
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
-
 app.Run();

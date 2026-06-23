@@ -1,0 +1,154 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.heading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+.hint {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin: 0;
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input {
+  width: 100%;
+  padding: 0.625rem 2.5rem 0.625rem 0.875rem;
+  font-size: 1rem;
+  border: 1px solid #ced4da;
+  border-radius: 0.5rem;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input:focus {
+  border-color: #0070f3;
+  box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.15);
+}
+
+.spinner {
+  position: absolute;
+  right: 0.75rem;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #dee2e6;
+  border-top-color: #0070f3;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.resultList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.resultRow {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-bottom: 1px solid #f1f3f5;
+  transition: background-color 0.1s;
+}
+
+.resultRow:last-child { border-bottom: none; }
+
+.resultRow:hover,
+.resultRow:focus-visible {
+  background-color: #e7f5ff;
+  outline: none;
+}
+
+.name {
+  font-weight: 600;
+  color: #1a1a2e;
+  font-size: 0.9375rem;
+}
+
+.meta {
+  font-size: 0.8125rem;
+  color: #6c757d;
+}
+
+.noMatch {
+  padding: 1rem;
+  text-align: center;
+  color: #495057;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.createBtn {
+  padding: 0.5rem 1.25rem;
+  background: #0070f3;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.15s;
+}
+
+.createBtn:hover { background: #0060d8; }
+
+.errorMsg {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  background: #fff5f5;
+  border: 1px solid #ffc9c9;
+  border-radius: 0.5rem;
+  color: #c92a2a;
+  font-size: 0.875rem;
+}
+
+.retryBtn {
+  background: transparent;
+  border: 1px solid #c92a2a;
+  border-radius: 0.375rem;
+  color: #c92a2a;
+  padding: 0.25rem 0.625rem;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-family: inherit;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

@@ -1,0 +1,1 @@
+export { AppointmentDetailPanel } from './AppointmentDetailPanel';
