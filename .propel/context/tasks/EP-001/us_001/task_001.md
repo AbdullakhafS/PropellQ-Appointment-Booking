@@ -1,10 +1,10 @@
-# TASK-001: Implement Appointment Search with Multi-Filters
+﻿# TASK-001: Implement Appointment Search with Multi-Filters
 
 **User Story:** US-001 (EP-001)  
 **Source File:** `.propel/context/tasks/EP-001/us_001/us_001.md`  
 **Priority:** CRITICAL  
 **Estimated Effort:** 3-4 dev days + QA validation  
-**Status:** Planned  
+**Status:** Completed  
 **Created:** 2026-06-18
 
 ---

@@ -1,10 +1,10 @@
-# TASK-009: Implement Bidirectional Calendar Sync for Google and Outlook
+﻿# TASK-009: Implement Bidirectional Calendar Sync for Google and Outlook
 
 **User Story:** US-009 (EP-001)  
 **Source File:** `.propel/context/tasks/EP-001/us_009/us_009.md`  
 **Priority:** HIGH  
 **Estimated Effort:** 5-6 dev days + reliability/performance validation  
-**Status:** Planned  
+**Status:** Completed  
 **Created:** 2026-06-18
 
 ---

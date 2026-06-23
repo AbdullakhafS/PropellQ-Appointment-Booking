@@ -65,6 +65,54 @@ def get_patient_profile(connection: sqlite3.Connection, patient_id: int = DEFAUL
     return dict(row) if row else {}
 
 
+def get_staff_queue(
+    connection: sqlite3.Connection,
+    provider_ids: list[int] | None = None,
+) -> dict[str, Any]:
+    """
+    Return today's booked appointments scoped to *provider_ids* (task_045_001).
+
+    When *provider_ids* is ``None`` (admin bypass), all of today's booked
+    appointments are returned.  When it is an empty list the caller has no
+    active assignments and an empty queue is returned immediately.
+    """
+    today = date.today().isoformat()
+
+    if provider_ids is not None and len(provider_ids) == 0:
+        return {"items": [], "total": 0}
+
+    if provider_ids is None:
+        rows = connection.execute(
+            """
+            SELECT a.*, p.name AS provider_name
+            FROM appointments a
+            JOIN providers p ON p.id = a.provider_id
+            WHERE a.appointment_date = ?
+              AND a.status = 'booked'
+            ORDER BY a.start_time
+            """,
+            [today],
+        ).fetchall()
+    else:
+        placeholders = ",".join("?" * len(provider_ids))
+        rows = connection.execute(
+            f"""
+            SELECT a.*, p.name AS provider_name
+            FROM appointments a
+            JOIN providers p ON p.id = a.provider_id
+            WHERE a.appointment_date = ?
+              AND a.status = 'booked'
+              AND a.provider_id IN ({placeholders})
+            ORDER BY a.start_time
+            """,
+            [today, *provider_ids],
+        ).fetchall()
+
+    items = [dict(row) for row in rows]
+    return {"items": items, "total": len(items)}
+
+
+
 def get_patient_session(connection: sqlite3.Connection, patient_id: int = DEFAULT_PATIENT_ID) -> dict[str, Any]:
     row = connection.execute(
         "SELECT * FROM patient_sessions WHERE patient_profile_id = ?",

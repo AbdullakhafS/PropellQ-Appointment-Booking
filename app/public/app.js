@@ -45,6 +45,17 @@ const state = {
     thresholds: { icd10: 0.70, cpt: 0.75 },
     activeTab: "suggestions",
   },
+  // EP-005: RBAC
+  rbac: {
+    role: "patient",
+    permissions: [],
+    adminId: "admin-demo",
+  },
+  // EP-005 US-047: Admin user management
+  adminUsers: {
+    users: [],
+    filter: { query: "", role: "", status: "" },
+  },
 };
 
 const elements = {
@@ -142,6 +153,34 @@ const elements = {
   thresholdRoleInput: document.getElementById("thresholdRoleInput"),
   thresholdHistoryList: document.getElementById("thresholdHistoryList"),
   codingReviewStatus: document.getElementById("codingReviewStatus"),
+  // EP-005 US-047: Admin user management
+  userSearchInput: document.getElementById("userSearchInput"),
+  userRoleFilter: document.getElementById("userRoleFilter"),
+  userStatusFilter: document.getElementById("userStatusFilter"),
+  loadAdminUsersButton: document.getElementById("loadAdminUsersButton"),
+  userListContainer: document.getElementById("userListContainer"),
+  userMgmtStatus: document.getElementById("userMgmtStatus"),
+  openCreateUserButton: document.getElementById("openCreateUserButton"),
+  createUserDialog: document.getElementById("createUserDialog"),
+  createUserForm: document.getElementById("createUserForm"),
+  cancelCreateUserButton: document.getElementById("cancelCreateUserButton"),
+  createUserFormStatus: document.getElementById("createUserFormStatus"),
+  editRoleDialog: document.getElementById("editRoleDialog"),
+  editRoleUserId: document.getElementById("editRoleUserId"),
+  editRoleSelect: document.getElementById("editRoleSelect"),
+  editRoleReason: document.getElementById("editRoleReason"),
+  editRoleStatus: document.getElementById("editRoleStatus"),
+  confirmEditRoleButton: document.getElementById("confirmEditRoleButton"),
+  cancelEditRoleButton: document.getElementById("cancelEditRoleButton"),
+  editStatusDialog: document.getElementById("editStatusDialog"),
+  editStatusUserId: document.getElementById("editStatusUserId"),
+  editStatusSelect: document.getElementById("editStatusSelect"),
+  editStatusReason: document.getElementById("editStatusReason"),
+  editStatusStatus: document.getElementById("editStatusStatus"),
+  deactivateConfirmArea: document.getElementById("deactivateConfirmArea"),
+  deactivateConfirmCheck: document.getElementById("deactivateConfirmCheck"),
+  confirmEditStatusButton: document.getElementById("confirmEditStatusButton"),
+  cancelEditStatusButton: document.getElementById("cancelEditStatusButton"),
 };
 
 let filterDebounceId;
@@ -162,6 +201,7 @@ async function bootstrap() {
   await refreshMetrics();
   await loadClinicalProfile();
   await loadCodingData();
+  initRbac();
 }
 
 function bindEvents() {
@@ -217,6 +257,70 @@ function bindEvents() {
   });
   elements.saveIcd10ThresholdButton.addEventListener("click", () => saveThreshold("icd10"));
   elements.saveCptThresholdButton.addEventListener("click", () => saveThreshold("cpt"));
+
+  // EP-005 US-047: Admin user management events
+  if (elements.loadAdminUsersButton) {
+    elements.loadAdminUsersButton.addEventListener("click", loadAdminUsers);
+  }
+  if (elements.openCreateUserButton) {
+    elements.openCreateUserButton.addEventListener("click", () => {
+      elements.createUserForm.reset();
+      elements.createUserFormStatus.textContent = "";
+      document.getElementById("newUserIdError").textContent = "";
+      document.getElementById("newUserEmailError").textContent = "";
+      document.getElementById("newUserRoleError").textContent = "";
+      elements.createUserDialog.showModal();
+    });
+  }
+  if (elements.cancelCreateUserButton) {
+    elements.cancelCreateUserButton.addEventListener("click", () => elements.createUserDialog.close());
+  }
+  if (elements.createUserForm) {
+    elements.createUserForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await onCreateUserSubmit();
+    });
+  }
+  if (elements.cancelEditRoleButton) {
+    elements.cancelEditRoleButton.addEventListener("click", () => elements.editRoleDialog.close());
+  }
+  if (elements.confirmEditRoleButton) {
+    elements.confirmEditRoleButton.addEventListener("click", onConfirmEditRole);
+  }
+  if (elements.cancelEditStatusButton) {
+    elements.cancelEditStatusButton.addEventListener("click", () => elements.editStatusDialog.close());
+  }
+  if (elements.confirmEditStatusButton) {
+    elements.confirmEditStatusButton.addEventListener("click", onConfirmEditStatus);
+  }
+  if (elements.editStatusSelect) {
+    elements.editStatusSelect.addEventListener("change", () => {
+      const isDeactivating = elements.editStatusSelect.value === "inactive";
+      elements.deactivateConfirmArea.hidden = !isDeactivating;
+      if (!isDeactivating) elements.deactivateConfirmCheck.checked = false;
+    });
+  }
+
+  let userSearchDebounce;
+  if (elements.userSearchInput) {
+    elements.userSearchInput.addEventListener("input", () => {
+      state.adminUsers.filter.query = elements.userSearchInput.value.trim().toLowerCase();
+      clearTimeout(userSearchDebounce);
+      userSearchDebounce = setTimeout(renderUserList, 180);
+    });
+  }
+  if (elements.userRoleFilter) {
+    elements.userRoleFilter.addEventListener("change", () => {
+      state.adminUsers.filter.role = elements.userRoleFilter.value;
+      renderUserList();
+    });
+  }
+  if (elements.userStatusFilter) {
+    elements.userStatusFilter.addEventListener("change", () => {
+      state.adminUsers.filter.status = elements.userStatusFilter.value;
+      renderUserList();
+    });
+  }
 }
 
 function hydrateFromQuery() {
@@ -1432,5 +1536,330 @@ async function loadThresholdHistory() {
 function setCodingStatus(msg) {
   if (elements.codingReviewStatus) {
     elements.codingReviewStatus.textContent = msg;
+  }
+}
+
+// =============================================================================
+// EP-005 US-043: RBAC — Role-Aware UI Gating (task_043_004)
+// =============================================================================
+
+// Centralised fetch wrapper that injects X-Role header on every API call.
+const _origFetch = window.fetch;
+window.fetch = function (input, init = {}) {
+  const headers = new Headers(init.headers || {});
+  headers.set("X-Role", state.rbac.role);
+  headers.set("X-Patient-Id", String(state.clinical.patientId));
+  headers.set("X-Admin-Id", state.rbac.adminId || "admin-demo");
+  headers.set("X-Staff-Id", state.rbac.staffId || "staff-demo");
+  return _origFetch(input, { ...init, headers });
+};
+
+function initRbac() {
+  // Wire role selector buttons
+  document.querySelectorAll(".rbac-role-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const role = btn.dataset.role;
+      if (role) setActiveRole(role);
+    });
+  });
+  applyRbacGating();
+}
+
+function setActiveRole(role) {
+  state.rbac.role = role;
+
+  // Update button active state
+  document.querySelectorAll(".rbac-role-btn").forEach((btn) => {
+    btn.classList.toggle("rbac-role-btn--active", btn.dataset.role === role);
+  });
+
+  // Update status label
+  const statusEl = document.getElementById("rbacRoleStatus");
+  if (statusEl) statusEl.textContent = `Role: ${role}`;
+
+  // Fetch updated permissions from server and re-gate
+  fetch("/api/auth/me")
+    .then((r) => r.json())
+    .then((envelope) => {
+      const data = envelope.data || {};
+      state.rbac.permissions = data.permissions || [];
+      applyRbacGating();
+      if (role === "admin") {
+        loadAdminUsers();
+      }
+    })
+    .catch(() => {
+      applyRbacGating();
+      if (role === "admin") {
+        loadAdminUsers();
+      }
+    });
+}
+
+/**
+ * Hides sections tagged with data-rbac-require when the active role
+ * lacks the required permission, and shows them when it is granted.
+ * Also disables/hides individual action buttons via data-rbac-action.
+ * Elements with data-rbac-patient-only are shown only for the patient role.
+ */
+function applyRbacGating() {
+  const role = state.rbac.role;
+
+  // Section-level gating  ── data-rbac-require="action"
+  document.querySelectorAll("[data-rbac-require]").forEach((el) => {
+    const action = el.dataset.rbacRequire;
+    const allowed = canPerform(role, action);
+    el.hidden = !allowed;
+    el.setAttribute("aria-hidden", String(!allowed));
+  });
+
+  // Patient-only elements  ── data-rbac-patient-only
+  document.querySelectorAll("[data-rbac-patient-only]").forEach((el) => {
+    const isPatient = role === "patient";
+    el.hidden = !isPatient;
+    el.setAttribute("aria-hidden", String(!isPatient));
+  });
+
+  // Staff/admin-only elements  ── data-rbac-staff-only
+  document.querySelectorAll("[data-rbac-staff-only]").forEach((el) => {
+    const isStaffOrAdmin = role === "staff" || role === "admin";
+    el.hidden = !isStaffOrAdmin;
+    el.setAttribute("aria-hidden", String(!isStaffOrAdmin));
+  });
+
+  // Button-level gating  ── data-rbac-action="action"
+  document.querySelectorAll("[data-rbac-action]").forEach((btn) => {
+    const action = btn.dataset.rbacAction;
+    const allowed = canPerform(role, action);
+    btn.disabled = !allowed;
+    btn.title = allowed ? "" : `Requires permission: ${action}`;
+  });
+}
+
+/**
+ * Client-side permission check mirroring the server matrix.
+ * The server is the authoritative source; this provides immediate UI feedback.
+ */
+const CLIENT_PERMISSION_MATRIX = {
+  "appointments:search":    ["patient", "staff", "admin"],
+  "appointments:view":      ["patient", "staff", "admin"],
+  "appointments:book":      ["patient", "staff", "admin"],
+  "appointments:checkout":  ["patient", "staff", "admin"],
+  "appointments:resend":    ["staff", "admin"],
+  "calendar:read":          ["patient", "staff", "admin"],
+  "integrations:connect":   ["patient", "admin"],
+  "integrations:disconnect": ["patient", "admin"],
+  "clinical:view_profile":       ["staff", "admin"],
+  "clinical:upload_document":    ["staff", "admin"],
+  "clinical:process_document":   ["staff", "admin"],
+  "clinical:view_conflicts":     ["staff", "admin"],
+  "clinical:code_review":        ["staff", "admin"],
+  "clinical:manage_thresholds":  ["admin"],
+  "clinical:view_allergy_conflicts": ["staff", "admin"],
+  "clinical:view_suggestions":   ["staff", "admin"],
+  "clinical:generate_suggestions": ["staff", "admin"],
+  "clinical:resolve_conflict":   ["staff", "admin"],
+  "admin:dashboard":  ["admin"],
+  "admin:ops_jobs":   ["admin"],
+  "admin:audit_logs": ["staff", "admin"],
+  "admin:user_management": ["admin"],
+  "admin:change_log": ["admin"],
+  "staff:queue_view": ["staff", "admin"],
+  "staff:checkin":    ["staff", "admin"],
+};
+
+function canPerform(role, action) {
+  const allowed = CLIENT_PERMISSION_MATRIX[action];
+  return Array.isArray(allowed) && allowed.includes(role);
+}
+
+// =============================================================================
+// EP-005 US-047: Admin User Management (task_047_001 – task_047_003)
+// =============================================================================
+
+async function loadAdminUsers() {
+  if (!elements.userListContainer) return;
+  elements.userListContainer.innerHTML = '<p class="muted-text">Loading…</p>';
+  setUserMgmtStatus("");
+  try {
+    const payload = await fetchJson("/api/admin/users");
+    if (!payload.success) {
+      setUserMgmtStatus(payload.error?.message || "Failed to load users.");
+      elements.userListContainer.innerHTML = '<p class="muted-text">Could not load user list.</p>';
+      return;
+    }
+    state.adminUsers.users = payload.data || [];
+    renderUserList();
+  } catch {
+    setUserMgmtStatus("User list unavailable.");
+    elements.userListContainer.innerHTML = '<p class="muted-text">Could not load user list.</p>';
+  }
+}
+
+function renderUserList() {
+  const { query, role, status } = state.adminUsers.filter;
+  const filtered = state.adminUsers.users.filter((u) => {
+    if (query && !u.id.toLowerCase().includes(query) && !(u.email || "").toLowerCase().includes(query)) return false;
+    if (role && u.role !== role) return false;
+    if (status && u.status !== status) return false;
+    return true;
+  });
+
+  if (!elements.userListContainer) return;
+
+  if (!filtered.length) {
+    elements.userListContainer.innerHTML = '<p class="muted-text">No users match the current filters.</p>';
+    return;
+  }
+
+  elements.userListContainer.innerHTML = filtered.map((u) => {
+    const isDeactivated = u.status === "inactive";
+    const rowCls = isDeactivated ? "user-row user-row--deactivated" : "user-row";
+    return `
+      <div class="${rowCls}" data-user-id="${escHtml(u.id)}">
+        <div class="user-row__info">
+          <div class="user-row__id">${escHtml(u.id)}</div>
+          <div class="user-row__email">${escHtml(u.email || "—")}</div>
+        </div>
+        <span class="role-badge">${escHtml(u.role)}</span>
+        <span class="status-badge status-badge--${escHtml(u.status || "active")}">${escHtml(u.status || "active")}</span>
+        <div class="user-row-actions">
+          <button class="ghost-btn" type="button" data-action="edit-role" data-uid="${escHtml(u.id)}" data-current-role="${escHtml(u.role)}">Edit Role</button>
+          <button class="ghost-btn" type="button" data-action="edit-status" data-uid="${escHtml(u.id)}" data-current-status="${escHtml(u.status || "active")}">Edit Status</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  elements.userListContainer.querySelectorAll("button[data-action]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const uid = btn.dataset.uid;
+      if (btn.dataset.action === "edit-role") {
+        openEditRoleDialog(uid, btn.dataset.currentRole);
+      } else {
+        openEditStatusDialog(uid, btn.dataset.currentStatus);
+      }
+    });
+  });
+}
+
+function openEditRoleDialog(userId, currentRole) {
+  elements.editRoleUserId.textContent = userId;
+  elements.editRoleSelect.value = currentRole;
+  elements.editRoleReason.value = "";
+  elements.editRoleStatus.textContent = "";
+  elements.editRoleDialog._targetUserId = userId;
+  elements.editRoleDialog.showModal();
+}
+
+async function onConfirmEditRole() {
+  const userId = elements.editRoleDialog._targetUserId;
+  const newRole = elements.editRoleSelect.value;
+  const reason = elements.editRoleReason.value.trim();
+  elements.editRoleStatus.textContent = "Saving…";
+  try {
+    const payload = await patchJson(`/api/admin/users/${encodeURIComponent(userId)}/role`, { role: newRole, reason });
+    if (!payload.success) {
+      elements.editRoleStatus.textContent = payload.error?.message || "Failed to update role.";
+      return;
+    }
+    elements.editRoleDialog.close();
+    setUserMgmtStatus(`Role updated for ${userId}.`);
+    await loadAdminUsers();
+  } catch {
+    elements.editRoleStatus.textContent = "Request failed.";
+  }
+}
+
+function openEditStatusDialog(userId, currentStatus) {
+  elements.editStatusUserId.textContent = userId;
+  elements.editStatusSelect.value = currentStatus;
+  elements.editStatusReason.value = "";
+  elements.editStatusStatus.textContent = "";
+  elements.deactivateConfirmArea.hidden = currentStatus !== "inactive";
+  elements.deactivateConfirmCheck.checked = false;
+  elements.editStatusDialog._targetUserId = userId;
+  elements.editStatusDialog.showModal();
+}
+
+async function onConfirmEditStatus() {
+  const userId = elements.editStatusDialog._targetUserId;
+  const newStatus = elements.editStatusSelect.value;
+  const reason = elements.editStatusReason.value.trim();
+
+  if (newStatus === "inactive" && !elements.deactivateConfirmCheck.checked) {
+    elements.editStatusStatus.textContent = "Please check the confirmation box before deactivating.";
+    return;
+  }
+
+  elements.editStatusStatus.textContent = "Saving…";
+  try {
+    const payload = await patchJson(`/api/admin/users/${encodeURIComponent(userId)}/status`, { status: newStatus, reason });
+    if (!payload.success) {
+      elements.editStatusStatus.textContent = payload.error?.message || "Failed to update status.";
+      return;
+    }
+    elements.editStatusDialog.close();
+    setUserMgmtStatus(`Status updated for ${userId}.`);
+    await loadAdminUsers();
+  } catch {
+    elements.editStatusStatus.textContent = "Request failed.";
+  }
+}
+
+async function onCreateUserSubmit() {
+  const userId = document.getElementById("newUserId").value.trim();
+  const email = document.getElementById("newUserEmail").value.trim();
+  const role = document.getElementById("newUserRole").value;
+  const status = document.getElementById("newUserStatus").value;
+
+  let valid = true;
+  [["newUserId", userId, "User ID is required."],
+   ["newUserEmail", email, "Email is required."],
+   ["newUserRole", role, "Role is required."]].forEach(([fieldId, val, msg]) => {
+    const errEl = document.getElementById(`${fieldId}Error`);
+    if (!val) {
+      errEl.textContent = msg;
+      document.getElementById(fieldId).setAttribute("aria-invalid", "true");
+      valid = false;
+    } else {
+      errEl.textContent = "";
+      document.getElementById(fieldId).removeAttribute("aria-invalid");
+    }
+  });
+  if (!valid) return;
+
+  elements.createUserFormStatus.textContent = "Creating…";
+  try {
+    const response = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, email, role, status }),
+    });
+    const payload = await response.json();
+    if (!payload.success) {
+      elements.createUserFormStatus.textContent = payload.error?.message || "Failed to create user.";
+      return;
+    }
+    elements.createUserDialog.close();
+    setUserMgmtStatus(`User '${userId}' created.`);
+    await loadAdminUsers();
+  } catch {
+    elements.createUserFormStatus.textContent = "Request failed.";
+  }
+}
+
+async function patchJson(url, payload) {
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return response.json();
+}
+
+function setUserMgmtStatus(msg) {
+  if (elements.userMgmtStatus) {
+    elements.userMgmtStatus.textContent = msg;
   }
 }
