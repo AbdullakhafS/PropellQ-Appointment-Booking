@@ -199,17 +199,17 @@ Implement a reliable reminder system that sends SMS and email reminders at 48h, 
 
 ## 6. Definition of Done
 
-- [ ] 15-minute scheduler implemented and running.
-- [ ] 48h/24h/2h reminder windows generated correctly.
-- [ ] SMS and email templates finalized and integrated.
-- [ ] Channel preferences and defaults enforced.
-- [ ] Timezone-aware scheduling and rendering validated.
-- [ ] Retry flow implemented with max 3 attempts.
-- [ ] ReminderLog persistence and indexing complete.
-- [ ] Opt-out/cancelled guard paths implemented.
-- [ ] Delivery metrics dashboards and alerts configured.
-- [ ] Unit/integration/edge/load tests passing.
-- [ ] Story AC-1 through AC-8 mapped and validated.
+- [x] 15-minute scheduler implemented and running.
+- [x] 48h/24h/2h reminder windows generated correctly.
+- [x] SMS and email templates finalized and integrated.
+- [x] Channel preferences and defaults enforced.
+- [x] Timezone-aware scheduling and rendering validated.
+- [x] Retry flow implemented with max 3 attempts.
+- [x] ReminderLog persistence and indexing complete.
+- [x] Opt-out/cancelled guard paths implemented.
+- [x] Delivery metrics dashboards and alerts configured.
+- [x] Unit/integration/edge/load tests passing.
+- [x] Story AC-1 through AC-8 mapped and validated.
 
 ---
 

@@ -113,12 +113,12 @@ Build an asynchronous confirmation pipeline that sends appointment confirmation 
 
 ## 5. Definition of Done
 
-- [ ] Async confirmation job pipeline implemented.
-- [ ] Email and PDF templates completed.
-- [ ] 60-second delivery SLA monitored and validated.
-- [ ] Retry, alerting, and manual resend flows implemented.
-- [ ] Audit logging and compliance controls complete.
-- [ ] AC-1 through AC-8 fully validated.
+- [x] Async confirmation job pipeline implemented.
+- [x] Email and PDF templates completed.
+- [x] 60-second delivery SLA monitored and validated.
+- [x] Retry, alerting, and manual resend flows implemented.
+- [x] Audit logging and compliance controls complete.
+- [x] AC-1 through AC-8 fully validated.
 
 ---
 

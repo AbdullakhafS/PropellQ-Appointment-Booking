@@ -237,22 +237,22 @@
               <div class="checkout-grid">
                 <div class="field">
                   <label for="firstName">First name</label>
-                  <input id="firstName" name="firstName" type="text" autocomplete="given-name" required />
+                  <input id="firstName" name="firstName" type="text" autocomplete="given-name" required aria-describedby="firstNameError" />
                   <small id="firstNameError" class="error-text" aria-live="polite"></small>
                 </div>
                 <div class="field">
                   <label for="lastName">Last name</label>
-                  <input id="lastName" name="lastName" type="text" autocomplete="family-name" required />
+                  <input id="lastName" name="lastName" type="text" autocomplete="family-name" required aria-describedby="lastNameError" />
                   <small id="lastNameError" class="error-text" aria-live="polite"></small>
                 </div>
                 <div class="field">
                   <label for="email">Email</label>
-                  <input id="email" name="email" type="email" autocomplete="email" required />
+                  <input id="email" name="email" type="email" autocomplete="email" required aria-describedby="emailError" />
                   <small id="emailError" class="error-text" aria-live="polite"></small>
                 </div>
                 <div class="field">
                   <label for="phone">Phone</label>
-                  <input id="phone" name="phone" type="tel" autocomplete="tel" required />
+                  <input id="phone" name="phone" type="tel" autocomplete="tel" required aria-describedby="phoneError" />
                   <small id="phoneError" class="error-text" aria-live="polite"></small>
                 </div>
                 <div class="field">
@@ -317,6 +317,14 @@
       <div id="providerDialogBody"></div>
       <form method="dialog">
         <button type="submit">Close</button>
+      </form>
+    </dialog>
+
+    <dialog id="conflictDialog" aria-labelledby="conflictDialogTitle" aria-describedby="conflictDialogDesc">
+      <h3 id="conflictDialogTitle">Slot no longer available</h3>
+      <p id="conflictDialogDesc">This slot was just reserved or booked by someone else. Please choose another slot from the calendar.</p>
+      <form method="dialog">
+        <button type="submit" id="conflictDialogDismiss">Choose another slot</button>
       </form>
     </dialog>
 

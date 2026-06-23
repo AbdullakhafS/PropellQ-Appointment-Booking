@@ -115,13 +115,13 @@ Build a fast, accessible, mobile-responsive appointment search experience with c
 
 ## 5. Definition of Done
 
-- [ ] Four filters implemented and cumulative.
-- [ ] Search endpoint returns available slots with pagination.
-- [ ] Result cards display required appointment/provider fields.
-- [ ] Helpful empty-state suggestions implemented.
-- [ ] Responsive and accessible behavior validated.
-- [ ] Search performance and alerts operational.
-- [ ] AC-1 through AC-7 fully validated.
+- [x] Four filters implemented and cumulative.
+- [x] Search endpoint returns available slots with pagination.
+- [x] Result cards display required appointment/provider fields.
+- [x] Helpful empty-state suggestions implemented.
+- [x] Responsive and accessible behavior validated.
+- [x] Search performance and alerts operational.
+- [x] AC-1 through AC-7 fully validated.
 
 ---
 
