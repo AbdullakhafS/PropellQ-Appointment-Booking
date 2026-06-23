@@ -222,18 +222,18 @@ Implement a secure Microsoft identity OAuth 2.0 flow for Outlook calendar author
 
 ## 6. Definition of Done
 
-- [ ] Connect Outlook button available in booking confirmation and settings.
-- [ ] Microsoft authorize endpoint implemented with required scopes and state.
-- [ ] Callback endpoint exchanges auth code and persists tokens securely.
-- [ ] Outlook refresh token encrypted at rest with managed keys.
-- [ ] Success and error UX messaging implemented with retry path.
-- [ ] Disconnect flow revokes only Outlook connection and stops Outlook sync.
-- [ ] Google and Outlook can be connected simultaneously.
-- [ ] Dual-provider sync fan-out behavior validated.
-- [ ] Security controls validated (state, redirect allowlist, redaction, HIPAA checklist).
-- [ ] Metrics, dashboards, and alerts configured.
-- [ ] Unit, integration, negative, and dual-provider tests passing.
-- [ ] AC-1 through AC-9 fully traced and validated.
+- [x] Connect Outlook button available in booking confirmation and settings.
+- [x] Microsoft authorize endpoint implemented with required scopes and state.
+- [x] Callback endpoint exchanges auth code and persists tokens securely.
+- [x] Outlook refresh token encrypted at rest with managed keys.
+- [x] Success and error UX messaging implemented with retry path.
+- [x] Disconnect flow revokes only Outlook connection and stops Outlook sync.
+- [x] Google and Outlook can be connected simultaneously.
+- [x] Dual-provider sync fan-out behavior validated.
+- [x] Security controls validated (state, redirect allowlist, redaction, HIPAA checklist).
+- [x] Metrics, dashboards, and alerts configured.
+- [x] Unit, integration, negative, and dual-provider tests passing.
+- [x] AC-1 through AC-9 fully traced and validated.
 
 ---
 

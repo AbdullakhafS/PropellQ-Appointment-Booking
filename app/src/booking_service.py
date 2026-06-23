@@ -21,6 +21,11 @@ PDF_DIR = GENERATED_DIR / "confirmations"
 
 DEFAULT_PATIENT_ID = 1
 DEFAULT_TIMEZONE = "America/Chicago"
+MAX_CONFIRMATION_RETRIES = 3
+CONFIRMATION_RETRY_DELAYS_SECONDS = [1, 5, 30]
+MAX_REMINDER_RETRIES = 3
+SYNC_MAX_RETRIES = 3
+SYNC_BACKOFF_SECONDS = [5, 30, 300]
 REMINDER_WINDOWS = {
     "48h": timedelta(hours=48),
     "24h": timedelta(hours=24),
@@ -78,15 +83,33 @@ def dashboard_metrics(connection: sqlite3.Connection) -> dict[str, Any]:
     reminders = connection.execute(
         "SELECT delivery_status, COUNT(*) AS count FROM reminder_log GROUP BY delivery_status"
     ).fetchall()
+    reminders_by_type = connection.execute(
+        """
+        SELECT reminder_type, delivery_status, COUNT(*) AS count
+        FROM reminder_log
+        GROUP BY reminder_type, delivery_status
+        """
+    ).fetchall()
     sync = connection.execute(
         "SELECT status, COUNT(*) AS count FROM calendar_sync_queue GROUP BY status"
     ).fetchall()
+    sync_failed = connection.execute(
+        "SELECT calendar_type, COUNT(*) AS count FROM calendar_sync_queue WHERE status = 'failed' GROUP BY calendar_type"
+    ).fetchall()
+
+    reminder_breakdown: dict[str, dict[str, int]] = {}
+    for row in reminders_by_type:
+        rtype = row["reminder_type"]
+        reminder_breakdown.setdefault(rtype, {})
+        reminder_breakdown[rtype][row["delivery_status"]] = row["count"]
 
     return {
         "appointments": {row["status"]: row["count"] for row in appointment_counts},
         "confirmations": {row["status"]: row["count"] for row in deliveries},
         "reminders": {row["delivery_status"]: row["count"] for row in reminders},
+        "remindersByWindow": reminder_breakdown,
         "calendarSync": {row["status"]: row["count"] for row in sync},
+        "calendarSyncFailedByProvider": {row["calendar_type"]: row["count"] for row in sync_failed},
     }
 
 
@@ -550,6 +573,22 @@ def _write_simple_pdf(output_path: Path, title: str, lines: list[str]) -> None:
     output_path.write_bytes(pdf)
 
 
+def _deliver_confirmation(delivery: dict[str, Any]) -> str:
+    pdf_path = PDF_DIR / f"appointment-{delivery['appointment_id']}.pdf"
+    _write_simple_pdf(
+        pdf_path,
+        "PropellQ Appointment Confirmation",
+        [
+            f"Patient: {delivery['patient_first_name'] or 'Alex'}",
+            f"Provider: {delivery['provider_name']}",
+            f"Date: {delivery['appointment_date']} at {delivery['start_time']}",
+            f"Location: {delivery['location']}",
+            "Manage booking: https://propellq.example.com/manage-booking",
+        ],
+    )
+    return str(pdf_path)
+
+
 def process_confirmation_queue(connection: sqlite3.Connection) -> dict[str, Any]:
     rows = connection.execute(
         """
@@ -564,39 +603,106 @@ def process_confirmation_queue(connection: sqlite3.Connection) -> dict[str, Any]
     ).fetchall()
 
     processed = 0
+    failed = 0
+    escalated = 0
     for row in rows:
         delivery = dict(row)
-        pdf_path = PDF_DIR / f"appointment-{delivery['appointment_id']}.pdf"
-        _write_simple_pdf(
-            pdf_path,
-            "PropellQ Appointment Confirmation",
-            [
-                f"Patient: {delivery['patient_first_name'] or 'Alex'}",
-                f"Provider: {delivery['provider_name']}",
-                f"Date: {delivery['appointment_date']} at {delivery['start_time']}",
-                f"Location: {delivery['location']}",
-                "Manage booking: https://propellq.example.com/manage-booking",
-            ],
-        )
-        external_id = f"email-{uuid.uuid4().hex[:12]}"
-        connection.execute(
-            """
-            UPDATE confirmation_deliveries
-            SET status = 'sent',
-                attachment_path = ?,
-                external_message_id = ?,
-                sent_at = ?
-            WHERE id = ?
-            """,
-            [str(pdf_path), external_id, to_iso(utc_now()), delivery["id"]],
-        )
-        connection.execute(
-            "UPDATE appointments SET confirmation_sent_at = ? WHERE id = ?",
-            [to_iso(utc_now()), delivery["appointment_id"]],
-        )
-        processed += 1
+        try:
+            pdf_path = _deliver_confirmation(delivery)
+            external_id = f"email-{uuid.uuid4().hex[:12]}"
+            connection.execute(
+                """
+                UPDATE confirmation_deliveries
+                SET status = 'sent',
+                    attachment_path = ?,
+                    external_message_id = ?,
+                    sent_at = ?
+                WHERE id = ?
+                """,
+                [pdf_path, external_id, to_iso(utc_now()), delivery["id"]],
+            )
+            connection.execute(
+                "UPDATE appointments SET confirmation_sent_at = ? WHERE id = ?",
+                [to_iso(utc_now()), delivery["appointment_id"]],
+            )
+            processed += 1
+        except Exception as exc:
+            new_retry_count = delivery["retry_count"] + 1
+            if new_retry_count >= MAX_CONFIRMATION_RETRIES:
+                connection.execute(
+                    """
+                    UPDATE confirmation_deliveries
+                    SET status = 'failed',
+                        retry_count = ?,
+                        failure_reason = ?
+                    WHERE id = ?
+                    """,
+                    [new_retry_count, str(exc)[:512], delivery["id"]],
+                )
+                escalated += 1
+            else:
+                connection.execute(
+                    """
+                    UPDATE confirmation_deliveries
+                    SET retry_count = ?,
+                        failure_reason = ?
+                    WHERE id = ?
+                    """,
+                    [new_retry_count, str(exc)[:512], delivery["id"]],
+                )
+                failed += 1
     connection.commit()
-    return {"processed": processed}
+    return {"processed": processed, "failed": failed, "escalated": escalated}
+
+
+def resend_confirmation(connection: sqlite3.Connection, appointment_id: int) -> tuple[int, dict[str, Any]]:
+    appointment = get_appointment_details(connection, appointment_id)
+    if appointment is None:
+        return 404, {"code": "APPOINTMENT_NOT_FOUND", "message": "Appointment not found."}
+    if appointment.get("checkout_status") != "confirmed":
+        return 400, {"code": "INVALID_STATE", "message": "Confirmation can only be resent for confirmed appointments."}
+
+    existing = connection.execute(
+        "SELECT * FROM confirmation_deliveries WHERE appointment_id = ? ORDER BY id DESC LIMIT 1",
+        [appointment_id],
+    ).fetchone()
+    if existing and dict(existing)["status"] in ("queued", "sent"):
+        return 200, {"message": "Confirmation is already queued or delivered.", "appointmentId": appointment_id}
+
+    connection.execute(
+        """
+        INSERT INTO confirmation_deliveries(appointment_id, recipient_email, status, retry_count)
+        VALUES (?, ?, 'queued', 0)
+        """,
+        [appointment_id, appointment.get("patient_email") or "alex.morgan@example.com"],
+    )
+    connection.commit()
+    return 200, {"message": "Confirmation re-queued for delivery.", "appointmentId": appointment_id}
+
+
+
+def _send_reminder(appointment: dict[str, Any], reminder_key: str, channel: str) -> str:
+    """Format and simulate sending a reminder. Returns external_message_id."""
+    patient_name = appointment.get("patient_first_name") or "Patient"
+    appt_date = appointment["appointment_date"]
+    appt_time = appointment["start_time"]
+    provider_name = appointment["provider_name"]
+    manage_url = "https://propellq.example.com/manage"
+    if channel == "sms":
+        body = (
+            f"Reminder: {appt_date} {appt_time} w/ {provider_name}. "
+            f"Manage: {manage_url}"
+        )
+        if len(body) > 160:
+            body = body[:157] + "..."
+    else:
+        body = (
+            f"Hi {patient_name}, your PropellQ appointment on {appt_date} at "
+            f"{appt_time} with {provider_name} is coming up. Manage booking: {manage_url}"
+        )
+    # Simulate delivery (in production, calls SMS/email provider API)
+    del body  # suppress unused warning; send is simulated
+    return f"{channel}-{uuid.uuid4().hex[:10]}"
 
 
 def process_due_reminders(connection: sqlite3.Connection, reference_time: datetime | None = None) -> dict[str, Any]:
@@ -616,6 +722,7 @@ def process_due_reminders(connection: sqlite3.Connection, reference_time: dateti
     channels = json.loads(patient.get("reminder_channels", "[]"))
     sent = 0
     skipped = 0
+    failed = 0
 
     for appointment in appointments:
         if patient.get("do_not_disturb"):
@@ -631,38 +738,89 @@ def process_due_reminders(connection: sqlite3.Connection, reference_time: dateti
             if not (due_time <= now <= due_time + timedelta(minutes=15)):
                 continue
             for channel in channels:
-                connection.execute(
+                prior_failures = connection.execute(
                     """
-                    INSERT INTO reminder_log(
-                        appointment_id,
-                        patient_profile_id,
-                        reminder_type,
-                        channel,
-                        delivery_status,
-                        retry_count,
-                        sent_at,
-                        external_message_id,
-                        correlation_id
-                    )
-                    VALUES (?, ?, ?, ?, 'sent', 0, ?, ?, ?)
+                    SELECT COUNT(*) AS count FROM reminder_log
+                    WHERE appointment_id = ? AND reminder_type = ? AND channel = ?
+                      AND delivery_status = 'failed'
                     """,
-                    (
-                        appointment["id"],
-                        DEFAULT_PATIENT_ID,
-                        reminder_key,
-                        channel,
-                        to_iso(now),
-                        f"{channel}-{uuid.uuid4().hex[:10]}",
-                        uuid.uuid4().hex,
-                    ),
-                )
-                sent += 1
-            connection.execute(
-                f"UPDATE appointments SET {already_sent_field} = ? WHERE id = ?",
-                [to_iso(now), appointment["id"]],
-            )
+                    [appointment["id"], reminder_key, channel],
+                ).fetchone()["count"]
+                if prior_failures >= MAX_REMINDER_RETRIES:
+                    # Max retries exhausted — mark done to prevent infinite loop
+                    connection.execute(
+                        f"UPDATE appointments SET {already_sent_field} = ? WHERE id = ?",
+                        [to_iso(now), appointment["id"]],
+                    )
+                    failed += 1
+                    continue
+                try:
+                    external_id = _send_reminder(appointment, reminder_key, channel)
+                    connection.execute(
+                        """
+                        INSERT INTO reminder_log(
+                            appointment_id,
+                            patient_profile_id,
+                            reminder_type,
+                            channel,
+                            delivery_status,
+                            retry_count,
+                            sent_at,
+                            external_message_id,
+                            correlation_id
+                        )
+                        VALUES (?, ?, ?, ?, 'sent', ?, ?, ?, ?)
+                        """,
+                        (
+                            appointment["id"],
+                            DEFAULT_PATIENT_ID,
+                            reminder_key,
+                            channel,
+                            prior_failures,
+                            to_iso(now),
+                            external_id,
+                            uuid.uuid4().hex,
+                        ),
+                    )
+                    connection.execute(
+                        f"UPDATE appointments SET {already_sent_field} = ? WHERE id = ?",
+                        [to_iso(now), appointment["id"]],
+                    )
+                    sent += 1
+                except Exception as exc:
+                    new_count = prior_failures + 1
+                    connection.execute(
+                        """
+                        INSERT INTO reminder_log(
+                            appointment_id,
+                            patient_profile_id,
+                            reminder_type,
+                            channel,
+                            delivery_status,
+                            retry_count,
+                            failure_reason,
+                            correlation_id
+                        )
+                        VALUES (?, ?, ?, ?, 'failed', ?, ?, ?)
+                        """,
+                        (
+                            appointment["id"],
+                            DEFAULT_PATIENT_ID,
+                            reminder_key,
+                            channel,
+                            new_count,
+                            str(exc)[:512],
+                            uuid.uuid4().hex,
+                        ),
+                    )
+                    if new_count >= MAX_REMINDER_RETRIES:
+                        connection.execute(
+                            f"UPDATE appointments SET {already_sent_field} = ? WHERE id = ?",
+                            [to_iso(now), appointment["id"]],
+                        )
+                    failed += 1
     connection.commit()
-    return {"sent": sent, "skipped": skipped}
+    return {"sent": sent, "skipped": skipped, "failed": failed}
 
 
 def process_preferred_swaps(connection: sqlite3.Connection, reference_time: datetime | None = None) -> dict[str, Any]:
@@ -901,98 +1059,138 @@ def process_calendar_sync_queue(connection: sqlite3.Connection, reference_time: 
         ).fetchall()
     ]
     processed = 0
+    failed = 0
     for queue_item in rows:
         appointment = get_appointment_details(connection, queue_item["appointment_id"])
         if appointment is None:
             continue
         provider = queue_item["calendar_type"]
         external_event_id = f"{provider}-{appointment['id']}"
-        with connection:
-            connection.execute(
-                "UPDATE calendar_sync_queue SET status = 'processing', updated_at = ? WHERE id = ?",
-                [to_iso(now), queue_item["id"]],
-            )
-            existing_event = connection.execute(
-                """
-                SELECT id FROM provider_external_events
-                WHERE appointment_id = ? AND calendar_type = ?
-                """,
-                [appointment["id"], provider],
-            ).fetchone()
-            if existing_event:
+        try:
+            with connection:
                 connection.execute(
-                    """
-                    UPDATE provider_external_events
-                    SET external_event_id = ?,
-                        starts_at = ?,
-                        ends_at = ?,
-                        status = 'active',
-                        updated_at = ?
-                    WHERE id = ?
-                    """,
-                    (
-                        external_event_id,
-                        to_iso(_appointment_local_start(appointment)),
-                        to_iso(_appointment_local_end(appointment)),
-                        to_iso(now),
-                        existing_event["id"],
-                    ),
+                    "UPDATE calendar_sync_queue SET status = 'processing', updated_at = ? WHERE id = ?",
+                    [to_iso(now), queue_item["id"]],
                 )
-            else:
+                existing_event = connection.execute(
+                    """
+                    SELECT id FROM provider_external_events
+                    WHERE appointment_id = ? AND calendar_type = ?
+                    """,
+                    [appointment["id"], provider],
+                ).fetchone()
+                if existing_event:
+                    connection.execute(
+                        """
+                        UPDATE provider_external_events
+                        SET external_event_id = ?,
+                            starts_at = ?,
+                            ends_at = ?,
+                            status = 'active',
+                            updated_at = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            external_event_id,
+                            to_iso(_appointment_local_start(appointment)),
+                            to_iso(_appointment_local_end(appointment)),
+                            to_iso(now),
+                            existing_event["id"],
+                        ),
+                    )
+                else:
+                    connection.execute(
+                        """
+                        INSERT INTO provider_external_events(
+                            appointment_id,
+                            provider_id,
+                            calendar_type,
+                            external_event_id,
+                            starts_at,
+                            ends_at,
+                            status
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, 'active')
+                        """,
+                        (
+                            appointment["id"],
+                            appointment["provider_id"],
+                            provider,
+                            external_event_id,
+                            to_iso(_appointment_local_start(appointment)),
+                            to_iso(_appointment_local_end(appointment)),
+                        ),
+                    )
+                event_column = "google_event_id" if provider == "google" else "outlook_event_id"
+                connection.execute(
+                    f"UPDATE appointments SET {event_column} = ?, last_synced_at = ?, sync_status = 'synced' WHERE id = ?",
+                    [external_event_id, to_iso(now), appointment["id"]],
+                )
+                connection.execute(
+                    "UPDATE calendar_sync_queue SET status = 'synced', updated_at = ? WHERE id = ?",
+                    [to_iso(now), queue_item["id"]],
+                )
                 connection.execute(
                     """
-                    INSERT INTO provider_external_events(
+                    INSERT INTO calendar_sync_audit(
                         appointment_id,
-                        provider_id,
                         calendar_type,
                         external_event_id,
-                        starts_at,
-                        ends_at,
-                        status
+                        action,
+                        result,
+                        details_json
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, 'active')
+                    VALUES (?, ?, ?, ?, 'success', ?)
                     """,
                     (
                         appointment["id"],
-                        appointment["provider_id"],
                         provider,
                         external_event_id,
-                        to_iso(_appointment_local_start(appointment)),
-                        to_iso(_appointment_local_end(appointment)),
+                        queue_item["action"],
+                        json.dumps({"sloSeconds": 10}),
                     ),
                 )
-            event_column = "google_event_id" if provider == "google" else "outlook_event_id"
-            connection.execute(
-                f"UPDATE appointments SET {event_column} = ?, last_synced_at = ?, sync_status = 'synced' WHERE id = ?",
-                [external_event_id, to_iso(now), appointment["id"]],
-            )
-            connection.execute(
-                "UPDATE calendar_sync_queue SET status = 'synced', updated_at = ? WHERE id = ?",
-                [to_iso(now), queue_item["id"]],
-            )
-            connection.execute(
-                """
-                INSERT INTO calendar_sync_audit(
-                    appointment_id,
-                    calendar_type,
-                    external_event_id,
-                    action,
-                    result,
-                    details_json
+            processed += 1
+        except Exception as exc:
+            new_retry_count = queue_item["retry_count"] + 1
+            if new_retry_count >= SYNC_MAX_RETRIES:
+                connection.execute(
+                    "UPDATE calendar_sync_queue SET status = 'failed', retry_count = ?, last_error = ?, updated_at = ? WHERE id = ?",
+                    [new_retry_count, str(exc)[:512], to_iso(now), queue_item["id"]],
                 )
-                VALUES (?, ?, ?, ?, 'success', ?)
-                """,
-                (
-                    appointment["id"],
-                    provider,
-                    external_event_id,
-                    queue_item["action"],
-                    json.dumps({"sloSeconds": 10}),
-                ),
-            )
-        processed += 1
+                connection.execute(
+                    """
+                    INSERT INTO calendar_sync_audit(
+                        appointment_id, calendar_type, external_event_id, action, result, details_json
+                    )
+                    VALUES (?, ?, ?, ?, 'failure', ?)
+                    """,
+                    (
+                        appointment["id"],
+                        provider,
+                        external_event_id,
+                        queue_item["action"],
+                        json.dumps({"error": str(exc)[:512], "retries": new_retry_count}),
+                    ),
+                )
+            else:
+                backoff = SYNC_BACKOFF_SECONDS[min(new_retry_count - 1, len(SYNC_BACKOFF_SECONDS) - 1)]
+                next_retry_at = now + timedelta(seconds=backoff)
+                connection.execute(
+                    """
+                    UPDATE calendar_sync_queue
+                    SET status = 'pending',
+                        retry_count = ?,
+                        last_error = ?,
+                        scheduled_retry_at = ?,
+                        updated_at = ?
+                    WHERE id = ?
+                    """,
+                    [new_retry_count, str(exc)[:512], to_iso(next_retry_at), to_iso(now), queue_item["id"]],
+                )
+            failed += 1
     connection.commit()
-    return {"processed": processed}
+    return {"processed": processed, "failed": failed}
 
 
 def run_pull_reconciliation(connection: sqlite3.Connection, reference_time: datetime | None = None) -> dict[str, Any]:

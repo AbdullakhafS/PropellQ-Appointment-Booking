@@ -109,12 +109,12 @@ Provide an interactive month/week calendar that visualizes slot availability, su
 
 ## 5. Definition of Done
 
-- [ ] Month and week views implemented.
-- [ ] Color coding and slot detail interactions complete.
-- [ ] Provider preview interaction implemented.
-- [ ] Navigation, timezone display, and responsiveness validated.
-- [ ] Performance guardrails achieved.
-- [ ] AC-1 through AC-8 fully validated.
+- [x] Month and week views implemented.
+- [x] Color coding and slot detail interactions complete.
+- [x] Provider preview interaction implemented.
+- [x] Navigation, timezone display, and responsiveness validated.
+- [x] Performance guardrails achieved.
+- [x] AC-1 through AC-8 fully validated.
 
 ---
 

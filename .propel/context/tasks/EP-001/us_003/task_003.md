@@ -116,12 +116,12 @@ Implement a resilient booking checkout flow that reserves a selected slot during
 
 ## 5. Definition of Done
 
-- [ ] Reservation and booking APIs implemented with timeout/conflict handling.
-- [ ] Preferred slot capture integrated.
-- [ ] Checkout UX complete for desktop and mobile.
-- [ ] Concurrency safeguards verified by tests.
-- [ ] Accessibility and validation behaviors complete.
-- [ ] AC-1 through AC-8 fully validated.
+- [x] Reservation and booking APIs implemented with timeout/conflict handling.
+- [x] Preferred slot capture integrated.
+- [x] Checkout UX complete for desktop and mobile.
+- [x] Concurrency safeguards verified by tests.
+- [x] Accessibility and validation behaviors complete.
+- [x] AC-1 through AC-8 fully validated.
 
 ---
 

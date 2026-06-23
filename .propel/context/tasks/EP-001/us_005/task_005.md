@@ -105,12 +105,12 @@ Implement a scheduled preferred-slot swap engine that automatically reschedules 
 
 ## 5. Definition of Done
 
-- [ ] Preferred slot schema and scheduler implemented.
-- [ ] Eligibility and atomic swap logic complete.
-- [ ] Notifications and audit logs integrated.
-- [ ] Concurrency and race-condition scenarios validated.
-- [ ] Job observability and alerts active.
-- [ ] AC-1 through AC-8 fully validated.
+- [x] Preferred slot schema and scheduler implemented.
+- [x] Eligibility and atomic swap logic complete.
+- [x] Notifications and audit logs integrated.
+- [x] Concurrency and race-condition scenarios validated.
+- [x] Job observability and alerts active.
+- [x] AC-1 through AC-8 fully validated.
 
 ---
 
