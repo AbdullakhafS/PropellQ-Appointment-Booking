@@ -17,6 +17,7 @@ Covers:
 from __future__ import annotations
 
 import base64
+import bcrypt
 import csv
 import hashlib
 import hmac as _hmac
@@ -73,6 +74,8 @@ PERMISSION_MATRIX: dict[str, set[str]] = {
     # ── Admin management (EP-005 US-046) ──────────────────────────────────
     "admin:user_management": {"admin"},
     "admin:change_log":      {"admin"},
+    # ── MFA (EP-007 US-079) ───────────────────────────────────────────────
+    "auth:mfa_required":  {"staff", "admin"},
 }
 
 
@@ -162,12 +165,22 @@ ENDPOINT_PERMISSION_MAP: dict[str, dict[str, str | None]] = {
     "GET /api/staff/patients/{id}/detail":           {"permission": "staff:queue_view",                "scoping": "staff_assignment"},
     "POST /api/staff/appointments/{id}/checkin":     {"permission": "staff:checkin",                   "scoping": "staff_assignment"},
     "GET /api/staff/access-log":                     {"permission": "admin:audit_logs",                "scoping": "none"},
-    # ── Session token (US-051) ────────────────────────────────────────────
+    # ── Session token (US-051 / US-073) ──────────────────────────────────
     "POST /api/auth/session":                        {"permission": None,                              "scoping": "public"},
     "GET /api/auth/session/schema":                  {"permission": None,                              "scoping": "public"},
-    # ── Audit log viewer (US-052) ─────────────────────────────────────────
+    "POST /api/auth/session/renew":                  {"permission": None,                              "scoping": "public"},
+    # ── Audit log viewer (US-052 / US-074) ───────────────────────────────
     "GET /api/admin/change-log/entry/{id}":          {"permission": "admin:change_log",                "scoping": "none"},
     "GET /api/admin/change-log/export":              {"permission": "admin:change_log",                "scoping": "none"},
+    # ── Immutable audit log (US-074) ──────────────────────────────────────
+    "GET /api/admin/audit/entries":                  {"permission": "admin:audit_logs",                "scoping": "none"},
+    "GET /api/admin/audit/compliance":               {"permission": "admin:audit_logs",                "scoping": "none"},
+    # ── Audit event query and coverage (US-075) ───────────────────────────
+    "GET /api/admin/audit/events":                   {"permission": "admin:audit_logs",                "scoping": "none"},
+    "GET /api/admin/audit/coverage":                 {"permission": "admin:audit_logs",                "scoping": "none"},
+    # ── Admin audit query interface (US-078) ──────────────────────────────
+    "GET /api/admin/audit/query":                    {"permission": "admin:audit_logs",                "scoping": "none"},
+    "GET /api/admin/audit/query/export":             {"permission": "admin:audit_logs",                "scoping": "none"},
 }
 
 
@@ -630,12 +643,17 @@ def register_user(
     role: str,
     email: str,
     status: str = "active",
+    password: str | None = None,
 ) -> dict[str, Any]:
     """
     Add or replace a user in the registry.
 
     Used for test seeding and admin-initiated account creation.
     Raises ``ValueError`` for unknown role or status values.
+
+    When *password* is supplied it is hashed with bcrypt before storage
+    (task_072_002).  The plaintext is not retained in the user record, logs,
+    or any transient store.
     """
     if role not in ROLES:
         raise ValueError(f"Unknown role '{role}'.")
@@ -648,6 +666,8 @@ def register_user(
         "email": email,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+    if password is not None:
+        entry["password_hash"] = _hash_password(password)
     _USER_REGISTRY[user_id] = entry
     return entry
 
@@ -655,6 +675,40 @@ def register_user(
 def get_user(user_id: str) -> dict[str, Any] | None:
     """Look up a user record by ID."""
     return _USER_REGISTRY.get(user_id)
+
+
+def verify_user_password(user_id: str, plaintext_password: str) -> bool:
+    """Verify *plaintext_password* against the stored hash for *user_id*.
+
+    Returns ``True`` when the password is correct, ``False`` for all failure
+    cases (unknown user, no password set, wrong password).
+
+    On a successful verification of a *legacy* PBKDF2 hash the stored hash
+    is transparently upgraded to bcrypt so subsequent logins use the stronger
+    algorithm (task_072_003 migration path).
+
+    The raw password is never logged.  Only a boolean outcome is returned so
+    callers cannot distinguish between «no account» and «wrong password»
+    (task_072_004 — fail safely).
+    """
+    user = _USER_REGISTRY.get(user_id)
+    if user is None:
+        # Perform a dummy bcrypt check to maintain constant-time behaviour
+        # and prevent user-enumeration via timing.
+        bcrypt.checkpw(b"dummy", bcrypt.hashpw(b"dummy", bcrypt.gensalt(rounds=4)))
+        return False
+
+    stored_hash: str = user.get("password_hash", "")
+    if not stored_hash:
+        return False
+
+    is_valid = _verify_password(plaintext_password, stored_hash)
+
+    # Transparent hash upgrade: if valid and legacy format, re-hash with bcrypt.
+    if is_valid and not stored_hash.encode("utf-8").startswith(_BCRYPT_PREFIX):
+        user["password_hash"] = _hash_password(plaintext_password)
+
+    return is_valid
 
 
 def list_users() -> list[dict[str, Any]]:
@@ -900,15 +954,74 @@ _RATE_LIMIT_WINDOW_SECONDS: int = 3600  # 1 hour rolling window
 _PASSWORD_MIN_LENGTH: int = 8
 
 # ---------------------------------------------------------------------------
-# Internal helpers (task_049_002 / task_049_004)
+# US-072 — Bcrypt hashing policy (task_072_001)
+# ---------------------------------------------------------------------------
+
+# Work factor (cost) for bcrypt.  12 rounds is the minimum recommended for
+# 2024+ hardware; increase to 13+ as compute budgets allow.  Changing this
+# value affects only *new* hashes — existing hashes retain their embedded
+# cost and remain verifiable via bcrypt.checkpw.
+BCRYPT_COST_FACTOR: int = 12
+
+# Prefix used by Python bcrypt to identify version 2b hashes.
+_BCRYPT_PREFIX = b"$2b$"
+
+# Legacy PBKDF2 hashes are stored as "salt_hex:hash_hex".  The colon
+# separator distinguishes them from bcrypt's "$2b$..." format.
+_PBKDF2_SEPARATOR = ":"
+
+# ---------------------------------------------------------------------------
+# Internal helpers (task_049_002 / task_049_004 / task_072_002)
 # ---------------------------------------------------------------------------
 
 
 def _hash_password(password: str) -> str:
-    """Return a PBKDF2-HMAC-SHA256 salted hash as ``'salt_hex:hash_hex'``."""
-    salt = secrets.token_bytes(16)
-    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100_000)
-    return f"{salt.hex()}:{dk.hex()}"
+    """Hash *password* with bcrypt (BCRYPT_COST_FACTOR rounds).
+
+    Returns the bcrypt hash string (includes algorithm, cost, and salt).
+    The raw password is never stored or logged — only the returned hash
+    material is written to the user record.
+    """
+    # Encode to bytes; bcrypt operates on bytes.
+    pw_bytes = password.encode("utf-8")
+    salt = bcrypt.gensalt(rounds=BCRYPT_COST_FACTOR)
+    return bcrypt.hashpw(pw_bytes, salt).decode("utf-8")
+
+
+def _verify_password(plaintext: str, stored_hash: str) -> bool:
+    """Verify *plaintext* against *stored_hash*.
+
+    Supports both bcrypt hashes (task_072_003) and the legacy
+    PBKDF2-HMAC-SHA256 format ``'salt_hex:hash_hex'`` to allow safe
+    migration without forcing all users to reset immediately.
+
+    Migration path (task_072_001 / task_072_003):
+      - All new and reset passwords are stored as bcrypt hashes.
+      - Accounts with a legacy PBKDF2 hash can still log in; their hash
+        is automatically upgraded to bcrypt on successful login via
+        ``verify_user_password`` (see below).
+      - Once all active users have logged in at least once, legacy hash
+        support can be removed.
+    """
+    if not stored_hash:
+        return False
+
+    if stored_hash.encode("utf-8").startswith(_BCRYPT_PREFIX):
+        # bcrypt path — constant-time comparison built into checkpw.
+        return bcrypt.checkpw(plaintext.encode("utf-8"), stored_hash.encode("utf-8"))
+
+    if _PBKDF2_SEPARATOR in stored_hash:
+        # Legacy PBKDF2-HMAC-SHA256 path.
+        try:
+            salt_hex, hash_hex = stored_hash.split(_PBKDF2_SEPARATOR, 1)
+            salt = bytes.fromhex(salt_hex)
+            expected = bytes.fromhex(hash_hex)
+            dk = hashlib.pbkdf2_hmac("sha256", plaintext.encode("utf-8"), salt, 100_000)
+            return _hmac.compare_digest(dk, expected)
+        except (ValueError, TypeError):
+            return False
+
+    return False
 
 
 def _check_password_policy(password: str) -> str | None:
@@ -1208,7 +1321,29 @@ TOKEN_PHI_EXCLUSION_LIST: frozenset[str] = frozenset(
 
 TOKEN_ISSUER: str = "propeliq"
 TOKEN_AUDIENCE: str = "propeliq-api"
-_SESSION_TOKEN_TTL_SECONDS: int = 3600  # 1 hour
+_SESSION_TOKEN_TTL_SECONDS: int = 3600  # 1 hour absolute maximum
+
+# ---------------------------------------------------------------------------
+# task_073_001: Session inactivity timeout policy
+# ---------------------------------------------------------------------------
+# Inactivity window: sessions that receive no authenticated request for
+# SESSION_INACTIVITY_TIMEOUT_SECONDS are automatically expired and the JTI
+# is revoked.  Each successful token validation renews the window (sliding
+# expiration).  The absolute maximum session lifetime remains bounded by
+# _SESSION_TOKEN_TTL_SECONDS (1 hour).
+#
+# Expiration behaviour:
+#   - Fixed: session ends at iat + TTL regardless of activity.
+#   - Sliding (implemented here): session ends at last_activity + INACTIVITY
+#     OR at iat + TTL, whichever is earlier.
+#
+# Frontend / backend contract:
+#   - Backend: expired-by-inactivity tokens return HTTP 401 with
+#     code "SESSION_EXPIRED" so the client can distinguish timeout from
+#     other unauthorised states and present a re-authentication prompt.
+#   - Frontend: on receiving SESSION_EXPIRED redirect to /login and show
+#     "Your session has expired due to inactivity. Please log in again."
+SESSION_INACTIVITY_TIMEOUT_SECONDS: int = 900  # 15 minutes
 
 # Signing secret — override via SESSION_TOKEN_SECRET env var in production.
 # The default is intentionally weak and signals a misconfiguration.
@@ -1226,6 +1361,15 @@ _REVOKED_TOKEN_JTIS: set[str] = set()
 
 # Maps user_id → set of active token JTIs for bulk revocation on role change.
 _USER_SESSION_INDEX: dict[str, set[str]] = {}
+
+# task_073_002: Maps jti → last-activity Unix timestamp (float).
+# Populated on first successful validation; updated on every subsequent
+# successful validation (sliding window renewal).
+_SESSION_ACTIVITY: dict[str, float] = {}
+
+# Bounded session timeout audit log (task_073_004).
+_SESSION_TIMEOUT_LOG: list[dict[str, Any]] = []
+_SESSION_TIMEOUT_LOG_MAX = 2000
 
 # ---------------------------------------------------------------------------
 # Encoding / signing helpers (task_051_002 internals)
@@ -1335,12 +1479,16 @@ def issue_session_token(user_id: str, role: str | None = None) -> dict[str, Any]
 
 
 def validate_session_token(token: str) -> dict[str, Any] | None:
-    """Validate a session token: signature, expiry, revocation, iss/aud.
+    """Validate a session token: signature, expiry, inactivity, revocation, iss/aud.
 
     Returns the claims dict on success; ``None`` on any failure.
 
     All failure branches return ``None`` (no information leakage about
     *which* check failed to the caller).
+
+    On success the sliding inactivity window is renewed automatically
+    (task_073_002 / task_073_003) — callers do not need to call
+    :func:`renew_session_activity` separately.
     """
     if not token:
         return None
@@ -1365,7 +1513,7 @@ def validate_session_token(token: str) -> dict[str, Any] | None:
     if claims.get("iss") != TOKEN_ISSUER or claims.get("aud") != TOKEN_AUDIENCE:
         return None
 
-    # Check expiry
+    # Check absolute expiry (hard cap)
     now_ts = int(datetime.now(timezone.utc).timestamp())
     if now_ts > claims.get("exp", 0):
         return None
@@ -1374,6 +1522,24 @@ def validate_session_token(token: str) -> dict[str, Any] | None:
     jti = claims.get("jti")
     if jti and jti in _REVOKED_TOKEN_JTIS:
         return None
+
+    # task_073_002: Check inactivity timeout (sliding window).
+    # On first validation, seed the activity clock from the token's iat.
+    if jti:
+        last_activity = _SESSION_ACTIVITY.get(jti, float(claims.get("iat", now_ts)))
+        if now_ts - last_activity > SESSION_INACTIVITY_TIMEOUT_SECONDS:
+            # Inactivity timeout — revoke and audit-log.
+            _REVOKED_TOKEN_JTIS.add(jti)
+            _SESSION_ACTIVITY.pop(jti, None)
+            _log_session_timeout_event(
+                sub=claims.get("sub", ""),
+                jti=jti,
+                reason="inactivity",
+                idle_seconds=int(now_ts - last_activity),
+            )
+            return None
+        # Renew the sliding window on successful validation.
+        _SESSION_ACTIVITY[jti] = float(now_ts)
 
     return claims
 
@@ -1420,10 +1586,89 @@ def revoke_user_tokens(user_id: str) -> int:
     active_jtis = _USER_SESSION_INDEX.pop(user_id, set())
     for jti in active_jtis:
         _REVOKED_TOKEN_JTIS.add(jti)
+        _SESSION_ACTIVITY.pop(jti, None)  # task_073_002: clean up activity store
     count = len(active_jtis)
     if count:
         logger.info("SESSION_TOKEN revoked | sub=%s count=%d", user_id, count)
     return count
+
+
+# ---------------------------------------------------------------------------
+# task_073_002 / task_073_003: Session activity helpers
+# ---------------------------------------------------------------------------
+
+def _log_session_timeout_event(
+    sub: str,
+    jti: str,
+    reason: str,
+    idle_seconds: int = 0,
+) -> None:
+    """Append a session timeout audit entry (task_073_004)."""
+    entry: dict[str, Any] = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "event": "SESSION_TIMEOUT",
+        "sub": sub,
+        "jti": jti,
+        "reason": reason,
+        "idle_seconds": idle_seconds,
+    }
+    _SESSION_TIMEOUT_LOG.append(entry)
+    if len(_SESSION_TIMEOUT_LOG) > _SESSION_TIMEOUT_LOG_MAX:
+        del _SESSION_TIMEOUT_LOG[: len(_SESSION_TIMEOUT_LOG) - _SESSION_TIMEOUT_LOG_MAX]
+    logger.warning(
+        "SESSION_TIMEOUT | sub=%s jti=%s reason=%s idle_seconds=%d",
+        sub, jti, reason, idle_seconds,
+    )
+
+
+def renew_session_activity(jti: str) -> bool:
+    """Explicitly update the last-activity timestamp for *jti* (task_073_003).
+
+    Returns ``True`` when *jti* is a known, non-revoked token; ``False``
+    otherwise.  Callers do not normally need this — :func:`validate_session_token`
+    renews the window automatically on each successful validation.
+    """
+    if jti in _REVOKED_TOKEN_JTIS or jti not in _SESSION_ACTIVITY:
+        return False
+    _SESSION_ACTIVITY[jti] = float(int(datetime.now(timezone.utc).timestamp()))
+    return True
+
+
+def renew_session_token(token_str: str) -> dict[str, Any] | None:
+    """Issue a fresh token in exchange for a still-valid *token_str* (task_073_003).
+
+    Validates the current token (including the inactivity check).  On success
+    revokes the old JTI and issues a new token with a full TTL and updated
+    ``iat``/``exp``.  The new token's inactivity window starts from issuance.
+
+    Returns the same dict structure as :func:`issue_session_token`, or
+    ``None`` when the current token is invalid or already timed out.
+    """
+    claims = validate_session_token(token_str)
+    if claims is None:
+        return None
+
+    old_jti = claims.get("jti", "")
+    user_id = claims.get("sub", "")
+    role = claims.get("role")
+
+    # Revoke the old token.
+    if old_jti:
+        _REVOKED_TOKEN_JTIS.add(old_jti)
+        _SESSION_ACTIVITY.pop(old_jti, None)
+        _USER_SESSION_INDEX.get(user_id, set()).discard(old_jti)
+
+    new_result = issue_session_token(user_id, role)
+    logger.info(
+        "SESSION_TOKEN renewed | sub=%s old_jti=%s new_jti=%s",
+        user_id, old_jti, new_result["jti"],
+    )
+    return new_result
+
+
+def get_session_timeout_log(limit: int = 100) -> list[dict[str, Any]]:
+    """Return the most-recent *limit* session timeout events (newest first)."""
+    return list(reversed(_SESSION_TIMEOUT_LOG[-limit:]))
 
 
 def get_active_token_count(user_id: str) -> int:

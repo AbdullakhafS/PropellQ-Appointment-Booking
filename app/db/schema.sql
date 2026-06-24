@@ -711,6 +711,7 @@ CREATE TABLE IF NOT EXISTS backup_executions (
     rows_backed_up INTEGER CHECK (rows_backed_up >= 0),
     compression_ratio REAL CHECK (compression_ratio > 0),
     encryption_status TEXT CHECK (encryption_status IN ('unencrypted', 'encrypted', 'key_rotation_pending')),
+    encryption_key_id TEXT,
     verification_status TEXT CHECK (verification_status IN ('not_verified', 'verified', 'failed')),
     error_message TEXT,
     operator_identity TEXT,
