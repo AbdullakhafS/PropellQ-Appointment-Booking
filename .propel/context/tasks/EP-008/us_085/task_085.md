@@ -3,7 +3,7 @@
 **User Story:** US-085 (EP-008)
 **Source File:** `.propel/context/tasks/EP-008/us_085/us_085.md`
 **Priority:** CRITICAL
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -48,8 +48,8 @@ Implement readiness and liveness health probes for core services, integrate them
 - Validate health-check docs are accurate and complete.
 
 ## Definition of Done
-- [ ] Health endpoints implemented.
-- [ ] Probe integrations active.
-- [ ] Alerts configured.
-- [ ] Documentation updated.
-- [ ] AC-1 through AC-5 validated.
+- [x] Health endpoints implemented (`app/src/health_checks.py` — `HealthProbeRegistry`, `StartupGate`, liveness/readiness).
+- [x] Probe integrations active (`_STARTUP_GATE` wired into `/health/ready` in `web_app.py`).
+- [x] Alerts configured (`HealthCheckAlerter`, `InMemoryAlertSink`, `AlertSinkProtocol`).
+- [x] Documentation updated (`app/HEALTH_CHECK_ENDPOINTS.md`).
+- [x] AC-1 through AC-5 validated (53/53 tests in `app/tests/test_health_checks_085.py`).

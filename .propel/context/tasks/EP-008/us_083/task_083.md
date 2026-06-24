@@ -3,7 +3,7 @@
 **User Story:** US-083 (EP-008)
 **Source File:** `.propel/context/tasks/EP-008/us_083/us_083.md`
 **Priority:** CRITICAL
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -49,7 +49,7 @@ Configure a production-grade load balancer for API and web traffic with health-b
 - Validate configuration updates can occur without downtime.
 
 ## Definition of Done
-- [ ] Load balancer configured and version-controlled.
-- [ ] Health checks and failover routing validated.
-- [ ] Session affinity disabled for stateless traffic.
-- [ ] AC-1 through AC-5 validated.
+- [x] Load balancer configured and version-controlled (`app/src/load_balancer.py`, `render_nginx_config()`).
+- [x] Health checks and failover routing validated (35/35 tests in `app/tests/test_load_balancer_083.py`).
+- [x] Session affinity disabled for stateless traffic (`LoadBalancerConfigError` raised on `sticky_sessions=True`).
+- [x] AC-1 through AC-5 validated.

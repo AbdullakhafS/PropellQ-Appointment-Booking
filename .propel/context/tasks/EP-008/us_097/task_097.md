@@ -3,7 +3,7 @@
 **User Story:** US-097 (EP-008)
 **Source File:** `.propel/context/tasks/EP-008/us_097/us_097.md`
 **Priority:** HIGH
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -42,7 +42,7 @@ Execute a controlled disaster recovery drill in a production-like test environme
 - Validate DR plan updated after drill completion.
 
 ## Definition of Done
-- [ ] DR drill executed successfully.
-- [ ] Findings and action items documented.
-- [ ] DR plan updated from outcomes.
-- [ ] AC-1 through AC-4 validated.
+- [x] DR drill executed successfully.
+- [x] Findings and action items documented.
+- [x] DR plan updated from outcomes.
+- [x] AC-1 through AC-4 validated.

@@ -3,7 +3,7 @@
 **User Story:** US-094 (EP-008)
 **Source File:** `.propel/context/tasks/EP-008/us_094/us_094.md`
 **Priority:** HIGH
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -41,7 +41,7 @@ Implement continuous uptime monitoring for web and API services with alerting, a
 - Validate threshold configuration behavior.
 
 ## Definition of Done
-- [ ] Uptime probes configured.
-- [ ] Alerting and dashboards operational.
-- [ ] Thresholds configurable and documented.
-- [ ] AC-1 through AC-4 validated.
+- [x] Uptime probes configured.
+- [x] Alerting and dashboards operational.
+- [x] Thresholds configurable and documented.
+- [x] AC-1 through AC-4 validated.

@@ -3,7 +3,7 @@
 **User Story:** US-096 (EP-008)
 **Source File:** `.propel/context/tasks/EP-008/us_096/us_096.md`
 **Priority:** HIGH
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -41,7 +41,7 @@ Produce an operations-approved disaster recovery plan covering infrastructure, d
 - Validate stakeholder sign-off captured.
 
 ## Definition of Done
-- [ ] Disaster recovery plan documented.
-- [ ] RTO/RPO defined.
-- [ ] Stakeholder review completed.
-- [ ] AC-1 through AC-4 validated.
+- [x] Disaster recovery plan documented.
+- [x] RTO/RPO defined.
+- [x] Stakeholder review completed.
+- [x] AC-1 through AC-4 validated.

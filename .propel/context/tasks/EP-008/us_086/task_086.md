@@ -3,7 +3,7 @@
 **User Story:** US-086 (EP-008)
 **Source File:** `.propel/context/tasks/EP-008/us_086/us_086.md`
 **Priority:** HIGH
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -42,7 +42,7 @@ Automate instance removal from traffic after failed health thresholds, emit oper
 - Validate healthy instances can safely rejoin.
 
 ## Definition of Done
-- [ ] Automatic removal and rejoin behavior configured.
-- [ ] Alerts emitted on removal events.
-- [ ] Flapping protection validated.
-- [ ] AC-1 through AC-4 validated.
+- [x] Automatic removal and rejoin behavior configured (`app/src/instance_removal.py` — `AutoRemovalController`, `DrainPolicy`).
+- [x] Alerts emitted on removal events (`RemovalEvent`, `RejoinEvent`, `InMemoryRemovalEventSink`).
+- [x] Flapping protection validated (recovery_threshold requires consecutive passes before rejoin).
+- [x] AC-1 through AC-4 validated (48/48 tests in `app/tests/test_instance_removal_086.py`).

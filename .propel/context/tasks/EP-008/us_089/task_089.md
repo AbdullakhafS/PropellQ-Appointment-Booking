@@ -3,7 +3,7 @@
 **User Story:** US-089 (EP-008)
 **Source File:** `.propel/context/tasks/EP-008/us_089/us_089.md`
 **Priority:** HIGH
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -45,7 +45,7 @@ Move reminder dispatch to a durable asynchronous queue so booking stays non-bloc
 - Validate reminder job state is queryable.
 
 ## Definition of Done
-- [ ] Reminder queue and worker flow implemented.
-- [ ] Retry and dead-letter handling configured.
-- [ ] Monitoring and status lookup available.
-- [ ] AC-1 through AC-4 validated.
+- [x] Reminder queue and worker flow implemented.
+- [x] Retry and dead-letter handling configured.
+- [x] Monitoring and status lookup available.
+- [x] AC-1 through AC-4 validated.

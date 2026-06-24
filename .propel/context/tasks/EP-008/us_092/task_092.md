@@ -3,7 +3,7 @@
 **User Story:** US-092 (EP-008)
 **Source File:** `.propel/context/tasks/EP-008/us_092/us_092.md`
 **Priority:** HIGH
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -42,7 +42,7 @@ Keep core booking workflows available during partial outages by identifying opti
 - Validate degraded mode generates operational alerts.
 
 ## Definition of Done
-- [ ] Graceful degradation controls implemented for optional dependencies.
-- [ ] Core booking remains functional during targeted faults.
-- [ ] Degraded UX and alerts validated.
-- [ ] AC-1 through AC-4 validated.
+- [x] Graceful degradation controls implemented for optional dependencies.
+- [x] Core booking remains functional during targeted faults.
+- [x] Degraded UX and alerts validated.
+- [x] AC-1 through AC-4 validated.
