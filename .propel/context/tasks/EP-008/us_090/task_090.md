@@ -3,7 +3,7 @@
 **User Story:** US-090 (EP-008)
 **Source File:** `.propel/context/tasks/EP-008/us_090/us_090.md`
 **Priority:** HIGH
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -38,7 +38,7 @@ Improve high-frequency database query performance through targeted indexing and 
 - Validate no unacceptable write-side regressions.
 
 ## Definition of Done
-- [ ] High-frequency indexes implemented.
-- [ ] Query plans improved and benchmarked.
-- [ ] Write impact assessed and acceptable.
-- [ ] AC-1 through AC-4 validated.
+- [x] High-frequency indexes implemented.
+- [x] Query plans improved and benchmarked.
+- [x] Write impact assessed and acceptable.
+- [x] AC-1 through AC-4 validated.

@@ -3,7 +3,7 @@
 **User Story:** US-095 (EP-008)
 **Source File:** `.propel/context/tasks/EP-008/us_095/us_095.md`
 **Priority:** HIGH
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -41,8 +41,8 @@ Configure threshold-based auto-scaling rules for compute resources with safe coo
 - Validate changes are documented and version-controlled.
 
 ## Definition of Done
-- [ ] Auto-scaling rules configured.
-- [ ] Scale-up/down behavior validated.
-- [ ] Oscillation protection confirmed.
-- [ ] Policies documented and version-controlled.
-- [ ] AC-1 through AC-4 validated.
+- [x] Auto-scaling rules configured.
+- [x] Scale-up/down behavior validated.
+- [x] Oscillation protection confirmed.
+- [x] Policies documented and version-controlled.
+- [x] AC-1 through AC-4 validated.

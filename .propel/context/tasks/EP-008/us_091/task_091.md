@@ -3,7 +3,7 @@
 **User Story:** US-091 (EP-008)
 **Source File:** `.propel/context/tasks/EP-008/us_091/us_091.md`
 **Priority:** HIGH
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -45,8 +45,8 @@ Add Redis-backed caching for selected read-heavy queries with safe invalidation,
 - Validate fallback to database queries without user-facing failure.
 
 ## Definition of Done
-- [ ] Query result caching implemented for selected endpoints.
-- [ ] Invalidation strategy works correctly.
-- [ ] Hit/miss monitoring active.
-- [ ] Graceful fallback validated.
-- [ ] AC-1 through AC-4 validated.
+- [x] Query result caching implemented for selected endpoints.
+- [x] Invalidation strategy works correctly.
+- [x] Hit/miss monitoring active.
+- [x] Graceful fallback validated.
+- [x] AC-1 through AC-4 validated.

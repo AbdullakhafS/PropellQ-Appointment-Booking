@@ -3,7 +3,7 @@
 **User Story:** US-088 (EP-008)
 **Source File:** `.propel/context/tasks/EP-008/us_088/us_088.md`
 **Priority:** CRITICAL
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -44,7 +44,7 @@ Integrate a secure Redis-backed session cache to support shared session state ac
 - Validate PHI is not stored in Redis values.
 
 ## Definition of Done
-- [ ] Redis session cache integrated securely.
-- [ ] Expiration and invalidation work correctly.
-- [ ] Outage fallback behavior documented and tested.
-- [ ] AC-1 through AC-4 validated.
+- [x] Redis session cache integrated securely.
+- [x] Expiration and invalidation work correctly.
+- [x] Outage fallback behavior documented and tested.
+- [x] AC-1 through AC-4 validated.

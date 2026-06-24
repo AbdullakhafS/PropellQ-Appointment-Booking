@@ -154,6 +154,8 @@ from src.mfa_service import (
     _MFA_BACKUP_SERVICE,
     _MFA_POLICY,
 )
+from src.load_balancer import build_liveness_response, build_readiness_response
+from src.health_checks import _STARTUP_GATE
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 PUBLIC_DIR = BASE_DIR / "public"
@@ -240,6 +242,27 @@ def create_app(db_path: Path | None = None):
                     start_response, 401,
                     {"success": False, "error": {"code": "UNAUTHORIZED", "message": "Invalid or expired session token."}},
                 )
+
+        # --- EP-008 US-083 INFRA-2: Health check endpoints for load balancer probes ---
+        # /health/live  — liveness:  process is up; no dependencies checked (fast)
+        # /health/ready — readiness: instance can serve traffic; DB must be reachable
+        if method == "GET" and path == "/health/live":
+            return _json_response(start_response, 200, build_liveness_response())
+
+        if method == "GET" and path == "/health/ready":
+            try:
+                import sqlite3
+                conn = sqlite3.connect(str(selected_db), timeout=1)
+                conn.execute("SELECT 1")
+                conn.close()
+                db_ok = True
+            except Exception:
+                db_ok = False
+            # BE-2: startup gate — blocks readiness until all registered deps pass
+            startup_ok = _STARTUP_GATE.is_ready()
+            payload = build_readiness_response(db_ok and startup_ok)
+            status_code = 200 if payload["status"] == "ready" else 503
+            return _json_response(start_response, status_code, payload)
 
         if method == "GET" and path == "/api/appointments/search":
             return _handle_search(environ, start_response, selected_db, metrics, started_at)
@@ -2267,13 +2290,6 @@ def _handle_session_renew(environ, start_response):
             "success": True,
             "data": {
                 "token":      result["token"],
-                "jti":        result["jti"],
-                "expires_at": result["expires_at"],
-            },
-        },
-    )
-
-
                 "jti":        result["jti"],
                 "expires_at": result["expires_at"],
             },

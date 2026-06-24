@@ -3,7 +3,7 @@
 **User Story:** US-084 (EP-008)
 **Source File:** `.propel/context/tasks/EP-008/us_084/us_084.md`
 **Priority:** CRITICAL
-**Status:** Planned
+**Status:** Done
 **Created:** 2026-06-19
 
 ## Objective
@@ -48,8 +48,8 @@ Set up primary-standby database replication with monitored lag, tested failover,
 - Validate procedures are complete and stakeholder-usable.
 
 ## Definition of Done
-- [ ] Replication configured and healthy.
-- [ ] Failover drill passes target timing.
-- [ ] Lag monitoring and alerts active.
-- [ ] Runbook completed.
-- [ ] AC-1 through AC-5 validated.
+- [x] Replication configured and healthy (`app/src/replication_manager.py`).
+- [x] Failover drill passes target timing (48/48 tests in `app/tests/test_replication_084.py`).
+- [x] Lag monitoring and alerts active (`ReplicationMonitor`, `LagThresholdPolicy`).
+- [x] Runbook completed (`app/db/DB_REPLICATION_RUNBOOK.md`).
+- [x] AC-1 through AC-5 validated.
