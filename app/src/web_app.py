@@ -68,6 +68,33 @@ from src.coding_engine import (
     review_code_suggestion,
     update_threshold,
 )
+from src.audit_storage import (
+    AuditAccessGuard,
+    AuditIntegrityChecker,
+    AuditQueryParams,
+    AuditQueryService,
+    AUDIT_QUERY_MAX_PAGE_SIZE,
+    generate_immutable_audit_compliance_report,
+    get_audit_entries,
+    _AUDIT_STORE,
+)
+from src.audit_events import (
+    AuditEventType,
+    AUDIT_SCHEMA_REQUIRED_FIELDS,
+    AUDIT_PHI_EXCLUDED_FIELDS,
+    log_login_success,
+    log_login_failure,
+    log_session_issued,
+    log_phi_access,
+    log_phi_modify,
+    log_appointment_action,
+    log_account_create,
+    log_account_update,
+    log_account_role_change,
+    log_account_status_change,
+    query_audit_events,
+    get_audit_coverage_report,
+)
 from src.db import DEFAULT_DB_PATH, initialize_database, get_connection
 from src.rbac import (
     assign_user_role,
@@ -102,6 +129,8 @@ from src.rbac import (
     require_permission,
     require_resource_scope,
     require_staff_assignment,
+    renew_session_token,
+    SESSION_INACTIVITY_TIMEOUT_SECONDS,
     set_user_status,
     update_user,
     validate_session_token,
@@ -113,6 +142,17 @@ from src.search_service import (
     parse_filters,
     search_appointments,
     suggest_providers,
+)
+from src.mfa_service import (
+    MfaAlreadyEnrolledError,
+    MfaBackupCodeConsumedError,
+    MfaCodeInvalidError,
+    MfaLoginBlockedError,
+    MfaNotEnrolledError,
+    MFA_REQUIRED_ROLES,
+    _MFA_ENROLLMENT_SERVICE,
+    _MFA_BACKUP_SERVICE,
+    _MFA_POLICY,
 )
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -242,7 +282,7 @@ def create_app(db_path: Path | None = None):
             if scope_denial:
                 _, msg = scope_denial
                 return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
-            return _handle_patient_profile(start_response, selected_db)
+            return _handle_patient_profile(start_response, selected_db, environ)
 
         if method == "GET" and path == "/api/integrations/status":
             scope_denial = require_resource_scope(environ, _DEFAULT_PATIENT_ID)
@@ -407,6 +447,26 @@ def create_app(db_path: Path | None = None):
                 {"success": True, "data": get_session_token_schema()},
             )
 
+        # --- EP-007 US-073: Session renewal (task_073_003) ---
+        if method == "POST" and path == "/api/auth/session/renew":
+            return _handle_session_renew(environ, start_response)
+
+        # --- EP-007 US-079: MFA TOTP enrollment, verification, backup codes ---
+        if method == "POST" and path == "/api/auth/mfa/enroll":
+            return _handle_mfa_enroll(environ, start_response)
+
+        if method == "POST" and path == "/api/auth/mfa/verify":
+            return _handle_mfa_verify(environ, start_response)
+
+        if method == "GET" and path == "/api/auth/mfa/status":
+            return _handle_mfa_status(environ, start_response)
+
+        if method == "POST" and path == "/api/auth/mfa/backup-codes/generate":
+            return _handle_mfa_backup_generate(environ, start_response)
+
+        if method == "POST" and path == "/api/auth/mfa/backup-codes/redeem":
+            return _handle_mfa_backup_redeem(environ, start_response)
+
         if method == "POST" and path == "/api/jobs/process-confirmations":
             denial = require_permission(environ, "admin:ops_jobs")
             if denial:
@@ -470,6 +530,27 @@ def create_app(db_path: Path | None = None):
         if method == "GET" and path == "/api/rbac/audit-log":
             return _handle_rbac_audit_log(environ, start_response)
 
+        # --- EP-007 US-074: Immutable Audit Log (task_074_004) ---
+        if method == "GET" and path == "/api/admin/audit/entries":
+            return _handle_immutable_audit_entries(environ, start_response)
+
+        if method == "GET" and path == "/api/admin/audit/compliance":
+            return _handle_immutable_audit_compliance(environ, start_response)
+
+        # --- EP-007 US-075: Audit event query and coverage (task_075_004) ---
+        if method == "GET" and path == "/api/admin/audit/events":
+            return _handle_audit_event_query(environ, start_response)
+
+        if method == "GET" and path == "/api/admin/audit/coverage":
+            return _handle_audit_coverage_report(environ, start_response)
+
+        # --- EP-007 US-078: Admin audit query interface (task_078_002/003) ---
+        if method == "GET" and path == "/api/admin/audit/query":
+            return _handle_audit_query(environ, start_response)
+
+        if method == "GET" and path == "/api/admin/audit/query/export":
+            return _handle_audit_query_export(environ, start_response)
+
         # --- EP-003: Clinical Intelligence Platform ---
         if method == "POST" and path == "/api/clinical/documents/upload":
             denial = require_permission(environ, "clinical:upload_document")
@@ -521,7 +602,7 @@ def create_app(db_path: Path | None = None):
             if scope_denial:
                 _, msg = scope_denial
                 return _json_response(start_response, 403, {"success": False, "error": {"code": "FORBIDDEN", "message": msg}})
-            return _handle_clinical_profile(start_response, selected_db, patient_id)
+            return _handle_clinical_profile(start_response, selected_db, patient_id, environ)
 
         clinical_aggregate_match = re.match(r"^/api/clinical/patients/(\d+)/aggregate$", path)
         if method == "POST" and clinical_aggregate_match:
@@ -848,6 +929,12 @@ def _handle_finalize_booking(environ, start_response, db_path: Path):
     with get_connection(db_path) as connection:
         status_code, data = finalize_booking(connection, reservation_token, payload)
     success = status_code == 200
+    # US-075 task_075_002: log appointment booking audit event
+    source_ip = environ.get("HTTP_X_FORWARDED_FOR") or environ.get("REMOTE_ADDR") or None
+    actor_id = environ.get("HTTP_X_ADMIN_ID") or environ.get("HTTP_X_STAFF_ID") or None
+    actor_role = _get_role_from_environ_safe(environ)
+    appointment_id = data.get("appointmentId") if success and isinstance(data, dict) else None
+    log_appointment_action(actor_id, actor_role, "book", appointment_id, "success" if success else "error", source_ip)
     return _json_response(
         start_response,
         status_code,
@@ -855,9 +942,15 @@ def _handle_finalize_booking(environ, start_response, db_path: Path):
     )
 
 
-def _handle_patient_profile(start_response, db_path: Path):
+def _handle_patient_profile(start_response, db_path: Path, environ=None):
     with get_connection(db_path) as connection:
         profile = get_patient_profile(connection)
+    # US-075 task_075_002: log PHI access
+    if environ is not None:
+        source_ip = environ.get("HTTP_X_FORWARDED_FOR") or environ.get("REMOTE_ADDR") or None
+        actor_id = environ.get("HTTP_X_ADMIN_ID") or environ.get("HTTP_X_STAFF_ID") or None
+        actor_role = _get_role_from_environ_safe(environ)
+        log_phi_access(actor_id, actor_role, "patient", _DEFAULT_PATIENT_ID, "read_patient_profile", source_ip)
     return _json_response(start_response, 200, {"success": True, "data": profile})
 
 
@@ -1054,11 +1147,17 @@ def _handle_clinical_doc_preview(environ, start_response, db_path: Path, documen
     )
 
 
-def _handle_clinical_profile(start_response, db_path: Path, patient_id: int):
+def _handle_clinical_profile(start_response, db_path: Path, patient_id: int, environ=None):
     with get_connection(db_path) as connection:
         status_code, data = get_360_profile(connection, patient_id)
 
     success = status_code < 400
+    # US-075 task_075_002: log PHI access on successful read
+    if success and environ is not None:
+        source_ip = environ.get("HTTP_X_FORWARDED_FOR") or environ.get("REMOTE_ADDR") or None
+        actor_id = environ.get("HTTP_X_ADMIN_ID") or environ.get("HTTP_X_STAFF_ID") or None
+        actor_role = _get_role_from_environ_safe(environ)
+        log_phi_access(actor_id, actor_role, "patient", patient_id, "read_clinical_profile", source_ip)
     return _json_response(
         start_response,
         status_code,
@@ -1414,6 +1513,335 @@ def _handle_rbac_audit_log(environ, start_response):
 
 
 # ---------------------------------------------------------------------------
+# EP-007 US-074: Immutable audit log entry and compliance report handlers
+# ---------------------------------------------------------------------------
+
+
+def _handle_immutable_audit_entries(environ, start_response):
+    """task_074_004 — Return immutable audit entries with RBAC enforcement.
+
+    Access is restricted to roles in ``AUDIT_READ_ROLES`` (admin, staff).
+    Unauthorized roles receive 403; access attempts are telemetered.
+    """
+    role = get_role_from_environ(environ)
+    actor_id = get_admin_id_from_environ(environ)
+    allowed, reason = AuditAccessGuard.check_read(role, actor_id)
+    if not allowed:
+        return _json_response(
+            start_response, 403,
+            {"success": False, "error": {"code": "AUDIT_ACCESS_DENIED", "message": reason}},
+        )
+
+    qs = _flat_query_params(environ.get("QUERY_STRING", ""))
+    try:
+        limit = int(qs.get("limit", 100))
+    except (ValueError, TypeError):
+        limit = 100
+    event_filter = qs.get("event") or None
+
+    entries, err = get_audit_entries(role, actor_id, limit=limit, event_filter=event_filter)
+    if entries is None:
+        return _json_response(
+            start_response, 403,
+            {"success": False, "error": {"code": "AUDIT_ACCESS_DENIED", "message": err}},
+        )
+
+    return _json_response(
+        start_response, 200,
+        {
+            "success": True,
+            "data": {
+                "entries": [
+                    {
+                        "entry_id": e.entry_id,
+                        "timestamp": e.timestamp,
+                        "event": e.event,
+                        "actor_id": e.actor_id,
+                        "actor_role": e.actor_role,
+                        "action": e.action,
+                        "resource_type": e.resource_type,
+                        "resource_id": e.resource_id,
+                        "outcome": e.outcome,
+                        "source_ip": e.source_ip,
+                        "integrity_hash": e.integrity_hash,
+                    }
+                    for e in entries
+                ],
+                "total_entries": _AUDIT_STORE.size(),
+            },
+        },
+    )
+
+
+def _handle_immutable_audit_compliance(environ, start_response):
+    """task_074_005 — Return the HIPAA compliance evidence report.
+
+    Only admin role may retrieve the full compliance report.
+    """
+    denial = require_permission(environ, "admin:audit_logs")
+    if denial:
+        _, msg = denial
+        return _json_response(
+            start_response, 403,
+            {"success": False, "error": {"code": "FORBIDDEN", "message": msg}},
+        )
+    role = get_role_from_environ(environ)
+    if role != "admin":
+        return _json_response(
+            start_response, 403,
+            {"success": False, "error": {"code": "FORBIDDEN", "message": "Compliance reports are restricted to admin role."}},
+        )
+    report = generate_immutable_audit_compliance_report(_AUDIT_STORE)
+    return _json_response(start_response, 200, {"success": True, "data": report})
+
+
+# ---------------------------------------------------------------------------
+# EP-007 US-075: Audit event query and coverage report handlers (task_075_004)
+# ---------------------------------------------------------------------------
+
+
+def _get_role_from_environ_safe(environ) -> str:
+    """Return the role from environ without raising (defaults to 'unknown')."""
+    try:
+        return get_role_from_environ(environ)
+    except Exception:
+        return "unknown"
+
+
+def _handle_audit_event_query(environ, start_response):
+    """task_075_004 — Filtered query of structured audit events with RBAC.
+
+    Supported query parameters:
+      event_type    — filter by canonical event type (e.g. PHI_ACCESS)
+      resource_type — filter by resource type (patient | appointment | …)
+      from_ts       — ISO-8601 lower bound for timestamp
+      to_ts         — ISO-8601 upper bound for timestamp
+      limit         — max entries to return (default 100)
+    """
+    denial = require_permission(environ, "admin:audit_logs")
+    if denial:
+        _, msg = denial
+        return _json_response(
+            start_response, 403,
+            {"success": False, "error": {"code": "FORBIDDEN", "message": msg}},
+        )
+
+    role = get_role_from_environ(environ)
+    actor_id = get_admin_id_from_environ(environ)
+    qs = _flat_query_params(environ.get("QUERY_STRING", ""))
+    try:
+        limit = int(qs.get("limit", 100))
+    except (ValueError, TypeError):
+        limit = 100
+
+    entries, err = query_audit_events(
+        role=role,
+        actor_id=actor_id,
+        event_type=qs.get("event_type") or None,
+        resource_type=qs.get("resource_type") or None,
+        from_ts=qs.get("from_ts") or None,
+        to_ts=qs.get("to_ts") or None,
+        limit=limit,
+    )
+    if entries is None:
+        return _json_response(
+            start_response, 403,
+            {"success": False, "error": {"code": "AUDIT_ACCESS_DENIED", "message": err}},
+        )
+
+    return _json_response(
+        start_response, 200,
+        {
+            "success": True,
+            "data": {
+                "entries": [
+                    {
+                        "entry_id":      e.entry_id,
+                        "timestamp":     e.timestamp,
+                        "event":         e.event,
+                        "actor_id":      e.actor_id,
+                        "actor_role":    e.actor_role,
+                        "action":        e.action,
+                        "resource_type": e.resource_type,
+                        "resource_id":   e.resource_id,
+                        "outcome":       e.outcome,
+                        "source_ip":     e.source_ip,
+                        "integrity_hash":e.integrity_hash,
+                    }
+                    for e in entries
+                ],
+                "returned": len(entries),
+            },
+        },
+    )
+
+
+def _handle_audit_coverage_report(environ, start_response):
+    """task_075_004 — Return audit coverage report for compliance review.
+
+    Shows event type counts, date range, and gaps (event types with zero
+    occurrences in the current audit store).  Admin-only.
+    """
+    denial = require_permission(environ, "admin:audit_logs")
+    if denial:
+        _, msg = denial
+        return _json_response(
+            start_response, 403,
+            {"success": False, "error": {"code": "FORBIDDEN", "message": msg}},
+        )
+
+    role = get_role_from_environ(environ)
+    if role != "admin":
+        return _json_response(
+            start_response, 403,
+            {"success": False, "error": {"code": "FORBIDDEN", "message": "Coverage reports are restricted to admin role."}},
+        )
+
+    actor_id = get_admin_id_from_environ(environ)
+    report, err = get_audit_coverage_report(role=role, actor_id=actor_id)
+    if report is None:
+        return _json_response(
+            start_response, 403,
+            {"success": False, "error": {"code": "AUDIT_ACCESS_DENIED", "message": err}},
+        )
+
+    return _json_response(start_response, 200, {"success": True, "data": report})
+
+
+# ---------------------------------------------------------------------------
+# EP-007 US-078: Admin audit query interface (task_078_002/003/004/005)
+# ---------------------------------------------------------------------------
+
+
+def _handle_audit_query(environ, start_response):
+    """US-078 task_078_002 — Admin-only filtered, paginated, sorted audit query.
+
+    Query parameters (all optional):
+      actor_id, actor_role, event, action, resource_type, resource_id, outcome
+      from_ts, to_ts        — ISO-8601 timestamp bounds
+      page                  — 1-based page number (default 1)
+      page_size             — entries per page (default 50, max 200)
+      sort_by               — field to sort on (default "timestamp")
+      sort_dir              — "asc" | "desc" (default "desc")
+    """
+    role = get_role_from_environ(environ)
+    actor_id = get_admin_id_from_environ(environ)
+    allowed, reason = AuditQueryService._check_admin(role)
+    if not allowed:
+        return _json_response(
+            start_response, 403,
+            {"success": False, "error": {"code": "FORBIDDEN", "message": reason}},
+        )
+
+    qs = _flat_query_params(environ.get("QUERY_STRING", ""))
+    try:
+        page = int(qs.get("page", 1))
+    except (ValueError, TypeError):
+        page = 1
+    try:
+        page_size = int(qs.get("page_size", 50))
+    except (ValueError, TypeError):
+        page_size = 50
+
+    params = AuditQueryParams(
+        actor_id=qs.get("actor_id") or None,
+        actor_role=qs.get("actor_role") or None,
+        event=qs.get("event") or None,
+        action=qs.get("action") or None,
+        resource_type=qs.get("resource_type") or None,
+        resource_id=qs.get("resource_id") or None,
+        outcome=qs.get("outcome") or None,
+        from_ts=qs.get("from_ts") or None,
+        to_ts=qs.get("to_ts") or None,
+        page=page,
+        page_size=page_size,
+        sort_by=qs.get("sort_by", "timestamp"),
+        sort_dir=qs.get("sort_dir", "desc"),
+    )
+
+    result, err = AuditQueryService.query(_AUDIT_STORE, params, role, actor_id)
+    if result is None:
+        return _json_response(
+            start_response, 403,
+            {"success": False, "error": {"code": "FORBIDDEN", "message": err}},
+        )
+
+    return _json_response(
+        start_response, 200,
+        {
+            "success": True,
+            "data": {
+                "entries": [AuditQueryService.entry_detail(e) for e in result.entries],
+                "pagination": {
+                    "page":          result.page,
+                    "page_size":     result.page_size,
+                    "total_matched": result.total_matched,
+                    "total_pages":   result.total_pages,
+                },
+            },
+        },
+    )
+
+
+def _handle_audit_query_export(environ, start_response):
+    """US-078 task_078_003/005 — Export filtered audit records as CSV or JSON.
+
+    Uses the same filter + pagination params as ``_handle_audit_query`` but
+    ignores pagination — all matched records are exported.
+
+    Query parameters:
+      format    — "csv" (default) | "json"
+      + all filter params accepted by /api/admin/audit/query
+    """
+    role = get_role_from_environ(environ)
+    actor_id = get_admin_id_from_environ(environ)
+    allowed, reason = AuditQueryService._check_admin(role)
+    if not allowed:
+        return _json_response(
+            start_response, 403,
+            {"success": False, "error": {"code": "FORBIDDEN", "message": reason}},
+        )
+
+    qs = _flat_query_params(environ.get("QUERY_STRING", ""))
+    export_format = (qs.get("format") or "csv").lower()
+    if export_format not in {"csv", "json"}:
+        export_format = "csv"
+
+    # Fetch all matching entries (no page limit for export).
+    params = AuditQueryParams(
+        actor_id=qs.get("actor_id") or None,
+        actor_role=qs.get("actor_role") or None,
+        event=qs.get("event") or None,
+        action=qs.get("action") or None,
+        resource_type=qs.get("resource_type") or None,
+        resource_id=qs.get("resource_id") or None,
+        outcome=qs.get("outcome") or None,
+        from_ts=qs.get("from_ts") or None,
+        to_ts=qs.get("to_ts") or None,
+        page=1,
+        page_size=AUDIT_QUERY_MAX_PAGE_SIZE,
+        sort_by=qs.get("sort_by", "timestamp"),
+        sort_dir=qs.get("sort_dir", "desc"),
+    )
+    result, err = AuditQueryService.query(_AUDIT_STORE, params, role, actor_id)
+    if result is None:
+        return _json_response(
+            start_response, 403,
+            {"success": False, "error": {"code": "FORBIDDEN", "message": err}},
+        )
+
+    if export_format == "csv":
+        body = AuditQueryService.export_csv(result.entries).encode("utf-8")
+        return _download_response(start_response, body, "text/csv", "audit_export.csv")
+
+    body = json.dumps(
+        {"entries": AuditQueryService.export_json(result.entries)},
+        indent=2,
+    ).encode("utf-8")
+    return _download_response(start_response, body, "application/json", "audit_export.json")
+
+
+# ---------------------------------------------------------------------------
 # EP-005 US-045: Staff queue, patient detail, check-in, and access-log handlers
 # ---------------------------------------------------------------------------
 
@@ -1472,6 +1900,9 @@ def _handle_staff_patient_detail(environ, start_response, db_path: Path, patient
     log_staff_access_event(
         staff_id, "staff:patient_detail", None, f"/api/staff/patients/{patient_id}/detail"
     )
+    # US-075 task_075_002: log PHI access audit event for staff patient view
+    source_ip = environ.get("HTTP_X_FORWARDED_FOR") or environ.get("REMOTE_ADDR") or None
+    log_phi_access(staff_id, "staff", "patient", patient_id, "read_patient_detail", source_ip)
     return _json_response(start_response, 200, {"success": True, "data": profile})
 
 
@@ -1584,6 +2015,9 @@ def _handle_admin_create_user(environ, start_response):
 
     actor_id = get_admin_id_from_environ(environ)
     record_admin_event(actor_id, "admin:user_created", user_id, None, {"role": role, "status": status, "email": email}, "")
+    # US-075 task_075_003: log account creation audit event
+    source_ip = environ.get("HTTP_X_FORWARDED_FOR") or environ.get("REMOTE_ADDR") or None
+    log_account_create(actor_id, user_id, role, source_ip)
     return _json_response(start_response, 201, {"success": True, "data": user})
 
 
@@ -1630,6 +2064,9 @@ def _handle_admin_update_user(environ, start_response, user_id: str):
             start_response, status_code,
             {"success": False, "error": {"code": "BAD_REQUEST", "message": result}},
         )
+    # US-075 task_075_003: log account update audit event (field names only)
+    source_ip = environ.get("HTTP_X_FORWARDED_FOR") or environ.get("REMOTE_ADDR") or None
+    log_account_update(actor_id, user_id, list(updates.keys()), source_ip)
     return _json_response(start_response, 200, {"success": True, "data": result})
 
 
@@ -1651,6 +2088,8 @@ def _handle_admin_assign_role(environ, start_response, user_id: str):
         )
 
     actor_id = get_admin_id_from_environ(environ)
+    existing_user = get_user(user_id)
+    from_role = existing_user.get("role", "unknown") if existing_user else "unknown"
     success, message = assign_user_role(actor_id, user_id, new_role, reason)
     if not success:
         status_code = 404 if "not found" in message else 400
@@ -1658,6 +2097,9 @@ def _handle_admin_assign_role(environ, start_response, user_id: str):
             start_response, status_code,
             {"success": False, "error": {"code": "BAD_REQUEST", "message": message}},
         )
+    # US-075 task_075_003: log role change audit event
+    source_ip = environ.get("HTTP_X_FORWARDED_FOR") or environ.get("REMOTE_ADDR") or None
+    log_account_role_change(actor_id, user_id, from_role, new_role, source_ip)
     return _json_response(start_response, 200, {"success": True, "data": {"userId": user_id, "role": new_role, "message": message}})
 
 
@@ -1679,6 +2121,8 @@ def _handle_admin_set_status(environ, start_response, user_id: str):
         )
 
     actor_id = get_admin_id_from_environ(environ)
+    existing_user = get_user(user_id)
+    from_status = existing_user.get("status", "unknown") if existing_user else "unknown"
     success, message = set_user_status(actor_id, user_id, new_status, reason)
     if not success:
         status_code = 404 if "not found" in message else 400
@@ -1686,6 +2130,9 @@ def _handle_admin_set_status(environ, start_response, user_id: str):
             start_response, status_code,
             {"success": False, "error": {"code": "BAD_REQUEST", "message": message}},
         )
+    # US-075 task_075_003: log status change audit event
+    source_ip = environ.get("HTTP_X_FORWARDED_FOR") or environ.get("REMOTE_ADDR") or None
+    log_account_status_change(actor_id, user_id, from_status, new_status, source_ip)
     return _json_response(
         start_response, 200,
         {"success": True, "data": {"userId": user_id, "status": new_status, "message": message}},
@@ -1762,7 +2209,13 @@ def _handle_session_token_issue(environ, start_response):
             start_response, 400,
             {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "Field 'user_id' is required."}},
         )
+    source_ip = environ.get("HTTP_X_FORWARDED_FOR") or environ.get("REMOTE_ADDR") or None
     result = issue_session_token(user_id)
+    user = get_user(user_id)
+    role = user.get("role", "unknown") if user else "unknown"
+    # US-075 task_075_002: log session issuance and login success
+    log_session_issued(user_id, role, source_ip)
+    log_login_success(user_id, role, source_ip)
     return _json_response(
         start_response, 200,
         {
@@ -1774,6 +2227,216 @@ def _handle_session_token_issue(environ, start_response):
             },
         },
     )
+
+
+def _handle_session_renew(environ, start_response):
+    """task_073_003 — Renew a still-valid session token.
+
+    Accepts ``{"token": "<current_token>"}`` in the request body.
+    Validates the token (including the 15-minute inactivity check) then
+    issues a fresh token with a new JTI and full TTL, revoking the old one.
+
+    Returns HTTP 401 with code SESSION_EXPIRED when the token has timed out
+    due to inactivity, prompting the client to redirect to the login page.
+    """
+    payload = _read_json_body(environ)
+    token_str = (payload.get("token") or "").strip()
+    if not token_str:
+        return _json_response(
+            start_response, 400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "Field 'token' is required."}},
+        )
+    result = renew_session_token(token_str)
+    if result is None:
+        return _json_response(
+            start_response, 401,
+            {
+                "success": False,
+                "error": {
+                    "code": "SESSION_EXPIRED",
+                    "message": (
+                        f"Session expired after {SESSION_INACTIVITY_TIMEOUT_SECONDS // 60} minutes of "
+                        "inactivity. Please log in again."
+                    ),
+                },
+            },
+        )
+    return _json_response(
+        start_response, 200,
+        {
+            "success": True,
+            "data": {
+                "token":      result["token"],
+                "jti":        result["jti"],
+                "expires_at": result["expires_at"],
+            },
+        },
+    )
+
+
+                "jti":        result["jti"],
+                "expires_at": result["expires_at"],
+            },
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# EP-007 US-079: MFA TOTP handlers (task_079_001 – task_079_004)
+# ---------------------------------------------------------------------------
+
+
+def _handle_mfa_enroll(environ, start_response):
+    """POST /api/auth/mfa/enroll — Begin TOTP enrollment for staff/admin users.
+
+    Accepts: ``{"user_id": "<id>", "account_label": "<label>"}``
+    Returns provisioning URI and setup metadata.  The base32 secret is
+    returned exactly once during enrollment; it is not re-exposed afterward.
+    """
+    payload = _read_json_body(environ)
+    user_id = (payload.get("user_id") or "").strip()
+    if not user_id:
+        return _json_response(
+            start_response, 400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "Field 'user_id' is required."}},
+        )
+    user = get_user(user_id)
+    if user is None:
+        return _json_response(
+            start_response, 404,
+            {"success": False, "error": {"code": "NOT_FOUND", "message": "User not found."}},
+        )
+    role = user.get("role", "")
+    if role not in MFA_REQUIRED_ROLES:
+        return _json_response(
+            start_response, 400,
+            {"success": False, "error": {"code": "MFA_NOT_REQUIRED", "message": f"MFA enrollment is not required for role '{role}'."}},
+        )
+    account_label = (payload.get("account_label") or user.get("email") or user_id).strip()
+    try:
+        data = _MFA_ENROLLMENT_SERVICE.begin_enrollment(user_id, account_label)
+    except MfaAlreadyEnrolledError as exc:
+        return _json_response(
+            start_response, 409,
+            {"success": False, "error": {"code": "MFA_ALREADY_ENROLLED", "message": str(exc)}},
+        )
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_mfa_verify(environ, start_response):
+    """POST /api/auth/mfa/verify — Verify TOTP code (login challenge or enrollment confirm).
+
+    Accepts: ``{"user_id": "<id>", "code": "<6-digit-code>", "confirm_enrollment": false}``
+    When ``confirm_enrollment`` is true, confirms the enrollment instead of a login challenge.
+    """
+    payload = _read_json_body(environ)
+    user_id = (payload.get("user_id") or "").strip()
+    code = (payload.get("code") or "").strip()
+    confirm_enrollment = bool(payload.get("confirm_enrollment", False))
+
+    if not user_id or not code:
+        return _json_response(
+            start_response, 400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "Fields 'user_id' and 'code' are required."}},
+        )
+    try:
+        if confirm_enrollment:
+            _MFA_ENROLLMENT_SERVICE.confirm_enrollment(user_id, code)
+            return _json_response(
+                start_response, 200,
+                {"success": True, "data": {"message": "MFA enrollment confirmed successfully."}},
+            )
+        else:
+            _MFA_ENROLLMENT_SERVICE.verify_login(user_id, code)
+            _MFA_POLICY.record_challenge_passed(user_id)
+            return _json_response(
+                start_response, 200,
+                {"success": True, "data": {"message": "MFA verification successful.", "mfa_passed": True}},
+            )
+    except MfaNotEnrolledError as exc:
+        return _json_response(
+            start_response, 400,
+            {"success": False, "error": {"code": "MFA_NOT_ENROLLED", "message": str(exc)}},
+        )
+    except MfaCodeInvalidError:
+        # Return non-sensitive message (task_079_003 AC-2 / UT-079-006)
+        return _json_response(
+            start_response, 401,
+            {"success": False, "error": {"code": "MFA_CODE_INVALID", "message": "Invalid or expired authentication code."}},
+        )
+
+
+def _handle_mfa_status(environ, start_response):
+    """GET /api/auth/mfa/status?user_id=<id> — Return non-sensitive MFA enrollment status."""
+    qs = _flat_query_params(environ.get("QUERY_STRING", ""))
+    user_id = (qs.get("user_id") or "").strip()
+    if not user_id:
+        return _json_response(
+            start_response, 400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "Query parameter 'user_id' is required."}},
+        )
+    user = get_user(user_id)
+    role = user.get("role", "") if user else ""
+    data = _MFA_POLICY.status(user_id, role)
+    return _json_response(start_response, 200, {"success": True, "data": data})
+
+
+def _handle_mfa_backup_generate(environ, start_response):
+    """POST /api/auth/mfa/backup-codes/generate — Generate single-use backup codes.
+
+    Accepts: ``{"user_id": "<id>"}``
+    Returns 10 plaintext backup codes.  This is the only time they are visible.
+    """
+    payload = _read_json_body(environ)
+    user_id = (payload.get("user_id") or "").strip()
+    if not user_id:
+        return _json_response(
+            start_response, 400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "Field 'user_id' is required."}},
+        )
+    if not _MFA_ENROLLMENT_SERVICE.is_enrolled(user_id):
+        return _json_response(
+            start_response, 400,
+            {"success": False, "error": {"code": "MFA_NOT_ENROLLED", "message": "User must complete MFA enrollment before generating backup codes."}},
+        )
+    codes = _MFA_BACKUP_SERVICE.generate(user_id)
+    return _json_response(
+        start_response, 200,
+        {"success": True, "data": {"backup_codes": codes, "count": len(codes), "warning": "Store these codes securely. They will not be shown again."}},
+    )
+
+
+def _handle_mfa_backup_redeem(environ, start_response):
+    """POST /api/auth/mfa/backup-codes/redeem — Redeem a single-use backup code.
+
+    Accepts: ``{"user_id": "<id>", "code": "<backup-code>"}``
+    """
+    payload = _read_json_body(environ)
+    user_id = (payload.get("user_id") or "").strip()
+    code = (payload.get("code") or "").strip()
+    if not user_id or not code:
+        return _json_response(
+            start_response, 400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "Fields 'user_id' and 'code' are required."}},
+        )
+    try:
+        _MFA_BACKUP_SERVICE.redeem(user_id, code)
+        _MFA_POLICY.record_challenge_passed(user_id)
+        remaining = _MFA_BACKUP_SERVICE.remaining_count(user_id)
+        return _json_response(
+            start_response, 200,
+            {"success": True, "data": {"message": "Backup code accepted.", "mfa_passed": True, "remaining_codes": remaining}},
+        )
+    except MfaBackupCodeConsumedError:
+        return _json_response(
+            start_response, 401,
+            {"success": False, "error": {"code": "BACKUP_CODE_ALREADY_USED", "message": "This backup code has already been used."}},
+        )
+    except MfaCodeInvalidError:
+        return _json_response(
+            start_response, 401,
+            {"success": False, "error": {"code": "BACKUP_CODE_INVALID", "message": "Invalid backup code."}},
+        )
 
 
 def _handle_admin_change_log(environ, start_response):
