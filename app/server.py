@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import threading
+import webbrowser
 from wsgiref.simple_server import make_server
 
 from src.tls_middleware import TLSConfig, TLSEnforcementMiddleware, create_tls_ssl_context
@@ -36,9 +38,13 @@ def main() -> None:
             # logic; set wsgi.url_scheme so the middleware knows it's HTTP.
             scheme = "http"
 
-        print(f"PropelIQ API running at {scheme}://{host}:{port}")
+        url = f"{scheme}://{host}:{port}"
+        print(f"PropelIQ API running at {url}")
         print("TLS enforcement: active (TLSEnforcementMiddleware)")
         print("Minimum TLS version: 1.2 | Weak protocols: disabled")
+        print("Opening browser...")
+        # Open the browser after a 1-second delay so the server is ready
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
         server.serve_forever()
 
 

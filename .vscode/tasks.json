@@ -2,6 +2,36 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "PropellQ: Run Application",
+      "type": "shell",
+      "command": "${workspaceFolder}/app/.venv/Scripts/python.exe",
+      "args": ["${workspaceFolder}/app/server.py"],
+      "options": {
+        "cwd": "${workspaceFolder}/app"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^ERROR",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "PropelIQ API running",
+          "endsPattern": "Opening browser"
+        }
+      }
+    },
+    {
       "label": "PropelIQ: Copilot pre-prompt submit",
       "type": "shell",
       "command": "python",
