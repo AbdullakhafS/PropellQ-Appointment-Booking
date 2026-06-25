@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PropellQ — Staff Portal</title>
+  <link rel="stylesheet" href="/propellq.css" />
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav class="portal-nav">
+  <a class="nav-brand" href="/staff.html">
+    <div class="brand-logo">P</div> PropellQ
+  </a>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-view="queue">📋 Today's Queue</button>
+    <button class="nav-tab" data-view="checkin">✅ Check-In</button>
+    <button class="nav-tab" data-view="patients">👤 Patient Search</button>
+    <button class="nav-tab" data-view="clinical">🩺 Clinical Profiles</button>
+  </div>
+  <div class="nav-user">
+    <div class="user-avatar" id="navUserAvatar">S</div>
+    <span class="nav-user-name" id="navUserId"></span>
+    <span id="navUserRole" class="badge badge-warning">staff</span>
+    <button class="btn btn-ghost btn-sm" onclick="Auth.logout()">Sign Out</button>
+  </div>
+</nav>
+
+<div class="portal-layout">
+
+<!-- ════════════════════════════════════════════════════════════
+     VIEW 1 — Today's Queue (SCR-S-001, SCR-S-002)
+═════════════════════════════════════════════════════════════ -->
+<div id="view-queue" class="view active">
+  <div class="section-header">
+    <div>
+      <div class="page-title">Today's Queue</div>
+      <p class="page-subtitle">Real-time appointment queue for <span id="queueDate"></span>.</p>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-ghost" onclick="loadQueue()">↻ Refresh</button>
+      <button class="btn btn-primary" onclick="openWalkIn()">+ Walk-In</button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid" style="margin-bottom:20px">
+    <div class="kpi-card"><div class="kpi-label">Total Today</div><div class="kpi-value" id="kpiQTotal">—</div><div class="kpi-unit">appointments</div></div>
+    <div class="kpi-card"><div class="kpi-label">Checked In</div><div class="kpi-value" id="kpiQCheckedIn">—</div><div class="kpi-unit">patients</div></div>
+    <div class="kpi-card"><div class="kpi-label">Waiting</div><div class="kpi-value" id="kpiQWaiting">—</div><div class="kpi-unit">in queue</div></div>
+    <div class="kpi-card"><div class="kpi-label">Completed</div><div class="kpi-value" id="kpiQCompleted">—</div><div class="kpi-unit">today</div></div>
+  </div>
+
+  <div class="two-col" style="align-items:start">
+    <!-- Queue list -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Appointment Queue</h3>
+        <div class="flex gap-2">
+          <input class="form-input" id="queueSearch" style="width:180px;height:32px" placeholder="Search patient…" oninput="filterQueue()" />
+        </div>
+      </div>
+      <div id="queueList" style="min-height:200px">
+        <div class="empty-state"><span class="spinner"></span></div>
+      </div>
+    </div>
+
+    <!-- Patient detail panel -->
+    <div>
+      <div class="card" id="queueDetailCard" style="display:none">
+        <div class="card-header">
+          <h3 id="qDetailName">Patient Detail</h3>
+          <span id="qDetailStatus" class="badge"></span>
+        </div>
+        <div class="card-body" id="qDetailBody"></div>
+        <div class="card-footer">
+          <button class="btn btn-success" id="checkInBtn" onclick="doCheckIn()">Mark Checked In</button>
+          <button class="btn btn-ghost" onclick="viewFullProfile()">View Full Profile →</button>
+        </div>
+      </div>
+      <div id="queuePlaceholder" class="card" style="padding:32px;text-align:center;color:#9CA3AF">
+        <div style="font-size:2rem;margin-bottom:8px">👤</div>
+        <p>Click a patient in the queue to view their details.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     VIEW 2 — Check-In (SCR-S-003)
+═════════════════════════════════════════════════════════════ -->
+<div id="view-checkin" class="view">
+  <div class="page-title">Quick Check-In</div>
+  <p class="page-subtitle">Look up a patient by appointment ID or name and mark them as arrived.</p>
+
+  <div style="max-width:640px">
+    <div class="card">
+      <div class="card-header"><h3>Find Appointment</h3></div>
+      <div class="card-body">
+        <div id="ciAlert" class="alert alert-error hidden"></div>
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Appointment ID</label>
+            <input class="form-input" id="ciApptId" type="number" placeholder="e.g. 42" />
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Patient Name</label>
+            <input class="form-input" id="ciName" placeholder="First or last name" />
+          </div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:16px" onclick="searchForCheckIn()">Search</button>
+      </div>
+    </div>
+
+    <div class="card" id="ciResultCard" style="margin-top:16px;display:none">
+      <div class="card-header"><h3>Patient Found</h3></div>
+      <div class="card-body" id="ciResultBody"></div>
+      <div class="card-footer">
+        <button class="btn btn-success btn-lg" id="ciCheckInBtn" onclick="confirmCheckIn()">✅ Mark as Checked In</button>
+        <button class="btn btn-ghost" onclick="clearCheckIn()">Clear</button>
+      </div>
+    </div>
+
+    <div class="card" id="ciSuccessCard" style="margin-top:16px;display:none">
+      <div class="card-body" style="text-align:center;padding:32px">
+        <div style="font-size:3rem;margin-bottom:12px">✅</div>
+        <h2 style="color:#388E3C;margin-bottom:8px">Checked In!</h2>
+        <p id="ciSuccessMsg"></p>
+        <button class="btn btn-primary" style="margin-top:16px" onclick="clearCheckIn()">Check In Another</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     VIEW 3 — Patient Search (SCR-S-004)
+═════════════════════════════════════════════════════════════ -->
+<div id="view-patients" class="view">
+  <div class="page-title">Patient Search</div>
+  <p class="page-subtitle">Search for patients by appointment ID, name, or email.</p>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-body">
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <input class="form-input" id="ptSearchInput" style="flex:1;min-width:200px" placeholder="Search by appointment ID, name, or email…" onkeydown="if(event.key==='Enter')searchPatients()" />
+        <button class="btn btn-primary" onclick="searchPatients()">Search</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ptResults">
+    <div class="empty-state"><p>Enter a search term above to find patients.</p></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     VIEW 4 — Clinical Profiles (SCR-S-005)
+═════════════════════════════════════════════════════════════ -->
+<div id="view-clinical" class="view">
+  <div class="page-title">Clinical Profile Review</div>
+  <p class="page-subtitle">View and review 360° patient profiles, conflicts, and code suggestions.</p>
+
+  <div class="two-col" style="align-items:start">
+    <!-- Patient selector -->
+    <div class="card">
+      <div class="card-header"><h3>Select Patient</h3></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Patient ID</label>
+          <input class="form-input" id="clinPatientId" type="number" placeholder="Enter patient ID" value="1" />
+        </div>
+        <button class="btn btn-primary btn-full" onclick="loadClinicalProfile()">Load Profile</button>
+        <div id="clinAlert" class="alert alert-error hidden" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- Profile content -->
+    <div id="clinProfileArea">
+      <div class="empty-state">
+        <div style="font-size:2.5rem;margin-bottom:12px">🩺</div>
+        <p>Enter a patient ID on the left and click "Load Profile".</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /portal-layout -->
+
+<!-- ════ Walk-In Modal ════ -->
+<div class="modal-overlay hidden" id="walkInModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Create Walk-In Appointment</h2>
+      <button class="modal-close" onclick="closeWalkIn()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="wiAlert" class="alert alert-error hidden"></div>
+      <div class="form-group"><label class="form-label">Patient First Name *</label><input class="form-input" id="wiFirst" required /></div>
+      <div class="form-group"><label class="form-label">Patient Last Name *</label><input class="form-input" id="wiLast"  required /></div>
+      <div class="form-group"><label class="form-label">Email *</label><input class="form-input" id="wiEmail" type="email" required /></div>
+      <div class="form-group"><label class="form-label">Phone *</label><input class="form-input" id="wiPhone" type="tel"   required /></div>
+      <div class="form-group">
+        <label class="form-label">Appointment Date *</label>
+        <input class="form-input" id="wiDate" type="date" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Specialty</label>
+        <select class="form-select" id="wiSpecialty"></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeWalkIn()">Cancel</button>
+      <button class="btn btn-primary" id="wiBtn" onclick="submitWalkIn()">Create Appointment</button>
+    </div>
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script>
+if (!Auth.requireRole('staff')) { /* redirected */ }
+initNav();
+
+// ─── State ────────────────────────────────────────────────────────────────
+let _queueData = [], _selectedQueueItem = null, _ciApptId = null;
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+(async () => {
+  document.getElementById('queueDate').textContent =
+    new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  document.getElementById('wiDate').value = new Date().toISOString().slice(0,10);
+  await loadQueue();
+  await loadSpecialtiesWi();
+})();
+
+// ─── Nav routing ──────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-tab[data-view]').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + t.dataset.view).classList.add('active');
+  });
+});
+
+// ─── Queue ─────────────────────────────────────────────────────────────────
+async function loadQueue() {
+  const el = document.getElementById('queueList');
+  el.innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
+  const today = new Date().toISOString().slice(0,10);
+  const res = await API.get(`/api/staff/queue?date=${today}`);
+  if (!res || !res.ok) {
+    // fallback to search API
+    const s = await API.get(`/api/appointments/search?dateFrom=${today}&dateTo=${today}&pageSize=50`);
+    if (s && s.ok) { _queueData = s.data.data?.appointments || []; }
+    else { el.innerHTML = '<div class="empty-state"><p>Could not load queue.</p></div>'; return; }
+  } else {
+    _queueData = res.data.data?.queue || res.data.data || [];
+  }
+  updateQueueKPIs();
+  renderQueueList(_queueData);
+}
+
+function updateQueueKPIs() {
+  document.getElementById('kpiQTotal').textContent     = _queueData.length;
+  document.getElementById('kpiQCheckedIn').textContent = _queueData.filter(a => a.checkoutStatus === 'confirmed' || a.checkout_status === 'confirmed').length;
+  document.getElementById('kpiQWaiting').textContent   = _queueData.filter(a => a.status === 'booked').length;
+  document.getElementById('kpiQCompleted').textContent = _queueData.filter(a => a.status === 'cancelled').length;
+}
+
+function renderQueueList(data) {
+  const el = document.getElementById('queueList');
+  if (!data.length) { el.innerHTML = '<div class="empty-state"><h3>No appointments today</h3></div>'; return; }
+  el.innerHTML = data.map((a, i) => `
+    <div class="queue-item" style="cursor:pointer" onclick="selectQueueItem(${i})">
+      <div class="queue-pos">${i+1}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;color:#1F2937">${a.patientFirstName||a.patient_first_name||a.firstName||'—'} ${a.patientLastName||a.patient_last_name||a.lastName||''}</div>
+        <div style="font-size:.8rem;color:#6B7280">${a.providerName||a.provider_name||'—'} · ${a.specialty||a.specialtyName||''}</div>
+        <div style="font-size:.8rem;color:#374151">🕐 ${fmtTime(a.startTime||a.start_time)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        ${statusBadge(a.status)}
+        ${statusBadge(a.checkoutStatus||a.checkout_status||'searching')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterQueue() {
+  const q = document.getElementById('queueSearch').value.toLowerCase();
+  const filtered = q ? _queueData.filter(a => {
+    const name = `${a.patientFirstName||''} ${a.patientLastName||''}`.toLowerCase();
+    return name.includes(q);
+  }) : _queueData;
+  renderQueueList(filtered);
+}
+
+function selectQueueItem(idx) {
+  _selectedQueueItem = _queueData[idx];
+  const a = _selectedQueueItem;
+  document.getElementById('queuePlaceholder').style.display = 'none';
+  document.getElementById('queueDetailCard').style.display = '';
+  document.getElementById('qDetailName').textContent = `${a.patientFirstName||a.patient_first_name||'—'} ${a.patientLastName||a.patient_last_name||''}`;
+  document.getElementById('qDetailStatus').innerHTML = statusBadge(a.status);
+  document.getElementById('qDetailBody').innerHTML = `
+    <div class="summary-row"><span class="summary-label">Appointment ID</span><span class="summary-value">${a.id}</span></div>
+    <div class="summary-row"><span class="summary-label">Provider</span><span class="summary-value">${a.providerName||a.provider_name||'—'}</span></div>
+    <div class="summary-row"><span class="summary-label">Time</span><span class="summary-value">${fmtTime(a.startTime||a.start_time)}</span></div>
+    <div class="summary-row"><span class="summary-label">Location</span><span class="summary-value">${a.location||'—'}</span></div>
+    <div class="summary-row"><span class="summary-label">Email</span><span class="summary-value">${a.patientEmail||a.patient_email||'—'}</span></div>
+    <div class="summary-row"><span class="summary-label">Phone</span><span class="summary-value">${a.patientPhone||a.patient_phone||'—'}</span></div>
+    <div class="summary-row"><span class="summary-label">Checkout Status</span><span class="summary-value">${statusBadge(a.checkoutStatus||a.checkout_status||'—')}</span></div>
+  `;
+  const ciBtn = document.getElementById('checkInBtn');
+  ciBtn.disabled = (a.checkoutStatus === 'confirmed' || a.checkout_status === 'confirmed');
+}
+
+async function doCheckIn() {
+  if (!_selectedQueueItem) return;
+  const btn = document.getElementById('checkInBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  const res = await API.post(`/api/staff/appointments/${_selectedQueueItem.id}/checkin`, {});
+  btn.disabled = false; btn.textContent = 'Mark Checked In';
+  if (!res || !res.ok) { Toast.error(res?.data?.error?.message || 'Check-in failed.'); return; }
+  Toast.success('Patient checked in successfully!');
+  loadQueue();
+}
+
+function viewFullProfile() {
+  if (!_selectedQueueItem) return;
+  document.querySelector('[data-view="clinical"]').click();
+  const pid = _selectedQueueItem.patientProfileId || _selectedQueueItem.patient_profile_id || 1;
+  document.getElementById('clinPatientId').value = pid;
+  loadClinicalProfile();
+}
+
+// ─── Walk-In ──────────────────────────────────────────────────────────────
+async function loadSpecialtiesWi() {
+  const res = await API.get('/api/appointments/specialties');
+  if (!res || !res.ok) return;
+  const sel = document.getElementById('wiSpecialty');
+  (res.data.data || []).forEach(s => {
+    const o = document.createElement('option'); o.value = s.id; o.textContent = s.name; sel.appendChild(o);
+  });
+}
+
+function openWalkIn() { document.getElementById('walkInModal').classList.remove('hidden'); }
+function closeWalkIn() { document.getElementById('walkInModal').classList.add('hidden'); }
+
+async function submitWalkIn() {
+  hideAlert('wiAlert');
+  const body = {
+    firstName: document.getElementById('wiFirst').value.trim(),
+    lastName:  document.getElementById('wiLast').value.trim(),
+    email:     document.getElementById('wiEmail').value.trim(),
+    phone:     document.getElementById('wiPhone').value.trim(),
+    date:      document.getElementById('wiDate').value,
+    specialtyId: document.getElementById('wiSpecialty').value,
+  };
+  if (!body.firstName || !body.lastName || !body.email || !body.phone || !body.date) {
+    showAlert('wiAlert', 'Please fill in all required fields.'); return;
+  }
+  const btn = document.getElementById('wiBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creating…';
+  // Use book endpoint as walk-in (simplified flow)
+  const res = await API.post('/api/appointments/book', {
+    ...body, timezone: 'America/Chicago', reminderChannels: ['email','sms'],
+  });
+  btn.disabled = false; btn.textContent = 'Create Appointment';
+  if (!res || !res.ok) { showAlert('wiAlert', res?.data?.error?.message || 'Could not create walk-in.'); return; }
+  Toast.success('Walk-in appointment created!');
+  closeWalkIn();
+  loadQueue();
+}
+
+// ─── Check-In View ────────────────────────────────────────────────────────
+async function searchForCheckIn() {
+  hideAlert('ciAlert');
+  document.getElementById('ciResultCard').style.display   = 'none';
+  document.getElementById('ciSuccessCard').style.display  = 'none';
+  const apptId = document.getElementById('ciApptId').value.trim();
+  const name   = document.getElementById('ciName').value.trim();
+  if (!apptId && !name) { showAlert('ciAlert', 'Enter an appointment ID or patient name.'); return; }
+
+  let appt = null;
+  if (apptId) {
+    const res = await API.get(`/api/appointments/${apptId}`);
+    if (res && res.ok) appt = res.data.data || res.data;
+  } else {
+    const today = new Date().toISOString().slice(0,10);
+    const res = await API.get(`/api/appointments/search?dateFrom=${today}&dateTo=${today}&provider=${encodeURIComponent(name)}&pageSize=10`);
+    if (res && res.ok) { const list = res.data.data?.appointments || []; appt = list[0] || null; }
+  }
+
+  if (!appt) { showAlert('ciAlert', 'No appointment found. Check the ID or name.'); return; }
+  _ciApptId = appt.id;
+  document.getElementById('ciResultBody').innerHTML = `
+    <div class="summary-row"><span class="summary-label">Patient</span><span class="summary-value">${appt.patientFirstName||appt.patient_first_name||'—'} ${appt.patientLastName||appt.patient_last_name||''}</span></div>
+    <div class="summary-row"><span class="summary-label">Provider</span><span class="summary-value">${appt.providerName||appt.provider_name||'—'}</span></div>
+    <div class="summary-row"><span class="summary-label">Time</span><span class="summary-value">${fmtTime(appt.startTime||appt.start_time)}</span></div>
+    <div class="summary-row"><span class="summary-label">Status</span><span class="summary-value">${statusBadge(appt.status)}</span></div>
+  `;
+  document.getElementById('ciResultCard').style.display = '';
+}
+
+async function confirmCheckIn() {
+  if (!_ciApptId) return;
+  const btn = document.getElementById('ciCheckInBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  const res = await API.post(`/api/staff/appointments/${_ciApptId}/checkin`, {});
+  btn.disabled = false; btn.textContent = '✅ Mark as Checked In';
+  if (!res || !res.ok) { Toast.error(res?.data?.error?.message || 'Check-in failed.'); return; }
+  document.getElementById('ciResultCard').style.display  = 'none';
+  document.getElementById('ciSuccessCard').style.display = '';
+  document.getElementById('ciSuccessMsg').textContent = `Appointment #${_ciApptId} marked as checked in.`;
+}
+
+function clearCheckIn() {
+  _ciApptId = null;
+  document.getElementById('ciApptId').value = '';
+  document.getElementById('ciName').value   = '';
+  document.getElementById('ciResultCard').style.display  = 'none';
+  document.getElementById('ciSuccessCard').style.display = 'none';
+  hideAlert('ciAlert');
+}
+
+// ─── Patient Search ───────────────────────────────────────────────────────
+async function searchPatients() {
+  const q   = document.getElementById('ptSearchInput').value.trim();
+  const el  = document.getElementById('ptResults');
+  if (!q) { el.innerHTML = '<div class="empty-state"><p>Enter a search term.</p></div>'; return; }
+  el.innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
+  const today = new Date().toISOString().slice(0,10);
+  const to    = new Date(); to.setDate(to.getDate() + 60);
+  const res   = await API.get(`/api/appointments/search?dateFrom=2020-01-01&dateTo=${to.toISOString().slice(0,10)}&provider=${encodeURIComponent(q)}&pageSize=30`);
+  if (!res || !res.ok) { el.innerHTML = '<div class="empty-state"><p>Search failed.</p></div>'; return; }
+  const list = res.data.data?.appointments || [];
+  if (!list.length) { el.innerHTML = '<div class="empty-state"><h3>No results found</h3><p>Try a different name or appointment ID.</p></div>'; return; }
+  el.innerHTML = `<div class="table-wrap"><table class="table">
+    <thead><tr><th>ID</th><th>Patient</th><th>Provider</th><th>Date</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
+    <tbody>${list.map(a => `<tr>
+      <td>${a.id}</td>
+      <td>${a.patientFirstName||a.patient_first_name||'—'} ${a.patientLastName||a.patient_last_name||''}</td>
+      <td>${a.providerName||a.provider_name||'—'}</td>
+      <td>${fmtDate(a.appointmentDate||a.appointment_date)}</td>
+      <td>${fmtTime(a.startTime||a.start_time)}</td>
+      <td>${statusBadge(a.status)}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openApptDetail(${a.id})">View</button></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+async function openApptDetail(id) {
+  const res = await API.get(`/api/appointments/${id}`);
+  if (!res || !res.ok) { Toast.error('Could not load appointment.'); return; }
+  const a = res.data.data || res.data;
+  // Switch to clinical tab and load profile
+  const pid = a.patientProfileId || a.patient_profile_id || 1;
+  document.querySelector('[data-view="clinical"]').click();
+  document.getElementById('clinPatientId').value = pid;
+  loadClinicalProfile();
+}
+
+// ─── Clinical Profile ─────────────────────────────────────────────────────
+async function loadClinicalProfile() {
+  const pid = parseInt(document.getElementById('clinPatientId').value) || 1;
+  hideAlert('clinAlert');
+  const area = document.getElementById('clinProfileArea');
+  area.innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
+
+  const [profRes, conflRes] = await Promise.all([
+    API.get(`/api/clinical/patients/${pid}/profile`),
+    API.get(`/api/clinical/patients/${pid}/conflicts`),
+  ]);
+
+  if (!profRes || !profRes.ok) {
+    area.innerHTML = '';
+    showAlert('clinAlert', profRes?.data?.error?.message || 'Profile not found. Patient may not have clinical data yet.');
+    return;
+  }
+
+  const p = profRes.data.data || {};
+  const conflicts = conflRes?.data?.data?.conflicts || [];
+
+  area.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <h3>360° Patient Profile — ID ${pid}</h3>
+        <div class="flex gap-2">
+          <button class="btn btn-ghost btn-sm" onclick="loadClinicalProfile()">Refresh</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadCodeSuggestions(${pid})">Load Code Suggestions</button>
+        </div>
+      </div>
+      ${conflicts.length ? `<div style="background:#FFF8E1;border-left:3px solid #FF9800;padding:10px 16px;font-size:.875rem;color:#F57C00">
+        ⚠ ${conflicts.length} data conflict${conflicts.length>1?'s':''} detected — review below.
+      </div>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid #F3F4F6">
+        <button class="inner-tab active" data-panel="cpOverview" onclick="switchClinTab(this,'cpOverview')" style="border-radius:0">Overview</button>
+        <button class="inner-tab" data-panel="cpMeds"     onclick="switchClinTab(this,'cpMeds')"     style="border-radius:0">Medications (${(p.medications||[]).length})</button>
+        <button class="inner-tab" data-panel="cpAllergies" onclick="switchClinTab(this,'cpAllergies')" style="border-radius:0">Allergies (${(p.allergies||[]).length})</button>
+        <button class="inner-tab" data-panel="cpDiagnoses" onclick="switchClinTab(this,'cpDiagnoses')" style="border-radius:0">Diagnoses (${(p.diagnoses||[]).length})</button>
+      </div>
+
+      <div id="cpOverview" class="inner-panel active">
+        <div class="summary-row"><span class="summary-label">Patient ID</span><span class="summary-value">${pid}</span></div>
+        <div class="summary-row"><span class="summary-label">Medications</span><span class="summary-value">${(p.medications||[]).length}</span></div>
+        <div class="summary-row"><span class="summary-label">Allergies</span><span class="summary-value">${(p.allergies||[]).length}</span></div>
+        <div class="summary-row"><span class="summary-label">Diagnoses</span><span class="summary-value">${(p.diagnoses||[]).length}</span></div>
+        <div class="summary-row"><span class="summary-label">Documents</span><span class="summary-value">${(p.documents||[]).length}</span></div>
+        ${conflicts.length ? `<div class="summary-row"><span class="summary-label">Conflicts</span><span class="summary-value">${statusBadge('open')} ${conflicts.length}</span></div>` : ''}
+      </div>
+
+      <div id="cpMeds" class="inner-panel">
+        ${(p.medications||[]).length ? (p.medications||[]).map(m => `
+          <div class="doc-item">
+            <span class="doc-icon">💊</span>
+            <div style="flex:1"><div style="font-weight:500">${m.name}</div><div style="font-size:.75rem;color:#9CA3AF">${m.dosage||''} ${m.frequency||''}</div></div>
+            <span class="badge badge-${m.conflictFlag?'error':'neutral'}">${m.conflictFlag?'Conflict':'OK'}</span>
+          </div>
+        `).join('') : '<p class="text-muted">No medications on record.</p>'}
+      </div>
+
+      <div id="cpAllergies" class="inner-panel">
+        ${(p.allergies||[]).length ? (p.allergies||[]).map(a => `
+          <div class="doc-item">
+            <span class="doc-icon">⚠️</span>
+            <div style="flex:1"><div style="font-weight:500">${a.substance||a.name||'—'}</div><div style="font-size:.75rem;color:#9CA3AF">${a.reaction||''} · ${a.severity||''}</div></div>
+          </div>
+        `).join('') : '<p class="text-muted">No allergies on record.</p>'}
+      </div>
+
+      <div id="cpDiagnoses" class="inner-panel">
+        ${(p.diagnoses||[]).length ? (p.diagnoses||[]).map(d => `
+          <div class="doc-item">
+            <span class="doc-icon">🏥</span>
+            <div style="flex:1"><div style="font-weight:500">${d.name||d.description||'—'}</div><div style="font-size:.75rem;color:#9CA3AF">${d.code||''} · ${fmtDate(d.diagnosedAt||d.date)}</div></div>
+          </div>
+        `).join('') : '<p class="text-muted">No diagnoses on record.</p>'}
+      </div>
+    </div>
+
+    <div id="codeSuggArea" class="card" style="margin-top:16px;display:none">
+      <div class="card-header"><h3>Code Suggestions</h3></div>
+      <div class="card-body" id="codeSuggBody"></div>
+    </div>
+  `;
+}
+
+function switchClinTab(btn, panelId) {
+  document.querySelectorAll('.inner-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.inner-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const panel = document.getElementById(panelId);
+  if (panel) panel.classList.add('active');
+}
+
+async function loadCodeSuggestions(pid) {
+  const area = document.getElementById('codeSuggArea');
+  const body = document.getElementById('codeSuggBody');
+  if (!area) return;
+  area.style.display = '';
+  body.innerHTML = '<span class="spinner"></span>';
+  const res = await API.get(`/api/clinical/patients/${pid}/suggestions`);
+  if (!res || !res.ok) {
+    // Try to generate first
+    const gen = await API.post(`/api/clinical/patients/${pid}/suggestions`, {});
+    if (!gen || !gen.ok) { body.innerHTML = '<p class="text-muted">No code suggestions available.</p>'; return; }
+    const sugList = gen.data.data?.suggestions || [];
+    renderSuggestions(sugList, body);
+    return;
+  }
+  renderSuggestions(res.data.data?.suggestions || [], body);
+}
+
+function renderSuggestions(list, el) {
+  if (!list.length) { el.innerHTML = '<p class="text-muted">No suggestions generated yet.</p>'; return; }
+  el.innerHTML = list.map(s => `
+    <div class="doc-item">
+      <span class="doc-icon">${s.codeType==='icd10'?'🏥':'💉'}</span>
+      <div style="flex:1">
+        <div style="font-weight:500">${s.code} <span style="font-weight:400;color:#4B5563">— ${s.description||''}</span></div>
+        <div style="font-size:.75rem;color:#9CA3AF">${s.codeType?.toUpperCase()} · Confidence: ${Math.round((s.confidence||0)*100)}%</div>
+      </div>
+      ${statusBadge(s.status||'pending')}
+    </div>
+  `).join('');
+}
+</script>
+</body>
+</html>
