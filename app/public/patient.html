@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PropellQ — Patient Portal</title>
+  <link rel="stylesheet" href="/propellq.css" />
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav class="portal-nav">
+  <a class="nav-brand" href="/patient.html">
+    <div class="brand-logo">P</div> PropellQ
+  </a>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-view="search">🔍 Search &amp; Book</button>
+    <button class="nav-tab" data-view="appointments">📅 My Appointments</button>
+    <button class="nav-tab" data-view="dashboard">📊 Dashboard</button>
+    <button class="nav-tab" data-view="documents">📎 Documents</button>
+    <button class="nav-tab" data-view="settings">⚙ Settings</button>
+  </div>
+  <div class="nav-user">
+    <div class="user-avatar" id="navUserAvatar">P</div>
+    <span class="nav-user-name" id="navUserId"></span>
+    <span id="navUserRole" class="badge badge-primary">patient</span>
+    <button class="btn btn-ghost btn-sm" onclick="Auth.logout()">Sign Out</button>
+  </div>
+</nav>
+
+<div class="portal-layout">
+
+<!-- ════════════════════════════════════════════════════════════
+     VIEW 1 — Search & Book (SCR-P-004, 005, 006, 007, 008)
+═════════════════════════════════════════════════════════════ -->
+<div id="view-search" class="view active">
+  <div class="page-title">Search &amp; Book</div>
+  <p class="page-subtitle">Find available slots by date, specialty, or provider — then reserve and confirm in one flow.</p>
+
+  <div class="split-layout">
+    <!-- Filters sidebar -->
+    <aside class="filter-panel">
+      <div class="section-header" style="margin-bottom:14px">
+        <h3 style="font-size:.95rem">Filters</h3>
+        <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear all</button>
+      </div>
+
+      <div class="filter-section">
+        <div class="filter-title">Date Range</div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label" for="fDateFrom">From</label>
+          <input class="form-input" id="fDateFrom" type="date" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="fDateTo">To</label>
+          <input class="form-input" id="fDateTo" type="date" />
+        </div>
+      </div>
+
+      <div class="filter-section">
+        <div class="filter-title">Time of Day</div>
+        <select class="form-select" id="fTime">
+          <option value="">Any time</option>
+          <option value="morning">Morning (before 12pm)</option>
+          <option value="afternoon">Afternoon (12pm–5pm)</option>
+          <option value="evening">Evening (after 5pm)</option>
+        </select>
+      </div>
+
+      <div class="filter-section">
+        <div class="filter-title">Clinical Specialty</div>
+        <select class="form-select" id="fSpecialty">
+          <option value="">All specialties</option>
+        </select>
+      </div>
+
+      <div class="filter-section">
+        <div class="filter-title">Provider</div>
+        <input class="form-input" id="fProvider" type="search" placeholder="Type to search…" autocomplete="off" />
+        <ul id="providerSuggest" style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;margin-top:4px;list-style:none;max-height:160px;overflow-y:auto;display:none"></ul>
+      </div>
+
+      <div class="filter-section">
+        <div class="filter-title">Sort</div>
+        <select class="form-select" id="fSort" style="margin-bottom:8px">
+          <option value="date">Date</option>
+          <option value="provider">Provider</option>
+        </select>
+        <select class="form-select" id="fSortDir">
+          <option value="asc">Ascending</option>
+          <option value="desc">Descending</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary btn-full" onclick="runSearch()">Search</button>
+    </aside>
+
+    <!-- Main content -->
+    <div>
+      <!-- Calendar -->
+      <div class="card mb-4" style="margin-bottom:16px">
+        <div class="card-header">
+          <div>
+            <h3 style="margin-bottom:2px">Calendar Discovery</h3>
+            <small id="calRangeLabel" class="text-muted">Loading…</small>
+          </div>
+          <div class="flex gap-2">
+            <button class="btn btn-ghost btn-sm" id="calPrev" onclick="calNav(-1)">‹ Prev</button>
+            <button class="btn btn-ghost btn-sm" id="calNext" onclick="calNav(1)">Next ›</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:12px">
+          <div class="cal-weekdays">
+            <div class="cal-weekday">Sun</div><div class="cal-weekday">Mon</div>
+            <div class="cal-weekday">Tue</div><div class="cal-weekday">Wed</div>
+            <div class="cal-weekday">Thu</div><div class="cal-weekday">Fri</div>
+            <div class="cal-weekday">Sat</div>
+          </div>
+          <div id="calGrid" class="cal-grid"></div>
+        </div>
+      </div>
+
+      <!-- Results + Slot detail -->
+      <div class="two-col" style="align-items:start">
+        <div>
+          <div class="section-header">
+            <h3>Available Slots</h3>
+            <span id="resultCount" class="badge badge-neutral"></span>
+          </div>
+          <div id="resultsGrid" class="results-grid">
+            <div class="empty-state"><p>Use the filters and click Search to find available appointments.</p></div>
+          </div>
+          <div class="pagination" id="pagination" style="display:none">
+            <button class="btn btn-ghost btn-sm" id="pgPrev" onclick="changePage(-1)">‹ Previous</button>
+            <span id="pgLabel">Page 1</span>
+            <button class="btn btn-ghost btn-sm" id="pgNext" onclick="changePage(1)">Next ›</button>
+          </div>
+        </div>
+
+        <!-- Slot detail + checkout -->
+        <div>
+          <div class="card" id="slotDetailCard" style="display:none">
+            <div class="card-header">
+              <h3>Slot Details</h3>
+              <span id="countdownDisplay" class="countdown hidden">⏱ <span id="countdownSecs">60</span>s</span>
+            </div>
+            <div class="card-body" id="slotDetailBody"></div>
+            <div class="card-footer">
+              <button class="btn btn-ghost" id="reserveBtn" onclick="reserveSlot()">Reserve Slot</button>
+              <button class="btn btn-primary" id="checkoutBtn" onclick="openCheckout()" style="display:none">Proceed to Checkout →</button>
+            </div>
+          </div>
+          <div class="card" id="slotPlaceholder" style="padding:32px;text-align:center;color:#9CA3AF">
+            <div style="font-size:2rem;margin-bottom:8px">📅</div>
+            <p>Select a slot from the results or calendar to view details and book.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /view-search -->
+
+<!-- ════════════════════════════════════════════════════════════
+     VIEW 2 — My Appointments (SCR-P-013)
+═════════════════════════════════════════════════════════════ -->
+<div id="view-appointments" class="view">
+  <div class="page-title">My Appointments</div>
+  <p class="page-subtitle">Manage upcoming and past bookings.</p>
+
+  <div id="apptTabs" class="inner-tabs" style="margin-bottom:0">
+    <button class="inner-tab" data-panel="panUpcoming">Upcoming</button>
+    <button class="inner-tab" data-panel="panHistory">History</button>
+  </div>
+
+  <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;border-top:none">
+    <div id="panUpcoming" class="inner-panel">
+      <div id="upcomingList"><div class="empty-state"><span class="spinner"></span></div></div>
+    </div>
+    <div id="panHistory" class="inner-panel">
+      <div id="historyList"><div class="empty-state"><span class="spinner"></span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     VIEW 3 — Dashboard (SCR-P-011)
+═════════════════════════════════════════════════════════════ -->
+<div id="view-dashboard" class="view">
+  <div class="page-title">My Dashboard</div>
+  <p class="page-subtitle">Your health summary, upcoming appointments, and key actions.</p>
+
+  <div class="kpi-grid" id="dashKpis">
+    <div class="kpi-card"><div class="kpi-label">Upcoming</div><div class="kpi-value" id="kpiUpcoming">—</div><div class="kpi-unit">appointments</div></div>
+    <div class="kpi-card"><div class="kpi-label">Past Visits</div><div class="kpi-value" id="kpiPast">—</div><div class="kpi-unit">completed</div></div>
+    <div class="kpi-card"><div class="kpi-label">Documents</div><div class="kpi-value" id="kpiDocs">—</div><div class="kpi-unit">on file</div></div>
+    <div class="kpi-card"><div class="kpi-label">Health Items</div><div class="kpi-value" id="kpiHealth">—</div><div class="kpi-unit">conditions / meds</div></div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header"><h3>Next Appointment</h3></div>
+      <div class="card-body" id="nextApptCard"><span class="text-muted">Loading…</span></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>Health Summary</h3><button class="btn btn-ghost btn-sm" onclick="loadHealthProfile()">Refresh</button></div>
+      <div class="card-body" id="healthSummary"><span class="text-muted">Loading…</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     VIEW 4 — Documents (SCR-P-012)
+═════════════════════════════════════════════════════════════ -->
+<div id="view-documents" class="view">
+  <div class="page-title">Documents</div>
+  <p class="page-subtitle">Upload clinical documents (PDF, DOCX) for your health profile.</p>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header"><h3>Upload Document</h3></div>
+      <div class="card-body">
+        <div id="dropZone" style="border:2px dashed #D1D5DB;border-radius:10px;padding:32px;text-align:center;cursor:pointer;transition:border-color .15s" onclick="document.getElementById('docFile').click()" ondragover="dzOver(event)" ondrop="dzDrop(event)">
+          <div style="font-size:2rem;margin-bottom:8px">📎</div>
+          <p style="font-weight:500;color:#374151">Drop files here or click to browse</p>
+          <p style="font-size:.8rem;color:#9CA3AF;margin-top:4px">PDF, DOCX — max 20 MB</p>
+        </div>
+        <input id="docFile" type="file" accept=".pdf,.docx,.doc" style="display:none" onchange="fileSelected()" />
+        <div id="fileInfo" style="margin-top:12px;font-size:.875rem;color:#4B5563;display:none"></div>
+        <div id="uploadProgress" class="hidden" style="margin-top:12px">
+          <div class="progress-bar"><div class="progress-fill" id="progFill" style="width:0%"></div></div>
+        </div>
+        <div id="uploadAlert" class="alert alert-error hidden" style="margin-top:12px"></div>
+        <button class="btn btn-primary btn-full" id="uploadBtn" style="margin-top:12px;display:none" onclick="doUpload()">Upload Document</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>My Documents</h3>
+        <button class="btn btn-ghost btn-sm" onclick="loadDocuments()">Refresh</button>
+      </div>
+      <div class="card-body" id="docsList"><span class="text-muted">Loading…</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     VIEW 5 — Settings (SCR-P-016)
+═════════════════════════════════════════════════════════════ -->
+<div id="view-settings" class="view">
+  <div class="page-title">Notification Preferences</div>
+  <p class="page-subtitle">Choose how and when you want to receive appointment reminders.</p>
+
+  <div style="max-width:540px">
+    <div class="card">
+      <div class="card-header"><h3>Reminder Channels</h3></div>
+      <div class="card-body">
+        <label class="notif-toggle"><input type="checkbox" id="notifEmail" /> Email reminders</label>
+        <label class="notif-toggle"><input type="checkbox" id="notifSms" /> SMS reminders</label>
+        <label class="notif-toggle"><input type="checkbox" id="notifDnd" /> Do Not Disturb (no overnight reminders)</label>
+        <label class="notif-toggle" style="opacity:.6;pointer-events:none"><input type="checkbox" checked disabled /> In-app notifications <span style="font-size:.75rem;color:#9CA3AF">(always on)</span></label>
+      </div>
+      <div class="card-footer">
+        <button class="btn btn-primary" onclick="savePrefs()">Save Preferences</button>
+        <span id="prefsStatus" style="font-size:.875rem;color:#4B5563"></span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-header"><h3>Calendar Connections</h3></div>
+      <div class="card-body">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #F3F4F6">
+          <div><div style="font-weight:500">Google Calendar</div><div style="font-size:.8rem;color:#9CA3AF">Sync confirmed appointments</div></div>
+          <span id="googleBadge" class="badge badge-neutral">Not Connected</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
+          <div><div style="font-weight:500">Outlook Calendar</div><div style="font-size:.8rem;color:#9CA3AF">Microsoft calendar sync</div></div>
+          <span id="outlookBadge" class="badge badge-neutral">Not Connected</span>
+        </div>
+      </div>
+      <div class="card-footer">
+        <button class="btn btn-ghost btn-sm" onclick="connectCal('google')">Connect Google</button>
+        <button class="btn btn-ghost btn-sm" onclick="connectCal('outlook')">Connect Outlook</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /portal-layout -->
+
+<!-- ════ Checkout Modal ════ -->
+<div class="modal-overlay hidden" id="checkoutModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Complete Your Booking</h2>
+      <span id="checkoutCountdown" class="countdown hidden">⏱ <span id="ckSecs">60</span>s</span>
+      <button class="modal-close" onclick="closeCheckout()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="checkoutAlert" class="alert alert-error hidden"></div>
+      <div class="two-col" style="gap:24px">
+        <div>
+          <h4 style="margin-bottom:12px;color:#374151">Your Details</h4>
+          <form id="checkoutForm">
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">First Name *</label><input class="form-input" id="ckFirst" required /></div>
+              <div class="form-group"><label class="form-label">Last Name *</label><input class="form-input" id="ckLast" required /></div>
+            </div>
+            <div class="form-group"><label class="form-label">Email *</label><input class="form-input" id="ckEmail" type="email" required /></div>
+            <div class="form-group"><label class="form-label">Phone *</label><input class="form-input" id="ckPhone" type="tel" required placeholder="+1-XXX-XXX-XXXX" /></div>
+            <div class="form-group">
+              <label class="form-label">Preferred Slot (Optional)</label>
+              <select class="form-select" id="ckPrefSlot"><option value="">No preferred slot swap</option></select>
+              <span class="form-hint">If your preferred slot becomes available, we'll automatically swap.</span>
+            </div>
+            <div class="form-group"><label class="form-label">Booking Notes</label><textarea class="form-textarea" id="ckNotes" rows="2" placeholder="Optional details for the care team"></textarea></div>
+            <div class="form-group">
+              <div class="form-label" style="margin-bottom:8px">Reminder Channels</div>
+              <div style="display:flex;gap:16px">
+                <label style="display:flex;align-items:center;gap:6px;font-size:.875rem;cursor:pointer"><input type="checkbox" id="ckSms" checked /> SMS</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:.875rem;cursor:pointer"><input type="checkbox" id="ckEmail2" checked /> Email</label>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div>
+          <h4 style="margin-bottom:12px;color:#374151">Booking Summary</h4>
+          <div id="ckSummary" style="background:#F9FAFB;border-radius:10px;padding:16px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeCheckout()">Cancel</button>
+      <button class="btn btn-primary btn-lg" id="bookBtn" onclick="finalizeBooking()">Confirm &amp; Book Now</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ Confirmation Modal ════ -->
+<div class="modal-overlay hidden" id="confirmModal">
+  <div class="modal">
+    <div class="modal-body">
+      <div class="confirmation-box">
+        <div class="confirmation-icon">✅</div>
+        <h2 style="margin-bottom:8px">Appointment Confirmed!</h2>
+        <p style="color:#4B5563;margin-bottom:24px">Your booking is confirmed. A confirmation email with PDF will be sent within 60 seconds.</p>
+        <div id="confirmSummary" style="background:#F9FAFB;border-radius:10px;padding:16px;margin-bottom:24px;text-align:left"></div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <button class="btn btn-ghost" onclick="closeConfirm()">Close</button>
+          <button class="btn btn-primary" onclick="Router.go('appointments')">View My Appointments</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script>
+if (!Auth.requireRole('patient')) { /* redirected */ }
+initNav();
+
+// ─── State ───────────────────────────────────────────────────────────────
+let _results = [], _page = 1, _pageSize = 10, _totalPages = 1;
+let _selectedSlot = null, _reservationToken = null, _countdownTimer = null;
+let _calYear, _calMonth;
+let _checkoutCdTimer = null;
+
+// ─── Init ────────────────────────────────────────────────────────────────
+(async () => {
+  const today = new Date();
+  _calYear  = today.getFullYear();
+  _calMonth = today.getMonth();
+  document.getElementById('fDateFrom').value = today.toISOString().slice(0,10);
+  const to = new Date(today); to.setDate(to.getDate() + 30);
+  document.getElementById('fDateTo').value = to.toISOString().slice(0,10);
+  await loadSpecialties();
+  renderCalendar();
+  runSearch();
+  initInnerTabs('apptTabs');
+})();
+
+// ─── Nav routing ──────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-tab[data-view]').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + t.dataset.view).classList.add('active');
+    if (t.dataset.view === 'appointments') loadAppointments();
+    if (t.dataset.view === 'dashboard')    loadDashboard();
+    if (t.dataset.view === 'documents')    loadDocuments();
+    if (t.dataset.view === 'settings')     loadSettings();
+  });
+});
+
+// ─── Specialties ─────────────────────────────────────────────────────────
+async function loadSpecialties() {
+  const res = await API.get('/api/appointments/specialties');
+  if (!res || !res.ok) return;
+  const sel = document.getElementById('fSpecialty');
+  (res.data.data || []).forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.id; o.textContent = s.name; sel.appendChild(o);
+  });
+}
+
+// ─── Provider autocomplete ────────────────────────────────────────────────
+let _providerDebounce;
+document.getElementById('fProvider').addEventListener('input', function() {
+  clearTimeout(_providerDebounce);
+  const q = this.value.trim();
+  const list = document.getElementById('providerSuggest');
+  if (q.length < 2) { list.style.display = 'none'; return; }
+  _providerDebounce = setTimeout(async () => {
+    const res = await API.get(`/api/providers/suggest?q=${encodeURIComponent(q)}`);
+    if (!res || !res.ok) return;
+    list.innerHTML = '';
+    (res.data.data || []).forEach(p => {
+      const li = document.createElement('li');
+      li.textContent = p.name;
+      li.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:.875rem';
+      li.onmouseenter = () => li.style.background = '#F3F4F6';
+      li.onmouseleave = () => li.style.background = '';
+      li.onclick = () => {
+        document.getElementById('fProvider').value = p.name;
+        document.getElementById('fProvider').dataset.providerId = p.id;
+        list.style.display = 'none';
+      };
+      list.appendChild(li);
+    });
+    list.style.display = list.children.length ? 'block' : 'none';
+  }, 250);
+});
+
+// ─── Search ───────────────────────────────────────────────────────────────
+async function runSearch() {
+  _page = 1;
+  const params = {
+    dateFrom:   document.getElementById('fDateFrom').value,
+    dateTo:     document.getElementById('fDateTo').value,
+    timeOfDay:  document.getElementById('fTime').value,
+    specialty:  document.getElementById('fSpecialty').value,
+    provider:   document.getElementById('fProvider').value,
+    sortBy:     document.getElementById('fSort').value,
+    sortDir:    document.getElementById('fSortDir').value,
+    page: _page, pageSize: _pageSize,
+  };
+  document.getElementById('resultsGrid').innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
+  const res = await API.get('/api/appointments/search' + buildQuery(params));
+  if (!res || !res.ok) { Toast.error('Search failed. Please try again.'); return; }
+  const d = res.data.data || {};
+  _results = d.appointments || [];
+  _totalPages = d.totalPages || 1;
+  renderResults();
+  renderCalendar();
+}
+
+function renderResults() {
+  const grid = document.getElementById('resultsGrid');
+  const cnt  = document.getElementById('resultCount');
+  if (!_results.length) {
+    grid.innerHTML = '<div class="empty-state"><h3>No slots found</h3><p>Try adjusting your filters or extending the date range.</p></div>';
+    cnt.textContent = '0 results';
+    document.getElementById('pagination').style.display = 'none';
+    return;
+  }
+  cnt.textContent = _results.length + ' slots';
+  grid.innerHTML = _results.map(a => `
+    <div class="appt-card" id="card-${a.id}" onclick="selectSlot(${a.id})">
+      <div class="appt-card-header">
+        <div class="provider-avatar">${(a.providerName || a.provider_name || 'Dr')[0]}</div>
+        <div>
+          <div class="appt-card-title">${a.providerName || a.provider_name || '—'}</div>
+          <div class="appt-card-sub">${a.specialty || a.specialtyName || ''}</div>
+        </div>
+      </div>
+      <div class="appt-card-footer">
+        ${statusBadge(a.status)}
+        <span class="text-sm" style="color:#374151">📅 ${fmtDate(a.appointmentDate || a.appointment_date)}</span>
+        <span class="text-sm" style="color:#374151">🕐 ${fmtTime(a.startTime || a.start_time)}</span>
+        <span class="text-sm text-muted">📍 ${a.location || ''}</span>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('pagination').style.display = _totalPages > 1 ? 'flex' : 'none';
+  document.getElementById('pgLabel').textContent = `Page ${_page} of ${_totalPages}`;
+  document.getElementById('pgPrev').disabled = _page <= 1;
+  document.getElementById('pgNext').disabled = _page >= _totalPages;
+}
+
+async function changePage(delta) {
+  _page = Math.max(1, Math.min(_totalPages, _page + delta));
+  await runSearch();
+  window.scrollTo(0, 0);
+}
+
+// ─── Calendar ─────────────────────────────────────────────────────────────
+async function renderCalendar() {
+  const first = new Date(_calYear, _calMonth, 1);
+  const last  = new Date(_calYear, _calMonth + 1, 0);
+  document.getElementById('calRangeLabel').textContent =
+    first.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  // Fetch calendar data
+  const from = first.toISOString().slice(0,10);
+  const to   = last.toISOString().slice(0,10);
+  const res  = await API.get(`/api/appointments/calendar?dateFrom=${from}&dateTo=${to}`);
+  const slots = {};
+  if (res && res.ok) {
+    (res.data.data?.days || []).forEach(d => { slots[d.date] = d.availableCount || d.available || 0; });
+  }
+
+  const grid  = document.getElementById('calGrid');
+  const today = new Date().toISOString().slice(0,10);
+  let html = '';
+  const startDay = first.getDay();
+
+  // empty cells before first
+  for (let i = 0; i < startDay; i++) html += `<div class="cal-cell other-month"></div>`;
+
+  for (let d = 1; d <= last.getDate(); d++) {
+    const date = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cnt  = slots[date] || 0;
+    const cls  = [
+      'cal-cell',
+      date === today ? 'today' : '',
+      cnt > 0 ? 'has-slots' : 'no-slots',
+    ].filter(Boolean).join(' ');
+    html += `<div class="${cls}" onclick="${cnt>0?`calDayClick('${date}')`:''}">
+      <div class="cal-cell-num">${d}</div>
+      ${cnt > 0 ? `<div class="cal-slot-count">${cnt} slot${cnt!==1?'s':''}</div>` : ''}
+    </div>`;
+  }
+
+  // fill remaining
+  const remaining = 7 - ((startDay + last.getDate()) % 7);
+  if (remaining < 7) for (let i = 0; i < remaining; i++) html += `<div class="cal-cell other-month"></div>`;
+
+  grid.innerHTML = html;
+}
+
+function calNav(delta) {
+  _calMonth += delta;
+  if (_calMonth < 0)  { _calMonth = 11; _calYear--; }
+  if (_calMonth > 11) { _calMonth = 0;  _calYear++; }
+  renderCalendar();
+}
+
+function calDayClick(date) {
+  document.getElementById('fDateFrom').value = date;
+  document.getElementById('fDateTo').value   = date;
+  runSearch();
+}
+
+// ─── Slot detail ──────────────────────────────────────────────────────────
+async function selectSlot(id) {
+  // Highlight
+  document.querySelectorAll('.appt-card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById(`card-${id}`);
+  if (card) card.classList.add('selected');
+
+  const res = await API.get(`/api/appointments/${id}`);
+  if (!res || !res.ok) { Toast.error('Could not load slot details.'); return; }
+  const a = res.data.data || res.data;
+
+  _selectedSlot = a;
+  document.getElementById('slotPlaceholder').style.display = 'none';
+  const dc = document.getElementById('slotDetailCard');
+  dc.style.display = '';
+  document.getElementById('slotDetailBody').innerHTML = `
+    <div class="summary-row"><span class="summary-label">Provider</span><span class="summary-value">${a.providerName||a.provider_name||'—'}</span></div>
+    <div class="summary-row"><span class="summary-label">Specialty</span><span class="summary-value">${a.specialty||a.specialtyName||'—'}</span></div>
+    <div class="summary-row"><span class="summary-label">Date</span><span class="summary-value">${fmtDate(a.appointmentDate||a.appointment_date)}</span></div>
+    <div class="summary-row"><span class="summary-label">Time</span><span class="summary-value">${fmtTime(a.startTime||a.start_time)} – ${fmtTime(a.endTime||a.end_time)}</span></div>
+    <div class="summary-row"><span class="summary-label">Duration</span><span class="summary-value">${a.durationMinutes||a.duration_minutes||30} min</span></div>
+    <div class="summary-row"><span class="summary-label">Location</span><span class="summary-value">${a.location||'—'}</span></div>
+    <div class="summary-row"><span class="summary-label">Status</span><span class="summary-value">${statusBadge(a.status)}</span></div>
+  `;
+  document.getElementById('reserveBtn').style.display = a.status === 'available' ? '' : 'none';
+  document.getElementById('checkoutBtn').style.display = a.status === 'reserved' ? '' : 'none';
+}
+
+// ─── Reserve ──────────────────────────────────────────────────────────────
+async function reserveSlot() {
+  if (!_selectedSlot) return;
+  const btn = document.getElementById('reserveBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  const res = await API.post(`/api/appointments/${_selectedSlot.id}/checkout`, {});
+  btn.disabled = false; btn.textContent = 'Reserve Slot';
+  if (!res || !res.ok) {
+    Toast.error(res?.data?.error?.message || 'Reservation failed. Slot may no longer be available.');
+    return;
+  }
+  const d = res.data.data || {};
+  _reservationToken = d.reservationToken || d.reservation_token;
+  startCountdown();
+  document.getElementById('reserveBtn').style.display = 'none';
+  document.getElementById('checkoutBtn').style.display = '';
+  Toast.success('Slot reserved for 60 seconds! Complete your booking.');
+}
+
+function startCountdown() {
+  clearInterval(_countdownTimer);
+  let secs = 60;
+  const el  = document.getElementById('countdownSecs');
+  const box = document.getElementById('countdownDisplay');
+  box.classList.remove('hidden');
+  _countdownTimer = setInterval(() => {
+    secs--;
+    if (el) el.textContent = secs;
+    if (secs <= 0) {
+      clearInterval(_countdownTimer);
+      box.classList.add('hidden');
+      document.getElementById('checkoutBtn').style.display = 'none';
+      document.getElementById('reserveBtn').style.display  = '';
+      _reservationToken = null;
+      Toast.warning('Reservation expired. Please reserve again.');
+    }
+  }, 1000);
+}
+
+// ─── Checkout Modal ───────────────────────────────────────────────────────
+async function openCheckout() {
+  if (!_selectedSlot) return;
+  // Pre-fill summary
+  const a = _selectedSlot;
+  document.getElementById('ckSummary').innerHTML = `
+    <div class="summary-row"><span class="summary-label">Provider</span><span class="summary-value">${a.providerName||a.provider_name||'—'}</span></div>
+    <div class="summary-row"><span class="summary-label">Date</span><span class="summary-value">${fmtDate(a.appointmentDate||a.appointment_date)}</span></div>
+    <div class="summary-row"><span class="summary-label">Time</span><span class="summary-value">${fmtTime(a.startTime||a.start_time)}</span></div>
+    <div class="summary-row"><span class="summary-label">Location</span><span class="summary-value">${a.location||'—'}</span></div>
+    <div class="summary-row"><span class="summary-label">Duration</span><span class="summary-value">${a.durationMinutes||30} min</span></div>
+  `;
+  // Load available slots for preferred swap
+  const searchRes = await API.get('/api/appointments/search?status=available&pageSize=50');
+  const prefSel = document.getElementById('ckPrefSlot');
+  prefSel.innerHTML = '<option value="">No preferred slot swap</option>';
+  if (searchRes && searchRes.ok) {
+    (searchRes.data.data?.appointments || [])
+      .filter(x => x.id !== _selectedSlot.id)
+      .forEach(x => {
+        const o = document.createElement('option');
+        o.value = x.id;
+        o.textContent = `${fmtDate(x.appointmentDate||x.appointment_date)} ${fmtTime(x.startTime||x.start_time)} — ${x.providerName||x.provider_name}`;
+        prefSel.appendChild(o);
+      });
+  }
+  hideAlert('checkoutAlert');
+  document.getElementById('checkoutModal').classList.remove('hidden');
+  // mirror countdown
+  const ckSecs = document.getElementById('ckSecs');
+  if (ckSecs && document.getElementById('countdownSecs').textContent) {
+    ckSecs.textContent = document.getElementById('countdownSecs').textContent;
+  }
+  document.getElementById('checkoutCountdown').classList.remove('hidden');
+}
+
+function closeCheckout() { document.getElementById('checkoutModal').classList.add('hidden'); }
+
+async function finalizeBooking() {
+  hideAlert('checkoutAlert');
+  const first = document.getElementById('ckFirst').value.trim();
+  const last  = document.getElementById('ckLast').value.trim();
+  const email = document.getElementById('ckEmail').value.trim();
+  const phone = document.getElementById('ckPhone').value.trim();
+  if (!first || !last || !email || !phone) {
+    showAlert('checkoutAlert', 'Please fill in all required fields.'); return;
+  }
+  const btn = document.getElementById('bookBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Booking…';
+
+  const body = {
+    appointmentId:     _selectedSlot.id,
+    reservationToken:  _reservationToken,
+    firstName:         first,
+    lastName:          last,
+    email,
+    phone,
+    timezone:          Intl.DateTimeFormat().resolvedOptions().timeZone,
+    preferredSlotId:   document.getElementById('ckPrefSlot').value || null,
+    notes:             document.getElementById('ckNotes').value,
+    reminderChannels:  [
+      ...(document.getElementById('ckSms').checked   ? ['sms']   : []),
+      ...(document.getElementById('ckEmail2').checked ? ['email'] : []),
+    ],
+  };
+  const res = await API.post('/api/appointments/book', body);
+  btn.disabled = false; btn.textContent = 'Confirm & Book Now';
+  if (!res || !res.ok) {
+    showAlert('checkoutAlert', res?.data?.error?.message || 'Booking failed. Please try again.');
+    return;
+  }
+  clearInterval(_countdownTimer);
+  closeCheckout();
+  showConfirmation(res.data.data || {});
+}
+
+function showConfirmation(appt) {
+  document.getElementById('confirmSummary').innerHTML = `
+    <div class="summary-row"><span class="summary-label">Confirmation #</span><span class="summary-value">${appt.id || '—'}</span></div>
+    <div class="summary-row"><span class="summary-label">Provider</span><span class="summary-value">${appt.providerName||appt.provider_name||_selectedSlot?.providerName||'—'}</span></div>
+    <div class="summary-row"><span class="summary-label">Date &amp; Time</span><span class="summary-value">${fmtDate(appt.appointmentDate||appt.appointment_date||_selectedSlot?.appointmentDate)} ${fmtTime(appt.startTime||appt.start_time||_selectedSlot?.startTime)}</span></div>
+    <div class="summary-row"><span class="summary-label">Location</span><span class="summary-value">${appt.location||_selectedSlot?.location||'—'}</span></div>
+    <div class="summary-row"><span class="summary-label">Status</span><span class="summary-value">${statusBadge('booked')}</span></div>
+  `;
+  document.getElementById('confirmModal').classList.remove('hidden');
+  runSearch();
+}
+
+function closeConfirm() { document.getElementById('confirmModal').classList.add('hidden'); }
+
+// ─── Clear filters ────────────────────────────────────────────────────────
+function clearFilters() {
+  const today = new Date();
+  const to = new Date(today); to.setDate(to.getDate() + 30);
+  document.getElementById('fDateFrom').value = today.toISOString().slice(0,10);
+  document.getElementById('fDateTo').value   = to.toISOString().slice(0,10);
+  document.getElementById('fTime').value = '';
+  document.getElementById('fSpecialty').value = '';
+  document.getElementById('fProvider').value  = '';
+  runSearch();
+}
+
+// ─── My Appointments ──────────────────────────────────────────────────────
+async function loadAppointments() {
+  await Promise.all([loadUpcoming(), loadHistory()]);
+}
+
+async function loadUpcoming() {
+  const el = document.getElementById('upcomingList');
+  el.innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
+  const res = await API.get('/api/patient/appointments/upcoming');
+  if (!res || !res.ok) { el.innerHTML = '<div class="empty-state"><p>Could not load appointments.</p></div>'; return; }
+  const list = res.data.data?.appointments || res.data.data || [];
+  if (!list.length) { el.innerHTML = '<div class="empty-state"><h3>No upcoming appointments</h3><p>Use Search &amp; Book to schedule one.</p></div>'; return; }
+  el.innerHTML = list.map(a => apptRow(a)).join('');
+}
+
+async function loadHistory() {
+  const el = document.getElementById('historyList');
+  el.innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
+  const res = await API.get('/api/patient/appointments/history');
+  if (!res || !res.ok) { el.innerHTML = '<div class="empty-state"><p>Could not load history.</p></div>'; return; }
+  const list = res.data.data?.appointments || res.data.data || [];
+  if (!list.length) { el.innerHTML = '<div class="empty-state"><h3>No past appointments</h3></div>'; return; }
+  el.innerHTML = list.map(a => apptRow(a, true)).join('');
+}
+
+function apptRow(a, past = false) {
+  return `<div class="queue-item">
+    <div style="flex:1">
+      <div style="font-weight:600;color:#1F2937">${a.providerName||a.provider_name||'—'}</div>
+      <div style="font-size:.8rem;color:#6B7280">${a.specialty||''}</div>
+      <div style="font-size:.875rem;color:#374151;margin-top:2px">📅 ${fmtDate(a.appointmentDate||a.appointment_date)} &nbsp;🕐 ${fmtTime(a.startTime||a.start_time)}</div>
+      <div style="font-size:.8rem;color:#9CA3AF">📍 ${a.location||'—'}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      ${statusBadge(a.status)}
+      ${statusBadge(a.checkoutStatus||a.checkout_status||'searching')}
+    </div>
+  </div>`;
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const res = await API.get('/api/patient/dashboard');
+  if (!res || !res.ok) return;
+  const d = res.data.data || {};
+  document.getElementById('kpiUpcoming').textContent = d.upcomingCount ?? '—';
+  document.getElementById('kpiPast').textContent     = d.pastCount     ?? '—';
+  document.getElementById('kpiDocs').textContent     = d.documentCount ?? '—';
+  document.getElementById('kpiHealth').textContent   = d.healthItemCount ?? '—';
+
+  const next = d.nextAppointment;
+  document.getElementById('nextApptCard').innerHTML = next
+    ? `<div class="summary-row"><span class="summary-label">Provider</span><span class="summary-value">${next.providerName||next.provider_name||'—'}</span></div>
+       <div class="summary-row"><span class="summary-label">Date</span><span class="summary-value">${fmtDate(next.appointmentDate||next.appointment_date)}</span></div>
+       <div class="summary-row"><span class="summary-label">Time</span><span class="summary-value">${fmtTime(next.startTime||next.start_time)}</span></div>
+       <div class="summary-row"><span class="summary-label">Location</span><span class="summary-value">${next.location||'—'}</span></div>`
+    : '<p class="text-muted">No upcoming appointments.</p>';
+
+  loadHealthProfile();
+}
+
+async function loadHealthProfile() {
+  const res = await API.get('/api/patient/health-profile');
+  const el  = document.getElementById('healthSummary');
+  if (!res || !res.ok) { el.innerHTML = '<p class="text-muted">Health profile not available. Upload clinical documents to build it.</p>'; return; }
+  const d = res.data.data || {};
+  el.innerHTML = `
+    <div class="summary-row"><span class="summary-label">Medications</span><span class="summary-value">${d.medicationCount ?? 0}</span></div>
+    <div class="summary-row"><span class="summary-label">Allergies</span><span class="summary-value">${d.allergyCount ?? 0}</span></div>
+    <div class="summary-row"><span class="summary-label">Diagnoses</span><span class="summary-value">${d.diagnosisCount ?? 0}</span></div>
+    ${d.lastUpdated ? `<div class="summary-row"><span class="summary-label">Last Updated</span><span class="summary-value">${fmtDate(d.lastUpdated)}</span></div>` : ''}
+  ` || '<p class="text-muted">No health data on record yet.</p>';
+}
+
+// ─── Documents ────────────────────────────────────────────────────────────
+function dzOver(e)  { e.preventDefault(); document.getElementById('dropZone').style.borderColor = '#0066FF'; }
+function dzDrop(e)  { e.preventDefault(); document.getElementById('dropZone').style.borderColor = '#D1D5DB'; const f = e.dataTransfer.files[0]; if (f) { const dt = new DataTransfer(); dt.items.add(f); document.getElementById('docFile').files = dt.files; fileSelected(); } }
+function fileSelected() {
+  const f = document.getElementById('docFile').files[0];
+  if (!f) return;
+  const info = document.getElementById('fileInfo');
+  info.textContent = `Selected: ${f.name} (${(f.size/1024/1024).toFixed(2)} MB)`;
+  info.style.display = '';
+  document.getElementById('uploadBtn').style.display = '';
+}
+async function doUpload() {
+  const f = document.getElementById('docFile').files[0];
+  if (!f) return;
+  hideAlert('uploadAlert');
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Uploading…';
+  document.getElementById('uploadProgress').classList.remove('hidden');
+  const fd = new FormData(); fd.append('file', f);
+  const res = await API.upload('/api/clinical/documents/upload', fd);
+  btn.disabled = false; btn.textContent = 'Upload Document';
+  document.getElementById('uploadProgress').classList.add('hidden');
+  if (!res || !res.ok) { showAlert('uploadAlert', res?.data?.error?.message || 'Upload failed.'); return; }
+  Toast.success('Document uploaded successfully!');
+  document.getElementById('docFile').value = '';
+  document.getElementById('fileInfo').style.display = 'none';
+  btn.style.display = 'none';
+  loadDocuments();
+}
+
+async function loadDocuments() {
+  const el = document.getElementById('docsList');
+  el.innerHTML = '<span class="text-muted">Loading…</span>';
+  const res = await API.get('/api/patient/documents');
+  if (!res || !res.ok) { el.innerHTML = '<p class="text-muted">Could not load documents.</p>'; return; }
+  const docs = res.data.data?.documents || res.data.data || [];
+  if (!docs.length) { el.innerHTML = '<div class="empty-state" style="padding:24px"><p>No documents yet. Upload one on the left.</p></div>'; return; }
+  el.innerHTML = docs.map(d => `
+    <div class="doc-item">
+      <span class="doc-icon">📄</span>
+      <div style="flex:1">
+        <div style="font-weight:500;color:#1F2937">${d.fileName||d.file_name||'Document'}</div>
+        <div style="font-size:.75rem;color:#9CA3AF">${fmtDate(d.uploadedAt||d.uploaded_at||d.createdAt)} · ${d.status||'uploaded'}</div>
+      </div>
+      ${statusBadge(d.status||'uploaded')}
+    </div>
+  `).join('');
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────
+async function loadSettings() {
+  const res = await API.get('/api/patient/notifications/preferences');
+  if (!res || !res.ok) return;
+  const d = res.data.data || {};
+  const ch = d.channels || (d.reminderChannels ? JSON.parse(d.reminderChannels||'[]') : []);
+  document.getElementById('notifEmail').checked = ch.includes('email');
+  document.getElementById('notifSms').checked   = ch.includes('sms');
+  document.getElementById('notifDnd').checked   = !!d.doNotDisturb;
+  loadCalStatus();
+}
+
+async function savePrefs() {
+  const channels = [
+    ...(document.getElementById('notifEmail').checked ? ['email'] : []),
+    ...(document.getElementById('notifSms').checked   ? ['sms']   : []),
+  ];
+  const res = await API.put('/api/patient/notifications/preferences', {
+    channels, doNotDisturb: document.getElementById('notifDnd').checked,
+  });
+  const st = document.getElementById('prefsStatus');
+  if (res && res.ok) { st.textContent = '✓ Saved'; setTimeout(() => st.textContent = '', 3000); }
+  else { st.textContent = '✗ Save failed'; st.style.color = '#F44336'; }
+}
+
+async function loadCalStatus() {
+  const res = await API.get('/api/integrations/status');
+  if (!res || !res.ok) return;
+  const d = res.data.data || {};
+  const g = d.google || {}; const o = d.outlook || {};
+  const gBadge = document.getElementById('googleBadge');
+  const oBadge = document.getElementById('outlookBadge');
+  if (gBadge) { gBadge.textContent = g.status === 'authorized' ? 'Connected' : 'Not Connected'; gBadge.className = `badge badge-${g.status === 'authorized' ? 'success' : 'neutral'}`; }
+  if (oBadge) { oBadge.textContent = o.status === 'authorized' ? 'Connected' : 'Not Connected'; oBadge.className = `badge badge-${o.status === 'authorized' ? 'success' : 'neutral'}`; }
+}
+
+async function connectCal(provider) {
+  const res = await API.get(`/api/auth/${provider}/authorize`);
+  if (!res || !res.ok) { Toast.error('Failed to start authorization.'); return; }
+  Toast.success(`${provider} authorization flow started (demo mode).`);
+  loadCalStatus();
+}
+</script>
+</body>
+</html>

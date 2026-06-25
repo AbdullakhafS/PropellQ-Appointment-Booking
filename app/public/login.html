@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PropellQ — Sign In</title>
+  <link rel="stylesheet" href="/propellq.css" />
+</head>
+<body>
+<div class="auth-layout">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-logo">P</div>
+      <h1 style="font-size:1.3rem;margin-bottom:4px">PropellQ</h1>
+      <p style="font-size:.85rem;color:#6B7280">Unified Patient Access &amp; Clinical Intelligence</p>
+    </div>
+
+    <div class="auth-body">
+      <!-- Demo accounts -->
+      <div class="demo-box">
+        <h4>Demo Accounts</h4>
+        <div class="demo-row">
+          <div><div style="font-weight:600">admin1</div><div style="color:#9CA3AF;font-size:.75rem">Admin — Full platform access</div></div>
+          <button class="demo-btn" onclick="fill('admin1','Admin123!')">Use</button>
+        </div>
+        <div class="demo-row">
+          <div><div style="font-weight:600">staff1</div><div style="color:#9CA3AF;font-size:.75rem">Staff — Queue &amp; clinical</div></div>
+          <button class="demo-btn" onclick="fill('staff1','Staff123!')">Use</button>
+        </div>
+        <div class="demo-row">
+          <div><div style="font-weight:600">patient1</div><div style="color:#9CA3AF;font-size:.75rem">Patient — Booking &amp; profile</div></div>
+          <button class="demo-btn" onclick="fill('patient1','Patient123!')">Use</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tabLogin"    onclick="switchTab('login')">Sign In</button>
+        <button class="auth-tab"        id="tabRegister" onclick="switchTab('register')">Register</button>
+      </div>
+
+      <!-- ── Login ── -->
+      <div id="paneLogin">
+        <div id="loginAlert" class="alert alert-error hidden"></div>
+        <form id="loginForm" onsubmit="doLogin(event)">
+          <div class="form-group">
+            <label class="form-label" for="lUser">User ID</label>
+            <input class="form-input" id="lUser" type="text" placeholder="e.g. patient1" required autocomplete="username" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="lPass">Password</label>
+            <div style="position:relative">
+              <input class="form-input" id="lPass" type="password" placeholder="Your password" required autocomplete="current-password" style="padding-right:40px" />
+              <button type="button" onclick="togglePw('lPass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;min-height:unset;padding:0">👁</button>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full btn-lg" type="submit" id="loginBtn">Sign In</button>
+        </form>
+        <p style="text-align:center;margin-top:14px;font-size:.8rem;color:#9CA3AF">
+          Forgot password? <a href="#" onclick="showReset()">Reset it</a>
+        </p>
+      </div>
+
+      <!-- ── Register ── -->
+      <div id="paneRegister" class="hidden">
+        <div id="regAlert"   class="alert alert-error   hidden"></div>
+        <div id="regSuccess" class="alert alert-success hidden"></div>
+        <form id="registerForm" onsubmit="doRegister(event)">
+          <div class="form-group">
+            <label class="form-label" for="rUser">Choose a User ID</label>
+            <input class="form-input" id="rUser" type="text" placeholder="e.g. jsmith" required autocomplete="username" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="rEmail">Email Address</label>
+            <input class="form-input" id="rEmail" type="email" placeholder="you@example.com" required autocomplete="email" />
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label" for="rPass">Password</label>
+              <input class="form-input" id="rPass" type="password" placeholder="Min. 8 chars" required autocomplete="new-password" />
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label" for="rPass2">Confirm</label>
+              <input class="form-input" id="rPass2" type="password" placeholder="Repeat" required autocomplete="new-password" />
+            </div>
+          </div>
+          <div style="margin-top:16px">
+            <button class="btn btn-primary btn-full btn-lg" type="submit" id="regBtn">Create Account</button>
+          </div>
+        </form>
+        <p style="font-size:.75rem;color:#9CA3AF;text-align:center;margin-top:10px">New accounts are registered as <strong>Patient</strong>.</p>
+      </div>
+
+      <!-- ── Password Reset ── -->
+      <div id="paneReset" class="hidden">
+        <button onclick="switchTab('login')" style="background:none;border:none;color:#6B7280;cursor:pointer;font-size:.8rem;margin-bottom:12px;min-height:unset;padding:0">← Back to sign in</button>
+        <div id="resetAlert"   class="alert alert-error   hidden"></div>
+        <div id="resetSuccess" class="alert alert-success hidden"></div>
+        <p style="font-size:.875rem;color:#4B5563;margin-bottom:16px">Enter your User ID and we'll send a reset link.</p>
+        <form onsubmit="doReset(event)">
+          <div class="form-group">
+            <label class="form-label" for="resetUser">User ID</label>
+            <input class="form-input" id="resetUser" type="text" required />
+          </div>
+          <button class="btn btn-primary btn-full" type="submit" id="resetBtn">Send Reset Link</button>
+        </form>
+      </div>
+    </div><!-- /auth-body -->
+  </div><!-- /auth-card -->
+</div>
+
+<script src="/shared.js"></script>
+<script>
+if (Auth.isLoggedIn()) Auth.redirectToPortal();
+
+function switchTab(tab) {
+  ['login','register','reset'].forEach(t => {
+    document.getElementById('pane'+t[0].toUpperCase()+t.slice(1)).classList.toggle('hidden', t !== tab);
+  });
+  ['Login','Register'].forEach(t => {
+    const btn = document.getElementById('tab'+t);
+    if (btn) btn.classList.toggle('active', t.toLowerCase() === tab);
+  });
+}
+
+function fill(uid, pw) {
+  switchTab('login');
+  document.getElementById('lUser').value = uid;
+  document.getElementById('lPass').value = pw;
+}
+
+function togglePw(id, btn) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+  btn.textContent = el.type === 'password' ? '👁' : '🙈';
+}
+
+function showReset() { switchTab('reset'); }
+
+async function doLogin(e) {
+  e.preventDefault();
+  hideAlert('loginAlert');
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Signing in…';
+
+  const res = await API.post('/api/auth/session', {
+    user_id:  document.getElementById('lUser').value.trim(),
+    password: document.getElementById('lPass').value,
+  });
+  btn.disabled = false; btn.textContent = 'Sign In';
+
+  if (!res || !res.ok) {
+    showAlert('loginAlert', res?.data?.error?.message || 'Invalid credentials. Please try again.');
+    return;
+  }
+  Auth.store(res.data.data);
+  Auth.redirectToPortal();
+}
+
+async function doRegister(e) {
+  e.preventDefault();
+  hideAlert('regAlert');
+  document.getElementById('regSuccess').classList.add('hidden');
+  const pw  = document.getElementById('rPass').value;
+  const pw2 = document.getElementById('rPass2').value;
+  if (pw !== pw2) { showAlert('regAlert', 'Passwords do not match.'); return; }
+  if (pw.length < 8) { showAlert('regAlert', 'Password must be at least 8 characters.'); return; }
+
+  const btn = document.getElementById('regBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creating…';
+
+  const res = await API.post('/api/auth/register', {
+    user_id:  document.getElementById('rUser').value.trim(),
+    email:    document.getElementById('rEmail').value.trim(),
+    password: pw,
+  });
+  btn.disabled = false; btn.textContent = 'Create Account';
+
+  if (!res || !res.ok) {
+    showAlert('regAlert', res?.data?.error?.message || 'Registration failed. Please try again.');
+    return;
+  }
+  document.getElementById('regSuccess').textContent = 'Account created! Signing you in…';
+  document.getElementById('regSuccess').classList.remove('hidden');
+  setTimeout(async () => {
+    const lr = await API.post('/api/auth/session', {
+      user_id: document.getElementById('rUser').value.trim(),
+      password: pw,
+    });
+    if (lr && lr.ok) { Auth.store(lr.data.data); Auth.redirectToPortal(); }
+  }, 1200);
+}
+
+async function doReset(e) {
+  e.preventDefault();
+  hideAlert('resetAlert');
+  document.getElementById('resetSuccess').classList.add('hidden');
+  const btn = document.getElementById('resetBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Sending…';
+  const res = await API.post('/api/auth/password-reset/request', {
+    user_id: document.getElementById('resetUser').value.trim(),
+  });
+  btn.disabled = false; btn.textContent = 'Send Reset Link';
+  if (!res || !res.ok) {
+    showAlert('resetAlert', res?.data?.error?.message || 'Request failed.');
+    return;
+  }
+  document.getElementById('resetSuccess').textContent = 'Reset link sent! Check your email.';
+  document.getElementById('resetSuccess').classList.remove('hidden');
+}
+</script>
+</body>
+</html>

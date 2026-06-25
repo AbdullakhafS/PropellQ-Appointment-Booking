@@ -119,6 +119,7 @@ from src.rbac import (
     get_user,
     issue_session_token,
     list_users,
+    verify_user_password,
     log_staff_access_event,
     mask_audit_entry,
     query_admin_change_log,
@@ -202,9 +203,24 @@ class SearchMetrics:
         }
 
 
+def _seed_demo_accounts() -> None:
+    """Seed hard-coded demo accounts for local development."""
+    demo_users = [
+        ("admin1",   "admin",   "admin@propellq.com",   "Admin123!"),
+        ("staff1",   "staff",   "staff@propellq.com",   "Staff123!"),
+        ("patient1", "patient", "patient@propellq.com", "Patient123!"),
+    ]
+    for uid, role, email, pw in demo_users:
+        try:
+            register_user(uid, role, email, "active", pw)
+        except Exception:
+            pass  # already registered
+
+
 def create_app(db_path: Path | None = None):
     selected_db = db_path or DEFAULT_DB_PATH
     initialize_database(selected_db)
+    _seed_demo_accounts()
     metrics = SearchMetrics()
 
     def app(environ, start_response):
@@ -452,6 +468,10 @@ def create_app(db_path: Path | None = None):
         auth_disconnect_match = re.match(r"^/api/auth/(google|outlook)/disconnect$", path)
         if method == "POST" and auth_disconnect_match:
             return _handle_auth_disconnect(start_response, selected_db, auth_disconnect_match.group(1))
+
+        # --- Public self-registration endpoint ---
+        if method == "POST" and path == "/api/auth/register":
+            return _handle_register(environ, start_response)
 
         # --- EP-005 US-049: Password reset flow ---
         if method == "POST" and path == "/api/auth/password-reset/request":
@@ -2219,23 +2239,69 @@ def _handle_password_reset_confirm(environ, start_response):
 # ---------------------------------------------------------------------------
 
 
+def _handle_register(environ, start_response):
+    """POST /api/auth/register — Public self-registration (patient role only)."""
+    payload = _read_json_body(environ)
+    user_id  = (payload.get("user_id")  or "").strip()
+    email    = (payload.get("email")    or "").strip()
+    password = (payload.get("password") or "").strip()
+    if not user_id or not email or not password:
+        return _json_response(
+            start_response, 400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "Fields 'user_id', 'email', and 'password' are required."}},
+        )
+    if len(password) < 8:
+        return _json_response(
+            start_response, 400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "Password must be at least 8 characters."}},
+        )
+    if get_user(user_id) is not None:
+        return _json_response(
+            start_response, 409,
+            {"success": False, "error": {"code": "USER_EXISTS", "message": f"User ID '{user_id}' is already taken."}},
+        )
+    try:
+        register_user(user_id, "patient", email, "active", password)
+    except ValueError as exc:
+        return _json_response(
+            start_response, 400,
+            {"success": False, "error": {"code": "VALIDATION_ERROR", "message": str(exc)}},
+        )
+    log_account_create(user_id, "patient", None)
+    return _json_response(
+        start_response, 201,
+        {"success": True, "data": {"user_id": user_id, "role": "patient"}},
+    )
+
+
 def _handle_session_token_issue(environ, start_response):
     """task_051_002 — Issue a signed session token for a registered user.
 
-    Accepts ``{"user_id": "<id>"}`` in the request body.
-    Returns the token, JTI, and expiry (no PHI in response).
+    Accepts ``{"user_id": "<id>", "password": "<pw>"}`` in the request body.
+    Verifies the password when the user has one set.
+    Returns the token, JTI, expiry, role, and user_id (no other PHI).
     """
-    payload = _read_json_body(environ)
-    user_id = (payload.get("user_id") or "").strip()
+    payload  = _read_json_body(environ)
+    user_id  = (payload.get("user_id")  or "").strip()
+    password = (payload.get("password") or "").strip()
     if not user_id:
         return _json_response(
             start_response, 400,
             {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "Field 'user_id' is required."}},
         )
     source_ip = environ.get("HTTP_X_FORWARDED_FOR") or environ.get("REMOTE_ADDR") or None
-    result = issue_session_token(user_id)
     user = get_user(user_id)
+    # Verify password only when the account has a hash stored.
+    if user and user.get("password_hash"):
+        if not password or not verify_user_password(user_id, password):
+            log_login_failure(user_id, None, source_ip)
+            return _json_response(
+                start_response, 401,
+                {"success": False, "error": {"code": "INVALID_CREDENTIALS", "message": "Invalid credentials."}},
+            )
+    result = issue_session_token(user_id)
     role = user.get("role", "unknown") if user else "unknown"
+    email = user.get("email", "") if user else ""
     # US-075 task_075_002: log session issuance and login success
     log_session_issued(user_id, role, source_ip)
     log_login_success(user_id, role, source_ip)
@@ -2247,6 +2313,9 @@ def _handle_session_token_issue(environ, start_response):
                 "token":      result["token"],
                 "jti":        result["jti"],
                 "expires_at": result["expires_at"],
+                "user_id":    user_id,
+                "role":       role,
+                "email":      email,
             },
         },
     )

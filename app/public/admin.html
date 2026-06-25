@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PropellQ — Admin Portal</title>
+  <link rel="stylesheet" href="/propellq.css" />
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav class="portal-nav">
+  <a class="nav-brand" href="/admin.html">
+    <div class="brand-logo">P</div> PropellQ
+  </a>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-view="analytics">📊 Analytics</button>
+    <button class="nav-tab" data-view="users">👥 Users</button>
+    <button class="nav-tab" data-view="ops">⚙ Operations</button>
+    <button class="nav-tab" data-view="audit">📋 Audit Log</button>
+  </div>
+  <div class="nav-user">
+    <div class="user-avatar" id="navUserAvatar">A</div>
+    <span class="nav-user-name" id="navUserId"></span>
+    <span id="navUserRole" class="badge badge-error">admin</span>
+    <button class="btn btn-ghost btn-sm" onclick="Auth.logout()">Sign Out</button>
+  </div>
+</nav>
+
+<div class="portal-layout">
+
+<!-- ════════════════════════════════════════════════════════════
+     VIEW 1 — Analytics (SCR-A-001 / US-060–068)
+═════════════════════════════════════════════════════════════ -->
+<div id="view-analytics" class="view active">
+  <div class="section-header">
+    <div>
+      <div class="page-title">Operational Dashboard</div>
+      <p class="page-subtitle">KPI summary, utilization, no-show rates, and wait-time metrics.</p>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-ghost" onclick="loadAnalytics()">↻ Refresh</button>
+      <button class="btn btn-ghost" onclick="exportCSV()">⬇ Export CSV</button>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-body" style="padding:12px 16px">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+          <label class="form-label" style="margin-bottom:4px">From</label>
+          <input class="form-input" id="mDateFrom" type="date" style="height:34px" />
+        </div>
+        <div>
+          <label class="form-label" style="margin-bottom:4px">To</label>
+          <input class="form-input" id="mDateTo" type="date" style="height:34px" />
+        </div>
+        <div>
+          <label class="form-label" style="margin-bottom:4px">Location</label>
+          <input class="form-input" id="mLocation" placeholder="All locations" style="height:34px;width:160px" />
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="loadAnalytics()">Apply</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearMetricFilters()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">Utilization</div><div class="kpi-value" id="kpiUtil">—</div><div class="kpi-unit">% booked</div></div>
+    <div class="kpi-card"><div class="kpi-label">No-Show Rate</div><div class="kpi-value" id="kpiNoShow">—</div><div class="kpi-unit">% cancelled</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg Wait</div><div class="kpi-value" id="kpiWait">—</div><div class="kpi-unit">minutes</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Slots</div><div class="kpi-value" id="kpiTotal">—</div><div class="kpi-unit">appointments</div></div>
+  </div>
+
+  <!-- Extended analytics -->
+  <div class="three-col" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-header"><h3>No-Show Trend</h3></div>
+      <div class="card-body">
+        <div class="kpi-value" id="kpiNoShowDetail" style="font-size:1.6rem">—</div>
+        <div class="kpi-unit">% this period</div>
+        <div id="kpiNoShowDelta" style="font-size:.8rem;margin-top:4px;color:#9CA3AF"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>Wait Time P95</h3></div>
+      <div class="card-body">
+        <div class="kpi-value" id="kpiP95" style="font-size:1.6rem">—</div>
+        <div class="kpi-unit">minutes</div>
+        <div id="kpiP95Warning" class="hidden" style="font-size:.8rem;color:#F57C00;margin-top:4px">⚠ Exceeds threshold</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>Intake Completion</h3></div>
+      <div class="card-body">
+        <div class="kpi-value" id="kpiIntake" style="font-size:1.6rem">—</div>
+        <div class="kpi-unit">%</div>
+        <div id="kpiIntakeFlag" class="hidden" style="font-size:.8rem;color:#F57C00;margin-top:4px">⚠ Below 70%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="three-col">
+    <div class="card">
+      <div class="card-header"><h3>Insurance Verification</h3></div>
+      <div class="card-body">
+        <div class="summary-row"><span class="summary-label">Verified</span><span class="summary-value" id="insVerified">—</span></div>
+        <div class="summary-row"><span class="summary-label">Pending</span><span class="summary-value" id="insPending">—</span></div>
+        <div class="summary-row"><span class="summary-label">Failed</span><span class="summary-value" id="insFailed">—</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>AI–Human Agreement</h3></div>
+      <div class="card-body">
+        <div class="kpi-value" id="kpiAgreement" style="font-size:1.6rem">—</div>
+        <div class="kpi-unit">% agreement rate</div>
+        <ul id="agreementCategories" style="margin-top:8px;list-style:none;font-size:.8rem;color:#4B5563"></ul>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>Utilization by Specialty</h3></div>
+      <div class="card-body" id="utilBreakdown"><span class="text-muted">Loading…</span></div>
+    </div>
+  </div>
+
+  <!-- Provider table -->
+  <div class="card" style="margin-top:16px" id="providerTableCard">
+    <div class="card-header"><h3>Appointments by Provider</h3></div>
+    <div class="card-body" style="padding:0" id="providerTableBody">
+      <div class="empty-state" style="padding:24px"><span class="spinner"></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     VIEW 2 — User Management (SCR-A-003 / US-046/047/048)
+═════════════════════════════════════════════════════════════ -->
+<div id="view-users" class="view">
+  <div class="section-header">
+    <div>
+      <div class="page-title">User Management</div>
+      <p class="page-subtitle">Create, edit roles, and deactivate staff and patient accounts.</p>
+    </div>
+    <button class="btn btn-primary" onclick="openCreateUser()">+ Create User</button>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-body" style="padding:12px 16px">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <input class="form-input" id="uSearch" placeholder="Search by name or email…" style="flex:1;min-width:200px;height:34px" oninput="filterUsers()" />
+        <select class="form-select" id="uRoleFilter" style="height:34px;width:130px" onchange="filterUsers()">
+          <option value="">All roles</option>
+          <option value="admin">Admin</option>
+          <option value="staff">Staff</option>
+          <option value="patient">Patient</option>
+        </select>
+        <select class="form-select" id="uStatusFilter" style="height:34px;width:140px" onchange="filterUsers()">
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="suspended">Suspended</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="loadUsers()">↻ Refresh</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-wrap" id="usersTable">
+    <div class="empty-state" style="padding:24px"><span class="spinner"></span></div>
+  </div>
+  <p id="userMgmtStatus" class="text-sm text-muted" style="margin-top:8px"></p>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     VIEW 3 — Operations (admin jobs)
+═════════════════════════════════════════════════════════════ -->
+<div id="view-ops" class="view">
+  <div class="page-title">Background Operations</div>
+  <p class="page-subtitle">Manually trigger background processors for confirmations, reminders, swaps, and calendar sync.</p>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header"><h3>Delivery &amp; Sync Jobs</h3></div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-ghost" onclick="runJob('process-confirmations','processConfBtn')">
+          📧 Process Confirmations
+        </button>
+        <button class="btn btn-ghost" id="processConfBtn" style="display:none" disabled><span class="spinner"></span></button>
+
+        <button class="btn btn-ghost" onclick="runJob('process-reminders','processRemBtn')">
+          🔔 Process Reminders
+        </button>
+        <button class="btn btn-ghost" id="processRemBtn" style="display:none" disabled><span class="spinner"></span></button>
+
+        <button class="btn btn-ghost" onclick="runJob('process-swaps','processSwapBtn')">
+          🔄 Process Preferred Swaps
+        </button>
+        <button class="btn btn-ghost" id="processSwapBtn" style="display:none" disabled><span class="spinner"></span></button>
+
+        <button class="btn btn-ghost" onclick="runJob('process-calendar-sync','processSyncBtn')">
+          📅 Run Calendar Sync
+        </button>
+        <button class="btn btn-ghost" id="processSyncBtn" style="display:none" disabled><span class="spinner"></span></button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>Ops Status Log</h3></div>
+      <div class="card-body" id="opsLog" style="font-family:monospace;font-size:.8rem;min-height:200px;color:#374151;max-height:400px;overflow-y:auto">
+        <span class="text-muted">Run a job to see output here.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-header"><h3>Dashboard Metrics Snapshot</h3><button class="btn btn-ghost btn-sm" onclick="loadDashMetrics()">Refresh</button></div>
+    <div class="card-body" id="dashMetricsBody"><span class="text-muted">Click Refresh to load.</span></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     VIEW 4 — Audit Log (US-052/074/075/078)
+═════════════════════════════════════════════════════════════ -->
+<div id="view-audit" class="view">
+  <div class="page-title">Audit Log</div>
+  <p class="page-subtitle">Immutable audit entries for all access, modifications, and security events.</p>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-body" style="padding:12px 16px">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+          <label class="form-label" style="margin-bottom:4px">Event Type</label>
+          <select class="form-select" id="auditEventType" style="height:34px;width:180px">
+            <option value="">All events</option>
+            <option value="login_success">Login Success</option>
+            <option value="login_failure">Login Failure</option>
+            <option value="session_issued">Session Issued</option>
+            <option value="phi_access">PHI Access</option>
+            <option value="appointment_action">Appointment Action</option>
+            <option value="account_create">Account Create</option>
+            <option value="account_update">Account Update</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label" style="margin-bottom:4px">From</label>
+          <input class="form-input" id="auditFrom" type="date" style="height:34px" />
+        </div>
+        <div>
+          <label class="form-label" style="margin-bottom:4px">To</label>
+          <input class="form-input" id="auditTo" type="date" style="height:34px" />
+        </div>
+        <div>
+          <label class="form-label" style="margin-bottom:4px">Actor ID</label>
+          <input class="form-input" id="auditActor" placeholder="User ID" style="height:34px;width:130px" />
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="loadAudit()">Search</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportAudit()">⬇ Export</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-wrap" id="auditTable">
+    <div class="empty-state" style="padding:24px"><p>Use the filters above to query audit events.</p></div>
+  </div>
+  <div id="auditPagination" class="pagination" style="display:none">
+    <button class="btn btn-ghost btn-sm" id="auditPrev" onclick="auditPage(-1)">‹ Previous</button>
+    <span id="auditPageLabel">Page 1</span>
+    <button class="btn btn-ghost btn-sm" id="auditNext" onclick="auditPage(1)">Next ›</button>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-header"><h3>RBAC Audit Log</h3><button class="btn btn-ghost btn-sm" onclick="loadRbacLog()">Load</button></div>
+    <div class="card-body" id="rbacLogBody"><span class="text-muted">Click Load to fetch recent RBAC events.</span></div>
+  </div>
+</div>
+
+</div><!-- /portal-layout -->
+
+<!-- ════ Create User Modal ════ -->
+<div class="modal-overlay hidden" id="createUserModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Create User</h2>
+      <button class="modal-close" onclick="closeCreateUser()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="cuAlert" class="alert alert-error hidden"></div>
+      <div class="form-group"><label class="form-label">User ID *</label><input class="form-input" id="cuId" required placeholder="e.g. jsmith" /></div>
+      <div class="form-group"><label class="form-label">Email *</label><input class="form-input" id="cuEmail" type="email" required /></div>
+      <div class="form-group">
+        <label class="form-label">Role *</label>
+        <select class="form-select" id="cuRole">
+          <option value="patient">Patient</option>
+          <option value="staff">Staff</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-select" id="cuStatus">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="suspended">Suspended</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeCreateUser()">Cancel</button>
+      <button class="btn btn-primary" id="cuBtn" onclick="submitCreateUser()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ Edit Role Modal ════ -->
+<div class="modal-overlay hidden" id="editRoleModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Edit Role</h2>
+      <button class="modal-close" onclick="closeEditRole()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-sm text-muted" style="margin-bottom:12px">User: <strong id="erUserId"></strong></p>
+      <div id="erAlert" class="alert alert-error hidden"></div>
+      <div class="form-group">
+        <label class="form-label">New Role</label>
+        <select class="form-select" id="erRole">
+          <option value="patient">Patient</option>
+          <option value="staff">Staff</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason</label>
+        <input class="form-input" id="erReason" placeholder="Reason for change (optional)" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeEditRole()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEditRole()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ Edit Status Modal ════ -->
+<div class="modal-overlay hidden" id="editStatusModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Edit Status</h2>
+      <button class="modal-close" onclick="closeEditStatus()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-sm text-muted" style="margin-bottom:12px">User: <strong id="esUserId"></strong></p>
+      <div id="esAlert" class="alert alert-error hidden"></div>
+      <div class="form-group">
+        <label class="form-label">New Status</label>
+        <select class="form-select" id="esStatus">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="suspended">Suspended</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason</label>
+        <input class="form-input" id="esReason" placeholder="Reason for change (optional)" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeEditStatus()">Cancel</button>
+      <button class="btn btn-danger" onclick="submitEditStatus()">Save Status</button>
+    </div>
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script>
+if (!Auth.requireRole('admin')) { /* redirected */ }
+initNav();
+
+// ─── State ────────────────────────────────────────────────────────────────
+let _allUsers = [], _auditPage = 1;
+let _editUserId = null;
+
+// ─── Nav routing ──────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-tab[data-view]').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + t.dataset.view).classList.add('active');
+    if (t.dataset.view === 'analytics') loadAnalytics();
+    if (t.dataset.view === 'users')     loadUsers();
+  });
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+(async () => {
+  const today = new Date();
+  const from  = new Date(today); from.setDate(from.getDate() - 30);
+  document.getElementById('mDateFrom').value = from.toISOString().slice(0,10);
+  document.getElementById('mDateTo').value   = today.toISOString().slice(0,10);
+  loadAnalytics();
+})();
+
+// ─── Analytics ────────────────────────────────────────────────────────────
+async function loadAnalytics() {
+  const params = {
+    dateFrom: document.getElementById('mDateFrom').value,
+    dateTo:   document.getElementById('mDateTo').value,
+    location: document.getElementById('mLocation').value,
+  };
+  const q = buildQuery(params);
+  const [opRes, nsRes, wtRes, intRes, insRes, agrRes, utilRes] = await Promise.all([
+    API.get('/api/admin/operational-metrics' + q),
+    API.get('/api/admin/metrics/no-show'   + q),
+    API.get('/api/admin/metrics/wait-time' + q),
+    API.get('/api/admin/metrics/intake'    + q),
+    API.get('/api/admin/metrics/insurance' + q),
+    API.get('/api/admin/metrics/agreement' + q),
+    API.get('/api/admin/metrics/utilization' + q),
+  ]);
+
+  // Main KPIs
+  if (opRes && opRes.ok) {
+    const d = opRes.data.data || {};
+    document.getElementById('kpiUtil').textContent    = d.utilizationRate  != null ? d.utilizationRate.toFixed(1)  : '—';
+    document.getElementById('kpiTotal').textContent   = d.totalAppointments ?? '—';
+    document.getElementById('kpiWait').textContent    = d.avgWaitMinutes   != null ? d.avgWaitMinutes.toFixed(0)   : '—';
+    document.getElementById('kpiNoShow').textContent  = d.noShowRate       != null ? d.noShowRate.toFixed(1)       : '—';
+    renderProviderTable(d.byProvider || []);
+  }
+
+  if (nsRes && nsRes.ok) {
+    const d = nsRes.data.data || {};
+    document.getElementById('kpiNoShowDetail').textContent = d.noShowRate != null ? d.noShowRate.toFixed(1)+'%' : '—';
+    const delta = document.getElementById('kpiNoShowDelta');
+    if (d.delta != null) { delta.textContent = `${d.delta > 0 ? '▲' : '▼'} ${Math.abs(d.delta).toFixed(1)}% vs prior period`; delta.style.color = d.delta > 0 ? '#F44336' : '#4CAF50'; }
+  }
+
+  if (wtRes && wtRes.ok) {
+    const d = wtRes.data.data || {};
+    document.getElementById('kpiP95').textContent = d.p95WaitMinutes != null ? d.p95WaitMinutes.toFixed(0) : '—';
+    if (d.p95WaitMinutes > 30) document.getElementById('kpiP95Warning').classList.remove('hidden');
+  }
+
+  if (intRes && intRes.ok) {
+    const d = intRes.data.data || {};
+    const rate = d.completionRate ?? d.intakeCompletionRate;
+    document.getElementById('kpiIntake').textContent = rate != null ? rate.toFixed(1)+'%' : '—';
+    if (rate != null && rate < 70) document.getElementById('kpiIntakeFlag').classList.remove('hidden');
+  }
+
+  if (insRes && insRes.ok) {
+    const d = insRes.data.data || {};
+    document.getElementById('insVerified').textContent = d.verified ?? '—';
+    document.getElementById('insPending').textContent  = d.pending  ?? '—';
+    document.getElementById('insFailed').textContent   = d.failed   ?? '—';
+  }
+
+  if (agrRes && agrRes.ok) {
+    const d = agrRes.data.data || {};
+    const rate = d.agreementRate ?? d.overallAgreementRate;
+    document.getElementById('kpiAgreement').textContent = rate != null ? rate.toFixed(1)+'%' : '—';
+    const cats = d.byCategory || [];
+    document.getElementById('agreementCategories').innerHTML = cats.map(c => `<li>${c.category}: <strong>${c.rate?.toFixed(1)}%</strong></li>`).join('');
+  }
+
+  if (utilRes && utilRes.ok) {
+    const d = utilRes.data.data || {};
+    const rows = d.bySpecialty || [];
+    document.getElementById('utilBreakdown').innerHTML = rows.length
+      ? `<div class="table-wrap" style="border:none"><table class="table" style="font-size:.8rem">
+          <thead><tr><th>Specialty</th><th>Booked</th><th>Total</th><th>Rate</th></tr></thead>
+          <tbody>${rows.map(r => `<tr><td>${r.specialty}</td><td>${r.booked}</td><td>${r.total}</td><td>${r.rate?.toFixed(1)}%</td></tr>`).join('')}</tbody>
+        </table></div>`
+      : '<p class="text-muted">No utilization data.</p>';
+  }
+}
+
+function renderProviderTable(rows) {
+  const el = document.getElementById('providerTableBody');
+  if (!rows.length) { el.innerHTML = '<div class="empty-state" style="padding:16px"><p>No provider data available.</p></div>'; return; }
+  el.innerHTML = `<table class="table">
+    <thead><tr><th>Provider</th><th>Total</th><th>Booked</th><th>Available</th><th>Cancelled</th></tr></thead>
+    <tbody>${rows.map(r => `<tr>
+      <td style="font-weight:500">${r.providerName||r.provider_name||'—'}</td>
+      <td>${r.total||0}</td>
+      <td>${r.booked||0}</td>
+      <td>${r.available||0}</td>
+      <td>${r.cancelled||0}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function clearMetricFilters() {
+  document.getElementById('mDateFrom').value = '';
+  document.getElementById('mDateTo').value   = '';
+  document.getElementById('mLocation').value = '';
+  loadAnalytics();
+}
+
+async function exportCSV() {
+  const q = buildQuery({
+    dateFrom: document.getElementById('mDateFrom').value,
+    dateTo:   document.getElementById('mDateTo').value,
+  });
+  const res = await API.get('/api/admin/metrics/export' + q);
+  if (!res || !res.ok) { Toast.error('Export failed.'); return; }
+  const blob = new Blob([typeof res.data === 'string' ? res.data : JSON.stringify(res.data)], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a'); a.href = url; a.download = 'metrics.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  document.getElementById('usersTable').innerHTML = '<div class="empty-state" style="padding:24px"><span class="spinner"></span></div>';
+  const res = await API.get('/api/admin/users');
+  if (!res || !res.ok) {
+    document.getElementById('usersTable').innerHTML = '<div class="empty-state" style="padding:24px"><p>Could not load users. Check admin permissions.</p></div>';
+    return;
+  }
+  _allUsers = res.data.data?.users || res.data.data || [];
+  renderUsersTable(_allUsers);
+}
+
+function filterUsers() {
+  const q    = document.getElementById('uSearch').value.toLowerCase();
+  const role = document.getElementById('uRoleFilter').value;
+  const stat = document.getElementById('uStatusFilter').value;
+  const filtered = _allUsers.filter(u => {
+    const text = `${u.id} ${u.email}`.toLowerCase();
+    return (!q || text.includes(q)) && (!role || u.role === role) && (!stat || u.status === stat);
+  });
+  renderUsersTable(filtered);
+}
+
+function renderUsersTable(users) {
+  const el = document.getElementById('usersTable');
+  if (!users.length) { el.innerHTML = '<div class="empty-state" style="padding:24px"><h3>No users found</h3></div>'; return; }
+  el.innerHTML = `<table class="table">
+    <thead><tr><th>User ID</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+    <tbody>${users.map(u => `<tr>
+      <td style="font-weight:600">${u.id}</td>
+      <td>${u.email||'—'}</td>
+      <td>${statusBadge(u.role)}</td>
+      <td>${statusBadge(u.status)}</td>
+      <td style="color:#6B7280;font-size:.8rem">${fmtDate(u.createdAt||u.created_at)}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="openEditRole('${u.id}','${u.role}')">Edit Role</button>
+          <button class="btn btn-ghost btn-sm" onclick="openEditStatus('${u.id}','${u.status}')">Edit Status</button>
+        </div>
+      </td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+  document.getElementById('userMgmtStatus').textContent = `${users.length} user${users.length!==1?'s':''} shown`;
+}
+
+// Create user
+function openCreateUser() { hideAlert('cuAlert'); document.getElementById('createUserModal').classList.remove('hidden'); }
+function closeCreateUser() { document.getElementById('createUserModal').classList.add('hidden'); }
+async function submitCreateUser() {
+  hideAlert('cuAlert');
+  const body = {
+    user_id: document.getElementById('cuId').value.trim(),
+    email:   document.getElementById('cuEmail').value.trim(),
+    role:    document.getElementById('cuRole').value,
+    status:  document.getElementById('cuStatus').value,
+  };
+  if (!body.user_id || !body.email) { showAlert('cuAlert', 'User ID and email are required.'); return; }
+  const btn = document.getElementById('cuBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  const res = await API.post('/api/admin/users', body);
+  btn.disabled = false; btn.textContent = 'Create';
+  if (!res || !res.ok) { showAlert('cuAlert', res?.data?.error?.message || 'Create failed.'); return; }
+  Toast.success('User created successfully!');
+  closeCreateUser();
+  loadUsers();
+}
+
+// Edit role
+function openEditRole(uid, currentRole) {
+  _editUserId = uid;
+  document.getElementById('erUserId').textContent = uid;
+  document.getElementById('erRole').value = currentRole;
+  document.getElementById('erReason').value = '';
+  hideAlert('erAlert');
+  document.getElementById('editRoleModal').classList.remove('hidden');
+}
+function closeEditRole() { document.getElementById('editRoleModal').classList.add('hidden'); }
+async function submitEditRole() {
+  hideAlert('erAlert');
+  const res = await API.patch(`/api/admin/users/${_editUserId}/role`, {
+    role:   document.getElementById('erRole').value,
+    reason: document.getElementById('erReason').value,
+  });
+  if (!res || !res.ok) { showAlert('erAlert', res?.data?.error?.message || 'Update failed.'); return; }
+  Toast.success('Role updated!');
+  closeEditRole();
+  loadUsers();
+}
+
+// Edit status
+function openEditStatus(uid, currentStatus) {
+  _editUserId = uid;
+  document.getElementById('esUserId').textContent = uid;
+  document.getElementById('esStatus').value = currentStatus;
+  document.getElementById('esReason').value = '';
+  hideAlert('esAlert');
+  document.getElementById('editStatusModal').classList.remove('hidden');
+}
+function closeEditStatus() { document.getElementById('editStatusModal').classList.add('hidden'); }
+async function submitEditStatus() {
+  hideAlert('esAlert');
+  const newStatus = document.getElementById('esStatus').value;
+  if (newStatus === 'inactive' || newStatus === 'suspended') {
+    if (!pqConfirm(`Are you sure you want to set this account to "${newStatus}"?`)) return;
+  }
+  const res = await API.patch(`/api/admin/users/${_editUserId}/status`, {
+    status: newStatus,
+    reason: document.getElementById('esReason').value,
+  });
+  if (!res || !res.ok) { showAlert('esAlert', res?.data?.error?.message || 'Update failed.'); return; }
+  Toast.success('Status updated!');
+  closeEditStatus();
+  loadUsers();
+}
+
+// ─── Operations ───────────────────────────────────────────────────────────
+async function runJob(job, btnId) {
+  const log = document.getElementById('opsLog');
+  const ts  = new Date().toLocaleTimeString();
+  log.innerHTML = `<span style="color:#9CA3AF">[${ts}] Running: ${job}…</span>\n` + log.innerHTML;
+  const res = await API.post(`/api/jobs/${job}`, {});
+  const msg = res?.ok
+    ? `[${ts}] ✓ ${job} completed: ${JSON.stringify(res.data?.data || {}).slice(0,120)}`
+    : `[${ts}] ✗ ${job} failed: ${res?.data?.error?.message || 'Unknown error'}`;
+  log.innerHTML = `<span style="color:${res?.ok?'#388E3C':'#F44336'}">${msg}</span>\n` + log.innerHTML;
+}
+
+async function loadDashMetrics() {
+  const res = await API.get('/api/dashboard/metrics');
+  const el  = document.getElementById('dashMetricsBody');
+  if (!res || !res.ok) { el.innerHTML = '<p class="text-muted">Could not load metrics.</p>'; return; }
+  const d = res.data.data || {};
+  el.innerHTML = `<div class="two-col">${Object.entries(d).map(([k,v]) => `
+    <div class="summary-row"><span class="summary-label">${k}</span><span class="summary-value">${typeof v === 'object' ? JSON.stringify(v).slice(0,80) : v}</span></div>
+  `).join('')}</div>`;
+}
+
+// ─── Audit ─────────────────────────────────────────────────────────────────
+async function loadAudit() {
+  document.getElementById('auditTable').innerHTML = '<div class="empty-state" style="padding:24px"><span class="spinner"></span></div>';
+  const params = {
+    event_type: document.getElementById('auditEventType').value,
+    from:       document.getElementById('auditFrom').value,
+    to:         document.getElementById('auditTo').value,
+    actor:      document.getElementById('auditActor').value,
+    page:       _auditPage,
+    page_size:  50,
+  };
+  const res = await API.get('/api/admin/audit/events' + buildQuery(params));
+  if (!res || !res.ok) {
+    // Fallback to change log
+    const cl = await API.get('/api/admin/change-log');
+    if (cl && cl.ok) { renderAuditTable(cl.data.data?.entries || cl.data.data || []); return; }
+    document.getElementById('auditTable').innerHTML = '<div class="empty-state" style="padding:24px"><p>Could not load audit log.</p></div>';
+    return;
+  }
+  const entries = res.data.data?.events || res.data.data?.entries || res.data.data || [];
+  renderAuditTable(entries);
+}
+
+function renderAuditTable(entries) {
+  if (!entries.length) {
+    document.getElementById('auditTable').innerHTML = '<div class="empty-state" style="padding:24px"><h3>No entries found</h3><p>Try adjusting filters.</p></div>';
+    return;
+  }
+  document.getElementById('auditTable').innerHTML = `<table class="table">
+    <thead><tr><th>Timestamp</th><th>Event Type</th><th>Actor</th><th>Details</th></tr></thead>
+    <tbody>${entries.map(e => `<tr>
+      <td style="font-size:.8rem;color:#6B7280;white-space:nowrap">${fmtDateTime(e.timestamp)}</td>
+      <td>${statusBadge(e.eventType||e.event_type||e.action||'—')}</td>
+      <td style="font-size:.85rem">${e.actorId||e.actor_id||e.actor||'—'}</td>
+      <td style="font-size:.8rem;color:#4B5563;max-width:400px;overflow:hidden;text-overflow:ellipsis">${e.message||JSON.stringify(e.details||{}).slice(0,120)}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function auditPage(delta) { _auditPage = Math.max(1, _auditPage + delta); loadAudit(); }
+
+async function exportAudit() {
+  const params = {
+    event_type: document.getElementById('auditEventType').value,
+    from:       document.getElementById('auditFrom').value,
+    to:         document.getElementById('auditTo').value,
+    actor:      document.getElementById('auditActor').value,
+  };
+  window.open('/api/admin/audit/query/export' + buildQuery(params), '_blank');
+}
+
+async function loadRbacLog() {
+  const res = await API.get('/api/rbac/audit-log');
+  const el  = document.getElementById('rbacLogBody');
+  if (!res || !res.ok) { el.innerHTML = '<p class="text-muted">Could not load RBAC log.</p>'; return; }
+  const entries = res.data.data || [];
+  if (!entries.length) { el.innerHTML = '<p class="text-muted">No RBAC events recorded.</p>'; return; }
+  el.innerHTML = `<div class="table-wrap" style="border:none"><table class="table" style="font-size:.8rem">
+    <thead><tr><th>Timestamp</th><th>Role</th><th>Action</th><th>Endpoint</th><th>Outcome</th></tr></thead>
+    <tbody>${entries.slice(0,50).map(e => `<tr>
+      <td style="color:#9CA3AF">${fmtDateTime(e.timestamp)}</td>
+      <td>${statusBadge(e.role||'unknown')}</td>
+      <td style="font-weight:500">${e.action||'—'}</td>
+      <td style="font-family:monospace;font-size:.75rem">${e.endpoint||'—'}</td>
+      <td>${statusBadge(e.outcome||'—')}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+</script>
+</body>
+</html>
