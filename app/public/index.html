@@ -6,13 +6,15 @@
     <title>PropellQ</title>
     <script src="/shared.js"></script>
     <script>
-      // Smart redirect: send authenticated users to their portal, others to login
       if (typeof Auth !== 'undefined' && Auth.isLoggedIn()) {
         Auth.redirectToPortal();
       } else {
         window.location.replace('/login.html');
       }
     </script>
+  </head>
+  <body></body>
+</html>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
