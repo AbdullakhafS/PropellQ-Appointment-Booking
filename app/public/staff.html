@@ -216,7 +216,7 @@
   </div>
 </div>
 
-<script src="/shared.js"></script>
+<script src="/shared.js?v=20260628"></script>
 <script>
 if (!Auth.requireRole('staff')) { /* redirected */ }
 initNav();
@@ -224,11 +224,18 @@ initNav();
 // ─── State ────────────────────────────────────────────────────────────────
 let _queueData = [], _selectedQueueItem = null, _ciApptId = null;
 
+function toLocalIsoDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────
 (async () => {
   document.getElementById('queueDate').textContent =
     new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-  document.getElementById('wiDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('wiDate').value = toLocalIsoDate(new Date());
   await loadQueue();
   await loadSpecialtiesWi();
 })();
@@ -247,12 +254,12 @@ document.querySelectorAll('.nav-tab[data-view]').forEach(t => {
 async function loadQueue() {
   const el = document.getElementById('queueList');
   el.innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
-  const today = new Date().toISOString().slice(0,10);
+  const today = toLocalIsoDate(new Date());
   const res = await API.get(`/api/staff/queue?date=${today}`);
   if (!res || !res.ok) {
     // fallback to search API
     const s = await API.get(`/api/appointments/search?dateFrom=${today}&dateTo=${today}&pageSize=50`);
-    if (s && s.ok) { _queueData = s.data.data?.appointments || []; }
+    if (s && s.ok) { _queueData = s.data.data?.items || s.data.data?.appointments || []; }
     else { el.innerHTML = '<div class="empty-state"><p>Could not load queue.</p></div>'; return; }
   } else {
     _queueData = res.data.data?.queue || res.data.data || [];
@@ -264,7 +271,7 @@ async function loadQueue() {
 function updateQueueKPIs() {
   document.getElementById('kpiQTotal').textContent     = _queueData.length;
   document.getElementById('kpiQCheckedIn').textContent = _queueData.filter(a => a.checkoutStatus === 'confirmed' || a.checkout_status === 'confirmed').length;
-  document.getElementById('kpiQWaiting').textContent   = _queueData.filter(a => a.status === 'booked').length;
+  document.getElementById('kpiQWaiting').textContent   = _queueData.filter(a => (a.status === 'booked' || a.status === 'scheduled')).length;
   document.getElementById('kpiQCompleted').textContent = _queueData.filter(a => a.status === 'cancelled').length;
 }
 
@@ -313,17 +320,23 @@ function selectQueueItem(idx) {
     <div class="summary-row"><span class="summary-label">Checkout Status</span><span class="summary-value">${statusBadge(a.checkoutStatus||a.checkout_status||'—')}</span></div>
   `;
   const ciBtn = document.getElementById('checkInBtn');
-  ciBtn.disabled = (a.checkoutStatus === 'confirmed' || a.checkout_status === 'confirmed');
+  const alreadyCheckedIn = (a.checkoutStatus === 'confirmed' || a.checkout_status === 'confirmed');
+  ciBtn.disabled = alreadyCheckedIn;
+  ciBtn.textContent = alreadyCheckedIn ? 'Already Checked In' : 'Mark Checked In';
 }
 
 async function doCheckIn() {
   if (!_selectedQueueItem) return;
   const btn = document.getElementById('checkInBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-  const res = await API.post(`/api/staff/appointments/${_selectedQueueItem.id}/checkin`, {});
+  const apptKey = _selectedQueueItem.appointmentGuid || _selectedQueueItem.appointment_guid || _selectedQueueItem.id;
+  const res = await API.post(`/api/staff/appointments/${encodeURIComponent(apptKey)}/checkin`, {});
   btn.disabled = false; btn.textContent = 'Mark Checked In';
   if (!res || !res.ok) { Toast.error(res?.data?.error?.message || 'Check-in failed.'); return; }
   Toast.success('Patient checked in successfully!');
+  _selectedQueueItem = null;
+  document.getElementById('queueDetailCard').style.display = 'none';
+  document.getElementById('queuePlaceholder').style.display = '';
   loadQueue();
 }
 
@@ -341,7 +354,7 @@ async function loadSpecialtiesWi() {
   if (!res || !res.ok) return;
   const sel = document.getElementById('wiSpecialty');
   (res.data.data || []).forEach(s => {
-    const o = document.createElement('option'); o.value = s.id; o.textContent = s.name; sel.appendChild(o);
+    const o = document.createElement('option'); o.value = s.name; o.textContent = s.name; sel.appendChild(o);
   });
 }
 
@@ -385,16 +398,20 @@ async function searchForCheckIn() {
 
   let appt = null;
   if (apptId) {
-    const res = await API.get(`/api/appointments/${apptId}`);
-    if (res && res.ok) appt = res.data.data || res.data;
+    const today = toLocalIsoDate(new Date());
+    const qRes = await API.get(`/api/staff/queue?date=${today}`);
+    if (qRes && qRes.ok) {
+      const queue = qRes.data.data?.queue || qRes.data.data || [];
+      appt = queue.find(x => String(x.id) === String(apptId)) || null;
+    }
   } else {
-    const today = new Date().toISOString().slice(0,10);
+    const today = toLocalIsoDate(new Date());
     const res = await API.get(`/api/appointments/search?dateFrom=${today}&dateTo=${today}&provider=${encodeURIComponent(name)}&pageSize=10`);
-    if (res && res.ok) { const list = res.data.data?.appointments || []; appt = list[0] || null; }
+    if (res && res.ok) { const list = res.data.data?.items || res.data.data?.appointments || []; appt = list[0] || null; }
   }
 
   if (!appt) { showAlert('ciAlert', 'No appointment found. Check the ID or name.'); return; }
-  _ciApptId = appt.id;
+  _ciApptId = appt.appointmentGuid || appt.appointment_guid || appt.id;
   document.getElementById('ciResultBody').innerHTML = `
     <div class="summary-row"><span class="summary-label">Patient</span><span class="summary-value">${appt.patientFirstName||appt.patient_first_name||'—'} ${appt.patientLastName||appt.patient_last_name||''}</span></div>
     <div class="summary-row"><span class="summary-label">Provider</span><span class="summary-value">${appt.providerName||appt.provider_name||'—'}</span></div>
@@ -431,24 +448,27 @@ async function searchPatients() {
   const el  = document.getElementById('ptResults');
   if (!q) { el.innerHTML = '<div class="empty-state"><p>Enter a search term.</p></div>'; return; }
   el.innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
-  const today = new Date().toISOString().slice(0,10);
-  const to    = new Date(); to.setDate(to.getDate() + 60);
-  const res   = await API.get(`/api/appointments/search?dateFrom=2020-01-01&dateTo=${to.toISOString().slice(0,10)}&provider=${encodeURIComponent(q)}&pageSize=30`);
+  const res   = await API.get(`/api/staff/patients/search?query=${encodeURIComponent(q)}&take=50`);
   if (!res || !res.ok) { el.innerHTML = '<div class="empty-state"><p>Search failed.</p></div>'; return; }
-  const list = res.data.data?.appointments || [];
+  const list = res.data.data?.items || [];
   if (!list.length) { el.innerHTML = '<div class="empty-state"><h3>No results found</h3><p>Try a different name or appointment ID.</p></div>'; return; }
   el.innerHTML = `<div class="table-wrap"><table class="table">
-    <thead><tr><th>ID</th><th>Patient</th><th>Provider</th><th>Date</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
+    <thead><tr><th>ID</th><th>User ID</th><th>Email</th><th>Role</th><th>Status</th><th>Action</th></tr></thead>
     <tbody>${list.map(a => `<tr>
       <td>${a.id}</td>
-      <td>${a.patientFirstName||a.patient_first_name||'—'} ${a.patientLastName||a.patient_last_name||''}</td>
-      <td>${a.providerName||a.provider_name||'—'}</td>
-      <td>${fmtDate(a.appointmentDate||a.appointment_date)}</td>
-      <td>${fmtTime(a.startTime||a.start_time)}</td>
-      <td>${statusBadge(a.status)}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="openApptDetail(${a.id})">View</button></td>
+      <td>${a.userId||a.user_id||'—'}</td>
+      <td>${a.email||'—'}</td>
+      <td>${a.role||'patient'}</td>
+      <td>${statusBadge(a.status||'active')}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openPatientProfile(${a.id})">View Profile</button></td>
     </tr>`).join('')}</tbody>
   </table></div>`;
+}
+
+function openPatientProfile(patientId) {
+  document.querySelector('[data-view="clinical"]').click();
+  document.getElementById('clinPatientId').value = patientId;
+  loadClinicalProfile();
 }
 
 async function openApptDetail(id) {

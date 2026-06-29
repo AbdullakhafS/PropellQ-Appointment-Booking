@@ -4,6 +4,7 @@ using PropelIQ.Application.Models;
 using PropelIQ.Domain.Entities;
 using PropelIQ.Infrastructure.Notifications;
 using PropelIQ.Infrastructure.Queue;
+using PropelIQ.Infrastructure.Waitlist;
 using PropelIQ.Infrastructure.WalkIn;
 using Microsoft.Extensions.Logging;
 
@@ -16,6 +17,13 @@ namespace PropelIQ.Tests.Services;
 /// </summary>
 public sealed class CancellationRescheduleTests
 {
+    public CancellationRescheduleTests()
+    {
+        QueueService.ResetStateForTests();
+        WalkInBookingService.ResetStateForTests();
+        WaitlistService.ResetStateForTests();
+    }
+
     // Helpers ---------------------------------------------------------------
 
     private static ILogger<T> NullLogger<T>() =>

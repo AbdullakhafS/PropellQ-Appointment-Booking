@@ -35,6 +35,20 @@ public sealed class QueueService : IQueueService
     private static int _queueVersion = 0;
     private static readonly object _reorderLock = new();
 
+    internal static void ResetStateForTests()
+    {
+        lock (_reorderLock)
+        {
+            _positions.Clear();
+            _queueVersion = 0;
+        }
+
+        lock (_seedLock)
+        {
+            _seeded = false;
+        }
+    }
+
     public Task<QueueResult> GetQueueAsync(QueueQuery query, CancellationToken ct = default)
     {
         var all = WalkInBookingService.Appointments;

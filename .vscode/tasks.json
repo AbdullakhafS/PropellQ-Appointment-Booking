@@ -2,16 +2,90 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "PropellQ: Run Application",
+      "label": "PropellQ: Stop API on 8000",
       "type": "shell",
-      "command": "${workspaceFolder}/app/.venv/Scripts/python.exe",
-      "args": ["${workspaceFolder}/app/server.py"],
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/.vscode/stop-api-locks.ps1"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "PropellQ: Prepare API Debug",
+      "dependsOn": [
+        "PropellQ: Stop API on 8000",
+        "PropellQ: Build API"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "PropellQ: Build API",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/src/PropelIQ.Api/PropelIQ.Api.csproj"
+      ],
       "options": {
-        "cwd": "${workspaceFolder}/app"
+        "cwd": "${workspaceFolder}"
       },
       "group": {
         "kind": "build",
         "isDefault": true
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "PropellQ: Run Application",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/src/PropelIQ.Api/PropelIQ.Api.csproj"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "ASPNETCORE_URLS": "http://127.0.0.1:8000"
+        }
+      },
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^ERROR",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Building",
+          "endsPattern": "Now listening on:"
+        }
+      }
+    },
+    {
+      "label": "PropellQ: Run Legacy Python API (dev only)",
+      "type": "shell",
+      "command": "${workspaceFolder}/app/.venv/Scripts/python.exe",
+      "args": [
+        "${workspaceFolder}/app/server.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/app",
+        "env": {
+          "PROPELLQ_ENABLE_LEGACY_PYTHON": "true"
+        }
       },
       "presentation": {
         "reveal": "always",

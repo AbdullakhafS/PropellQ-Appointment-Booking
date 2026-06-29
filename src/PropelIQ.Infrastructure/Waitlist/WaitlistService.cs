@@ -16,6 +16,15 @@ public sealed class WaitlistService : IWaitlistService
     private static readonly List<WaitlistOffer> _offers = [];
     private static readonly object _lock = new();
 
+    internal static void ResetStateForTests()
+    {
+        lock (_lock)
+        {
+            _entries.Clear();
+            _offers.Clear();
+        }
+    }
+
     // --- Join ---
 
     public Task<WaitlistEntryResult> JoinAsync(JoinWaitlistRequest request, CancellationToken ct = default)
@@ -132,7 +141,8 @@ public sealed class WaitlistService : IWaitlistService
             else
             {
                 offer.Decline();
-                entry.RevertToQueued(); // Put back in queue with same priority
+                // A declined offer should not be re-issued immediately to the same patient.
+                entry.MarkCancelled();
 
                 // Issue offer to next eligible patient (same provider context)
                 _ = IssueNextOfferAsync(entry.ProviderId, offer.OfferedSlotId,

@@ -23,7 +23,7 @@ public sealed class ChatbotControllerTests
     {
         _serviceMock
             .Setup(s => s.StartSessionAsync(It.IsAny<StartChatRequest>(), default))
-            .ReturnsAsync(new StartChatResult(5, "Hello Jane! What brings you in today?"));
+            .ReturnsAsync(new StartChatResult(5, "Hello Jane! What brings you in today?", 1, 6));
 
         var controller = CreateController();
         var result = await controller.StartChat(

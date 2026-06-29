@@ -71,10 +71,17 @@ public sealed class SlotAvailabilityService : ISlotAvailabilityService
 
         foreach (var (pid, pname, cid, loc) in providers)
         {
-            // Generate 30-minute slots from 08:00 – 17:00 for today and tomorrow.
-            for (int dayOffset = 0; dayOffset <= 1; dayOffset++)
+            // Generate slots across the next 60 days so typical month-range queries return results.
+            for (int dayOffset = 0; dayOffset < 60; dayOffset++)
             {
                 var date = today.AddDays(dayOffset);
+
+                // Keep weekends lighter by skipping Sundays.
+                if (date.DayOfWeek == DayOfWeek.Sunday)
+                {
+                    continue;
+                }
+
                 for (int hour = 8; hour < 17; hour++)
                 {
                     for (int min = 0; min < 60; min += 30)

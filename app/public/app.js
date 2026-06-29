@@ -193,6 +193,7 @@ bootstrap().catch((error) => {
 
 async function bootstrap() {
   hydrateFromQuery();
+  normalizeDateFilters();
   applyFilterInputs();
   await Promise.all([loadPatientProfile(), loadSpecialties(), loadIntegrations()]);
   bindEvents();
@@ -348,6 +349,28 @@ function applyFilterInputs() {
   elements.provider.value = state.filters.provider;
   elements.sortBy.value = state.filters.sortBy;
   elements.sortDir.value = state.filters.sortDir;
+}
+
+function normalizeDateFilters() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayIso = today.toISOString().slice(0, 10);
+  const currentFrom = state.filters.dateFrom ? new Date(`${state.filters.dateFrom}T00:00:00`) : null;
+  const currentTo = state.filters.dateTo ? new Date(`${state.filters.dateTo}T00:00:00`) : null;
+
+  if (!state.filters.dateFrom || Number.isNaN(currentFrom?.getTime()) || currentFrom < today) {
+    state.filters.dateFrom = todayIso;
+  }
+
+  const minTo = new Date(`${state.filters.dateFrom}T00:00:00`);
+  minTo.setDate(minTo.getDate() + 14);
+  const minToIso = minTo.toISOString().slice(0, 10);
+
+  if (!state.filters.dateTo || Number.isNaN(currentTo?.getTime()) || currentTo < new Date(`${state.filters.dateFrom}T00:00:00`)) {
+    state.filters.dateTo = minToIso;
+  }
+
+  state.calendar.anchorDate = state.filters.dateFrom;
 }
 
 async function loadPatientProfile() {
@@ -957,6 +980,7 @@ function onCalendarTouchEnd(event) {
 
 function clearFilters() {
   state.filters = { dateFrom: "", dateTo: "", timeOfDay: "", provider: "", specialty: "", sortBy: "date", sortDir: "asc" };
+  normalizeDateFilters();
   state.results.page = 1;
   applyFilterInputs();
   elements.specialty.value = "";
@@ -2030,8 +2054,9 @@ function renderUpcomingAppointments(data) {
   const badge = dashElements.upcomingCountBadge;
   if (!list) return;
 
-  const items = data.items || [];
-  if (badge) badge.textContent = data.total || 0;
+  const rawItems = data.items || data.appointments || [];
+  const items = Array.isArray(rawItems) ? rawItems : Object.values(rawItems || {});
+  if (badge) badge.textContent = data.total || items.length || 0;
 
   if (!items.length) {
     list.innerHTML = "";
@@ -2041,6 +2066,12 @@ function renderUpcomingAppointments(data) {
   if (empty) empty.hidden = true;
 
   list.innerHTML = items.map((appt) => {
+    const apptDate = appt.appointment_date || appt.appointmentDate || appt.date || "";
+    const start = appt.start_time || appt.startTime || appt.time || "";
+    const end = appt.end_time || appt.endTime || "";
+    const provider = appt.provider_name || appt.providerName || appt.provider || "";
+    const specialty = appt.specialty || appt.specialty_name || "";
+    const status = appt.status || appt.appointment_status || "booked";
     const actions = [];
     if (appt.can_reschedule) {
       actions.push(`<button class="ghost-btn dash-action-btn" type="button" aria-label="Reschedule appointment ${appt.id}" data-appt-id="${appt.id}" data-action="reschedule">Reschedule</button>`);
@@ -2050,14 +2081,14 @@ function renderUpcomingAppointments(data) {
     }
     actions.push(`<button class="ghost-btn dash-action-btn" type="button" aria-label="View appointment ${appt.id} details" data-appt-id="${appt.id}" data-action="view">View details</button>`);
     return `
-      <article class="appt-item" aria-label="Appointment on ${escHtml(appt.appointment_date)}">
+      <article class="appt-item" aria-label="Appointment on ${escHtml(apptDate)}">
         <div class="appt-item__meta">
-          <span class="appt-item__date">${escHtml(appt.appointment_date)}</span>
-          <span class="appt-item__time">${escHtml(appt.start_time)} – ${escHtml(appt.end_time)}</span>
-          <span class="appt-item__provider">${escHtml(appt.provider_name || "")}</span>
-          <span class="appt-item__specialty">${escHtml(appt.specialty || "")}</span>
+          <span class="appt-item__date">${escHtml(apptDate)}</span>
+          <span class="appt-item__time">${escHtml(start)}${end ? ` – ${escHtml(end)}` : ""}</span>
+          <span class="appt-item__provider">${escHtml(provider)}</span>
+          <span class="appt-item__specialty">${escHtml(specialty)}</span>
           <span class="appt-item__location">${escHtml(appt.location || "")}</span>
-          <span class="badge badge--${appt.status === 'booked' ? 'success' : 'default'}">${escHtml(appt.status || "")}</span>
+          <span class="badge badge--${status === 'booked' ? 'success' : 'default'}">${escHtml(status)}</span>
         </div>
         <div class="appt-item__actions" role="group" aria-label="Actions for appointment ${appt.id}">${actions.join("")}</div>
       </article>`;
@@ -2102,7 +2133,8 @@ function renderAppointmentHistory(data) {
   const empty = dashElements.historyEmptyState;
   if (!list) return;
 
-  const items = data.items || [];
+  const rawItems = data.items || data.appointments || [];
+  const items = Array.isArray(rawItems) ? rawItems : Object.values(rawItems || {});
   if (!items.length) {
     list.innerHTML = "";
     if (empty) empty.hidden = false;
@@ -2111,16 +2143,20 @@ function renderAppointmentHistory(data) {
   if (empty) empty.hidden = true;
 
   list.innerHTML = items.slice(0, 10).map((appt) => {
+    const apptDate = appt.appointment_date || appt.appointmentDate || appt.date || "";
+    const provider = appt.provider_name || appt.providerName || appt.provider || "";
+    const specialty = appt.specialty || appt.specialty_name || "";
+    const status = appt.status || appt.appointment_status || "completed";
     const notesHtml = appt.notes_available
       ? `<a href="${escHtml(appt.notes_url || "#")}" class="ghost-btn" target="_blank" rel="noopener noreferrer">View notes</a>`
       : `<span class="muted-text" title="${escHtml(appt.notes_unavailable_reason || "Notes not yet released")}">Notes not released</span>`;
     return `
-      <article class="appt-item appt-item--history" aria-label="Past appointment on ${escHtml(appt.appointment_date)}">
+      <article class="appt-item appt-item--history" aria-label="Past appointment on ${escHtml(apptDate)}">
         <div class="appt-item__meta">
-          <span class="appt-item__date">${escHtml(appt.appointment_date)}</span>
-          <span class="appt-item__provider">${escHtml(appt.provider_name || "")}</span>
-          <span class="appt-item__specialty">${escHtml(appt.specialty || "")}</span>
-          <span class="badge badge--default">${escHtml(appt.status || "")}</span>
+          <span class="appt-item__date">${escHtml(apptDate)}</span>
+          <span class="appt-item__provider">${escHtml(provider)}</span>
+          <span class="appt-item__specialty">${escHtml(specialty)}</span>
+          <span class="badge badge--default">${escHtml(status)}</span>
         </div>
         <div class="appt-item__notes">${notesHtml}</div>
       </article>`;

@@ -13,10 +13,10 @@ namespace PropelIQ.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            static void Add(MigrationBuilder m, int id, string name, string aliases, string? memberId, string? groupNum) =>
+            static void Add(MigrationBuilder m, int id, string name, string aliases, string memberId, string groupNum) =>
                 m.InsertData("InsurancePlans",
                     columns: ["Id", "Name", "AliasesRaw", "MemberIdFormat", "GroupNumberFormat", "CreatedAt"],
-                    values: [id, name, aliases, (object?)memberId ?? DBNull.Value, (object?)groupNum ?? DBNull.Value, Seeded]);
+                    values: [id, name, aliases, (object)memberId ?? DBNull.Value, (object)groupNum ?? DBNull.Value, Seeded]);
 
             Add(migrationBuilder, 1,  "Aetna",                    "Aetna Health|Aetna Insurance|Aetna U.S. Healthcare",              @"^[0-9]{8,10}$",         @"^[0-9A-Z]{3,6}$");
             Add(migrationBuilder, 2,  "Blue Cross Blue Shield",   "BCBS|Blue Cross|Anthem Blue Cross|BlueCross BlueShield",          @"^[A-Z0-9]{8,12}$",      @"^[0-9]{4,8}$");

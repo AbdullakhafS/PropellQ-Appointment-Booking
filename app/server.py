@@ -9,7 +9,23 @@ from src.tls_middleware import TLSConfig, TLSEnforcementMiddleware, create_tls_s
 from src.web_app import create_app
 
 
+def _legacy_python_runtime_enabled() -> bool:
+    return os.environ.get("PROPELLQ_ENABLE_LEGACY_PYTHON", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 def main() -> None:
+    if not _legacy_python_runtime_enabled():
+        raise RuntimeError(
+            "Python API runtime is legacy/dev-only. "
+            "Production runtime is .NET (src/PropelIQ.Api). "
+            "Set PROPELLQ_ENABLE_LEGACY_PYTHON=true only for local compatibility testing."
+        )
+
     inner_app = create_app()
     tls_config = TLSConfig(
         redirect_http=True,

@@ -16,6 +16,12 @@ public sealed class WalkInBookingService : IWalkInBookingService
     internal static readonly List<Appointment> _appointments = [];
     internal static List<Appointment> Appointments => _appointments;
 
+    internal static void ResetStateForTests()
+    {
+        _patients.Clear();
+        _appointments.Clear();
+    }
+
     private readonly IQueueEventBroadcaster _broadcaster;
 
     public WalkInBookingService(IQueueEventBroadcaster broadcaster)
