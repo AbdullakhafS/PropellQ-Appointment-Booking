@@ -102,11 +102,24 @@ if (Directory.Exists(publicPath))
     });
 }
 
+IResult RenderPortalPage(string fileName)
+{
+    var filePath = Path.Combine(publicPath, fileName);
+    return File.Exists(filePath)
+        ? Results.File(filePath, "text/html; charset=utf-8")
+        : Results.NotFound();
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 // Root: redirect to login page (UI)
-app.MapGet("/", () => Results.Redirect("/login.html")).AllowAnonymous();
+app.MapGet("/", () => Results.Redirect("/propeliq/login")).AllowAnonymous();
+app.MapGet("/propeliq", () => Results.Redirect("/propeliq/login")).AllowAnonymous();
+app.MapGet("/propeliq/login", () => RenderPortalPage("login.html")).AllowAnonymous();
+app.MapGet("/propeliq/patient", () => RenderPortalPage("patient.html")).AllowAnonymous();
+app.MapGet("/propeliq/staff", () => RenderPortalPage("staff.html")).AllowAnonymous();
+app.MapGet("/propeliq/admin", () => RenderPortalPage("admin.html")).AllowAnonymous();
 // Health-check endpoint keeps original JSON response
 app.MapGet("/health", () => Results.Json(new { status = "ok", service = "PropelIQ API" })).AllowAnonymous();
 
