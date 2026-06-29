@@ -8,5 +8,7 @@
     "/^\\.propel\\/tools\\/ingest\\.sh(\\s.*)?$/": true,
     "/^\\.propel\\\\tools\\\\ingest\\.cmd(\\s.*)?$/": true,
     "/^\\.\\\\.propel\\\\tools\\\\ingest\\.cmd(\\s.*)?$/": true,
+    "dotnet build": true,
+    "dotnet run": true
   }
 }

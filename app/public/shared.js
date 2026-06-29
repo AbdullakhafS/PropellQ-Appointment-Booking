@@ -2,6 +2,13 @@
  * PropellQ Shared Utilities — Auth, API client, Toast, Router
  */
 
+const PortalRoutes = {
+  login: '/propeliq/login',
+  admin: '/propeliq/admin',
+  staff: '/propeliq/staff',
+  patient: '/propeliq/patient',
+};
+
 // ── Auth ──────────────────────────────────────────────────────────────────
 const Auth = {
   TOKEN_KEY: 'pq_token',
@@ -34,7 +41,7 @@ const Auth = {
   getRole()    { const u = this.getUser(); return u ? u.role : null; },
 
   requireAuth() {
-    if (!this.isLoggedIn()) { window.location.href = '/login.html'; return false; }
+    if (!this.isLoggedIn()) { window.location.href = PortalRoutes.login; return false; }
     return true;
   },
 
@@ -46,12 +53,12 @@ const Auth = {
 
   redirectToPortal() {
     const r = this.getRole();
-    if (r === 'admin')  { window.location.href = '/admin.html';   return; }
-    if (r === 'staff')  { window.location.href = '/staff.html';   return; }
-    window.location.href = '/patient.html';
+    if (r === 'admin')  { window.location.href = PortalRoutes.admin;   return; }
+    if (r === 'staff')  { window.location.href = PortalRoutes.staff;   return; }
+    window.location.href = PortalRoutes.patient;
   },
 
-  logout() { this.clear(); window.location.href = '/login.html'; },
+  logout() { this.clear(); window.location.href = PortalRoutes.login; },
 };
 
 // ── API Client ────────────────────────────────────────────────────────────

@@ -357,12 +357,24 @@ public sealed class AppointmentController : ControllerBase
             });
         }
 
+        AvailableSlot? bookedSlot = null;
+        if (req?.AppointmentId is int appointmentId)
+        {
+            bookedSlot = await FindSlotByLegacyIdAsync(appointmentId, ct);
+        }
+
         return Ok(new
         {
             success = true,
             data = new
             {
+                id = consumed.AppointmentId,
                 appointmentId = consumed.AppointmentId,
+                provider_name = bookedSlot?.ProviderName,
+                appointment_date = bookedSlot?.StartTime.ToString("yyyy-MM-dd"),
+                start_time = bookedSlot?.StartTime.ToString("HH:mm"),
+                end_time = bookedSlot?.EndTime.ToString("HH:mm"),
+                location = bookedSlot?.Location,
                 status = "booked",
                 message = "Appointment booked successfully",
             }
@@ -603,11 +615,16 @@ public sealed class AppointmentController : ControllerBase
         return await _slots.GetAvailableSlotsAsync(new SlotAvailabilityQuery(null, null, start, end), ct);
     }
 
-    private static object ToLegacyDetail(AvailableSlot slot)
+    private object ToLegacyDetail(AvailableSlot slot)
     {
+        var now = DateTimeOffset.UtcNow;
+        var appointmentId = ToLegacyId(slot);
+        var isBooked = _bookingStore.IsBooked(appointmentId);
+        var hasReservation = !isBooked && _bookingStore.HasActiveReservation(appointmentId, now);
+
         return new
         {
-            id = ToLegacyId(slot),
+            id = appointmentId,
             provider_id = ToProviderLegacyId(slot.ProviderId),
             provider_name = slot.ProviderName,
             specialty = "General Practice",
@@ -617,6 +634,8 @@ public sealed class AppointmentController : ControllerBase
             end_time = slot.EndTime.ToString("HH:mm"),
             location = slot.Location,
             duration_minutes = slot.DurationMinutes,
+            status = isBooked ? "booked" : "available",
+            checkout_status = hasReservation ? "reserved" : "searching",
             bio = "Experienced clinician focused on patient-centered care.",
             photo_url = "",
         };

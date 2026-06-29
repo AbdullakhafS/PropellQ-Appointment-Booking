@@ -52,7 +52,7 @@
       "options": {
         "cwd": "${workspaceFolder}",
         "env": {
-          "ASPNETCORE_URLS": "http://127.0.0.1:8000"
+          "ASPNETCORE_URLS": "http://propeliq.localhost:8000"
         }
       },
       "group": "none",
