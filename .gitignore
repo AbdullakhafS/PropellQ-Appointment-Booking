@@ -2,3 +2,21 @@
 .github/*
 .propel/templates/*
 .vscode/mcp.json
+
+# .NET build artifacts
+**/bin/
+**/obj/
+
+# Test and coverage artifacts
+*.coverage
+*.coveragexml
+TestResults/
+app/db/*.db
+*.sqlite
+
+# IDE and OS files
+.vs/
+.idea/
+*.user
+*.suo
+Thumbs.db

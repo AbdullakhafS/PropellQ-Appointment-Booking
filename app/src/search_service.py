@@ -147,12 +147,14 @@ def search_appointments(connection: sqlite3.Connection, filters: dict[str, Any])
     items_sql = f"""
         SELECT
             a.id,
+            a.status,
             a.appointment_date,
             a.start_time,
             a.end_time,
             a.location,
             a.duration_minutes,
             a.appointment_timezone,
+            a.checkout_status,
             p.id AS provider_id,
             p.name AS provider_name,
             p.credentials,

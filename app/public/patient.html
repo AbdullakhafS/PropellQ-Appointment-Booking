@@ -347,14 +347,14 @@
         <div id="confirmSummary" style="background:#F9FAFB;border-radius:10px;padding:16px;margin-bottom:24px;text-align:left"></div>
         <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
           <button class="btn btn-ghost" onclick="closeConfirm()">Close</button>
-          <button class="btn btn-primary" onclick="Router.go('appointments')">View My Appointments</button>
+          <button class="btn btn-primary" onclick="goToAppointmentsFromConfirmation()">View My Appointments</button>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<script src="/shared.js"></script>
+<script src="/shared.js?v=20260628"></script>
 <script>
 if (!Auth.requireRole('patient')) { /* redirected */ }
 initNav();
@@ -365,18 +365,25 @@ let _selectedSlot = null, _reservationToken = null, _countdownTimer = null;
 let _calYear, _calMonth;
 let _checkoutCdTimer = null;
 
+function toLocalIsoDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // ─── Init ────────────────────────────────────────────────────────────────
 (async () => {
   const today = new Date();
   _calYear  = today.getFullYear();
   _calMonth = today.getMonth();
-  document.getElementById('fDateFrom').value = today.toISOString().slice(0,10);
+  document.getElementById('fDateFrom').value = toLocalIsoDate(today);
   const to = new Date(today); to.setDate(to.getDate() + 30);
-  document.getElementById('fDateTo').value = to.toISOString().slice(0,10);
+  document.getElementById('fDateTo').value = toLocalIsoDate(to);
   await loadSpecialties();
   renderCalendar();
   runSearch();
-  initInnerTabs('apptTabs');
+  initAppointmentsTabs();
 })();
 
 // ─── Nav routing ──────────────────────────────────────────────────────────
@@ -386,12 +393,43 @@ document.querySelectorAll('.nav-tab[data-view]').forEach(t => {
     t.classList.add('active');
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-' + t.dataset.view).classList.add('active');
-    if (t.dataset.view === 'appointments') loadAppointments();
+    if (t.dataset.view === 'appointments') {
+      initAppointmentsTabs();
+      loadAppointments();
+    }
     if (t.dataset.view === 'dashboard')    loadDashboard();
     if (t.dataset.view === 'documents')    loadDocuments();
     if (t.dataset.view === 'settings')     loadSettings();
   });
 });
+
+function initAppointmentsTabs() {
+  const buttons = Array.from(document.querySelectorAll('#apptTabs .inner-tab'));
+  if (!buttons.length) return;
+
+  buttons.forEach((btn) => {
+    btn.onclick = () => setAppointmentsPanel(btn.dataset.panel || 'panUpcoming');
+  });
+
+  const hasActive = buttons.some((b) => b.classList.contains('active'));
+  if (!hasActive) {
+    setAppointmentsPanel('panUpcoming');
+  }
+}
+
+function setAppointmentsPanel(panelId) {
+  document.querySelectorAll('#apptTabs .inner-tab').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.panel === panelId);
+  });
+
+  ['panUpcoming', 'panHistory'].forEach((id) => {
+    const panel = document.getElementById(id);
+    if (!panel) return;
+    const active = id === panelId;
+    panel.classList.toggle('active', active);
+    panel.style.display = active ? '' : 'none';
+  });
+}
 
 // ─── Specialties ─────────────────────────────────────────────────────────
 async function loadSpecialties() {
@@ -400,7 +438,7 @@ async function loadSpecialties() {
   const sel = document.getElementById('fSpecialty');
   (res.data.data || []).forEach(s => {
     const o = document.createElement('option');
-    o.value = s.id; o.textContent = s.name; sel.appendChild(o);
+    o.value = s.name; o.textContent = s.name; sel.appendChild(o);
   });
 }
 
@@ -412,7 +450,7 @@ document.getElementById('fProvider').addEventListener('input', function() {
   const list = document.getElementById('providerSuggest');
   if (q.length < 2) { list.style.display = 'none'; return; }
   _providerDebounce = setTimeout(async () => {
-    const res = await API.get(`/api/providers/suggest?q=${encodeURIComponent(q)}`);
+    const res = await API.get(`/api/providers/suggest?query=${encodeURIComponent(q)}`);
     if (!res || !res.ok) return;
     list.innerHTML = '';
     (res.data.data || []).forEach(p => {
@@ -449,8 +487,9 @@ async function runSearch() {
   const res = await API.get('/api/appointments/search' + buildQuery(params));
   if (!res || !res.ok) { Toast.error('Search failed. Please try again.'); return; }
   const d = res.data.data || {};
-  _results = d.appointments || [];
-  _totalPages = d.totalPages || 1;
+  _results = d.items || d.appointments || [];
+  _totalPages = d.pagination?.totalPages || d.totalPages || 1;
+  _page = d.pagination?.page || _page;
   renderResults();
   renderCalendar();
 }
@@ -502,16 +541,34 @@ async function renderCalendar() {
     first.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   // Fetch calendar data
-  const from = first.toISOString().slice(0,10);
-  const to   = last.toISOString().slice(0,10);
+  const from = toLocalIsoDate(first);
+  const to   = toLocalIsoDate(last);
   const res  = await API.get(`/api/appointments/calendar?dateFrom=${from}&dateTo=${to}`);
   const slots = {};
   if (res && res.ok) {
-    (res.data.data?.days || []).forEach(d => { slots[d.date] = d.availableCount || d.available || 0; });
+    (res.data.data?.days || []).forEach(d => {
+      if (d.date) {
+        slots[d.date] = d.availableCount || d.available || d.slots?.length || 0;
+        return;
+      }
+
+      const daySlots = Array.isArray(d.slots) ? d.slots : [];
+      if (!daySlots.length) {
+        return;
+      }
+
+      const date = daySlots[0].appointment_date || daySlots[0].appointmentDate;
+      if (!date) {
+        return;
+      }
+
+      const availableCount = daySlots.filter(s => (s.status || '').toLowerCase() !== 'booked').length;
+      slots[date] = availableCount;
+    });
   }
 
   const grid  = document.getElementById('calGrid');
-  const today = new Date().toISOString().slice(0,10);
+  const today = toLocalIsoDate(new Date());
   let html = '';
   const startDay = first.getDay();
 
@@ -559,11 +616,30 @@ async function selectSlot(id) {
   const card = document.getElementById(`card-${id}`);
   if (card) card.classList.add('selected');
 
-  const res = await API.get(`/api/appointments/${id}`);
-  if (!res || !res.ok) { Toast.error('Could not load slot details.'); return; }
-  const a = res.data.data || res.data;
+  // Render from already-loaded search result first so details are always visible instantly.
+  const fromResults = _results.find(x => x.id === id) || null;
+  if (fromResults) {
+    _selectedSlot = fromResults;
+    renderSelectedSlotDetails(_selectedSlot);
+  }
 
-  _selectedSlot = a;
+  const res = await API.get(`/api/appointments/${id}`);
+  if (!res || !res.ok) {
+    if (!fromResults) {
+      Toast.error('Could not load slot details.');
+    }
+    return;
+  }
+
+  _selectedSlot = res.data.data || res.data;
+  renderSelectedSlotDetails(_selectedSlot);
+}
+
+function renderSelectedSlotDetails(a) {
+  if (!a) {
+    return;
+  }
+
   document.getElementById('slotPlaceholder').style.display = 'none';
   const dc = document.getElementById('slotDetailCard');
   dc.style.display = '';
@@ -576,8 +652,10 @@ async function selectSlot(id) {
     <div class="summary-row"><span class="summary-label">Location</span><span class="summary-value">${a.location||'—'}</span></div>
     <div class="summary-row"><span class="summary-label">Status</span><span class="summary-value">${statusBadge(a.status)}</span></div>
   `;
-  document.getElementById('reserveBtn').style.display = a.status === 'available' ? '' : 'none';
-  document.getElementById('checkoutBtn').style.display = a.status === 'reserved' ? '' : 'none';
+  const isAvailable = a.status === 'available';
+  const isReserved = a.checkout_status === 'reserved' || a.checkoutStatus === 'reserved';
+  document.getElementById('reserveBtn').style.display = isAvailable ? '' : 'none';
+  document.getElementById('checkoutBtn').style.display = isReserved ? '' : 'none';
 }
 
 // ─── Reserve ──────────────────────────────────────────────────────────────
@@ -636,7 +714,7 @@ async function openCheckout() {
   const prefSel = document.getElementById('ckPrefSlot');
   prefSel.innerHTML = '<option value="">No preferred slot swap</option>';
   if (searchRes && searchRes.ok) {
-    (searchRes.data.data?.appointments || [])
+    (searchRes.data.data?.items || searchRes.data.data?.appointments || [])
       .filter(x => x.id !== _selectedSlot.id)
       .forEach(x => {
         const o = document.createElement('option');
@@ -707,14 +785,26 @@ function showConfirmation(appt) {
   runSearch();
 }
 
+async function goToAppointmentsFromConfirmation() {
+  closeConfirm();
+  closeCheckout();
+  document.querySelectorAll('.nav-tab').forEach(x => x.classList.remove('active'));
+  const tab = document.querySelector('.nav-tab[data-view="appointments"]');
+  if (tab) tab.classList.add('active');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const view = document.getElementById('view-appointments');
+  if (view) view.classList.add('active');
+  await loadAppointments();
+}
+
 function closeConfirm() { document.getElementById('confirmModal').classList.add('hidden'); }
 
 // ─── Clear filters ────────────────────────────────────────────────────────
 function clearFilters() {
   const today = new Date();
   const to = new Date(today); to.setDate(to.getDate() + 30);
-  document.getElementById('fDateFrom').value = today.toISOString().slice(0,10);
-  document.getElementById('fDateTo').value   = to.toISOString().slice(0,10);
+  document.getElementById('fDateFrom').value = toLocalIsoDate(today);
+  document.getElementById('fDateTo').value   = toLocalIsoDate(to);
   document.getElementById('fTime').value = '';
   document.getElementById('fSpecialty').value = '';
   document.getElementById('fProvider').value  = '';
@@ -723,6 +813,7 @@ function clearFilters() {
 
 // ─── My Appointments ──────────────────────────────────────────────────────
 async function loadAppointments() {
+  initAppointmentsTabs();
   await Promise.all([loadUpcoming(), loadHistory()]);
 }
 
@@ -731,7 +822,8 @@ async function loadUpcoming() {
   el.innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
   const res = await API.get('/api/patient/appointments/upcoming');
   if (!res || !res.ok) { el.innerHTML = '<div class="empty-state"><p>Could not load appointments.</p></div>'; return; }
-  const list = res.data.data?.appointments || res.data.data || [];
+  const raw = res.data.data?.items || res.data.data?.appointments || res.data.data || [];
+  const list = Array.isArray(raw) ? raw : Object.values(raw || {});
   if (!list.length) { el.innerHTML = '<div class="empty-state"><h3>No upcoming appointments</h3><p>Use Search &amp; Book to schedule one.</p></div>'; return; }
   el.innerHTML = list.map(a => apptRow(a)).join('');
 }
@@ -741,22 +833,28 @@ async function loadHistory() {
   el.innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
   const res = await API.get('/api/patient/appointments/history');
   if (!res || !res.ok) { el.innerHTML = '<div class="empty-state"><p>Could not load history.</p></div>'; return; }
-  const list = res.data.data?.appointments || res.data.data || [];
+  const raw = res.data.data?.items || res.data.data?.appointments || res.data.data || [];
+  const list = Array.isArray(raw) ? raw : Object.values(raw || {});
   if (!list.length) { el.innerHTML = '<div class="empty-state"><h3>No past appointments</h3></div>'; return; }
   el.innerHTML = list.map(a => apptRow(a, true)).join('');
 }
 
 function apptRow(a, past = false) {
+  const provider = a.providerName || a.provider_name || a.provider || '—';
+  const date = a.appointmentDate || a.appointment_date || a.date;
+  const start = a.startTime || a.start_time || a.time;
+  const status = a.status || a.appointmentStatus || a.appointment_status || 'booked';
+  const checkoutStatus = a.checkoutStatus || a.checkout_status || a.reservationStatus || 'searching';
   return `<div class="queue-item">
     <div style="flex:1">
-      <div style="font-weight:600;color:#1F2937">${a.providerName||a.provider_name||'—'}</div>
+      <div style="font-weight:600;color:#1F2937">${provider}</div>
       <div style="font-size:.8rem;color:#6B7280">${a.specialty||''}</div>
-      <div style="font-size:.875rem;color:#374151;margin-top:2px">📅 ${fmtDate(a.appointmentDate||a.appointment_date)} &nbsp;🕐 ${fmtTime(a.startTime||a.start_time)}</div>
+      <div style="font-size:.875rem;color:#374151;margin-top:2px">📅 ${fmtDate(date)} &nbsp;🕐 ${fmtTime(start)}</div>
       <div style="font-size:.8rem;color:#9CA3AF">📍 ${a.location||'—'}</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-      ${statusBadge(a.status)}
-      ${statusBadge(a.checkoutStatus||a.checkout_status||'searching')}
+      ${statusBadge(status)}
+      ${statusBadge(checkoutStatus)}
     </div>
   </div>`;
 }
@@ -787,12 +885,21 @@ async function loadHealthProfile() {
   const el  = document.getElementById('healthSummary');
   if (!res || !res.ok) { el.innerHTML = '<p class="text-muted">Health profile not available. Upload clinical documents to build it.</p>'; return; }
   const d = res.data.data || {};
+  const medicationCount = Number.isFinite(d.medicationCount) ? d.medicationCount : (Array.isArray(d.medications) ? d.medications.length : 0);
+  const allergyCount = Number.isFinite(d.allergyCount) ? d.allergyCount : (Array.isArray(d.allergies) ? d.allergies.length : 0);
+  const diagnosisCount = Number.isFinite(d.diagnosisCount) ? d.diagnosisCount : (Array.isArray(d.diagnoses) ? d.diagnoses.length : 0);
+  const lastUpdated = d.lastUpdated || d.last_updated;
   el.innerHTML = `
-    <div class="summary-row"><span class="summary-label">Medications</span><span class="summary-value">${d.medicationCount ?? 0}</span></div>
-    <div class="summary-row"><span class="summary-label">Allergies</span><span class="summary-value">${d.allergyCount ?? 0}</span></div>
-    <div class="summary-row"><span class="summary-label">Diagnoses</span><span class="summary-value">${d.diagnosisCount ?? 0}</span></div>
-    ${d.lastUpdated ? `<div class="summary-row"><span class="summary-label">Last Updated</span><span class="summary-value">${fmtDate(d.lastUpdated)}</span></div>` : ''}
+    <div class="summary-row"><span class="summary-label">Medications</span><span class="summary-value">${medicationCount}</span></div>
+    <div class="summary-row"><span class="summary-label">Allergies</span><span class="summary-value">${allergyCount}</span></div>
+    <div class="summary-row"><span class="summary-label">Diagnoses</span><span class="summary-value">${diagnosisCount}</span></div>
+    ${lastUpdated ? `<div class="summary-row"><span class="summary-label">Last Updated</span><span class="summary-value">${fmtDate(lastUpdated)}</span></div>` : ''}
   ` || '<p class="text-muted">No health data on record yet.</p>';
+
+  const kpiHealth = document.getElementById('kpiHealth');
+  if (kpiHealth && (kpiHealth.textContent === '—' || kpiHealth.textContent === '0' || !kpiHealth.textContent)) {
+    kpiHealth.textContent = String(medicationCount + allergyCount + diagnosisCount);
+  }
 }
 
 // ─── Documents ────────────────────────────────────────────────────────────
@@ -830,7 +937,8 @@ async function loadDocuments() {
   el.innerHTML = '<span class="text-muted">Loading…</span>';
   const res = await API.get('/api/patient/documents');
   if (!res || !res.ok) { el.innerHTML = '<p class="text-muted">Could not load documents.</p>'; return; }
-  const docs = res.data.data?.documents || res.data.data || [];
+  const raw = res.data.data?.items || res.data.data?.documents || res.data.data || [];
+  const docs = Array.isArray(raw) ? raw : Object.values(raw || {});
   if (!docs.length) { el.innerHTML = '<div class="empty-state" style="padding:24px"><p>No documents yet. Upload one on the left.</p></div>'; return; }
   el.innerHTML = docs.map(d => `
     <div class="doc-item">
@@ -876,14 +984,36 @@ async function loadCalStatus() {
   const g = d.google || {}; const o = d.outlook || {};
   const gBadge = document.getElementById('googleBadge');
   const oBadge = document.getElementById('outlookBadge');
-  if (gBadge) { gBadge.textContent = g.status === 'authorized' ? 'Connected' : 'Not Connected'; gBadge.className = `badge badge-${g.status === 'authorized' ? 'success' : 'neutral'}`; }
-  if (oBadge) { oBadge.textContent = o.status === 'authorized' ? 'Connected' : 'Not Connected'; oBadge.className = `badge badge-${o.status === 'authorized' ? 'success' : 'neutral'}`; }
+  const isConnected = (x) => {
+    const status = String(x?.status || '').toLowerCase();
+    return x?.connected === true || status === 'authorized' || status === 'connected';
+  };
+  if (gBadge) {
+    const connected = isConnected(g);
+    gBadge.textContent = connected ? 'Connected' : 'Not Connected';
+    gBadge.className = `badge badge-${connected ? 'success' : 'neutral'}`;
+  }
+  if (oBadge) {
+    const connected = isConnected(o);
+    oBadge.textContent = connected ? 'Connected' : 'Not Connected';
+    oBadge.className = `badge badge-${connected ? 'success' : 'neutral'}`;
+  }
 }
 
 async function connectCal(provider) {
   const res = await API.get(`/api/auth/${provider}/authorize`);
   if (!res || !res.ok) { Toast.error('Failed to start authorization.'); return; }
-  Toast.success(`${provider} authorization flow started (demo mode).`);
+
+  const authorizeUrl = res.data?.data?.authorizeUrl;
+  if (authorizeUrl) {
+    const callbackRes = await API.get(authorizeUrl);
+    if (!callbackRes || !callbackRes.ok) {
+      Toast.error(`${provider} authorization callback failed.`);
+      return;
+    }
+  }
+
+  Toast.success(`${provider} calendar connected.`);
   loadCalStatus();
 }
 </script>

@@ -1,5 +1,121 @@
 # PropelIQ-Copilot
 
+## Production Runtime Policy
+
+The repository now uses a single production backend runtime:
+
+- Production system of record: .NET API in src/PropelIQ.Api
+- Legacy compatibility runtime: Python API in app (dev-only)
+
+Operational policy:
+
+- Use .vscode task PropelIQ: Run Application for normal development and all production-aligned workflows.
+- Python server startup is blocked unless PROPELLQ_ENABLE_LEGACY_PYTHON=true is explicitly set.
+- Do not deploy the Python runtime to production environments.
+
+## API Key Configuration (.NET API)
+
+The .NET API requires an API key through configuration key `Auth:ApiKey`.
+
+- Development: empty `Auth:ApiKey` is allowed for local bring-up.
+- Non-Development (for example `Staging`, `Production`): startup fails fast if `Auth:ApiKey` is empty.
+
+Recommended approach is environment-variable based configuration instead of checking secrets into JSON files.
+
+### Environment Variable Mapping
+
+ASP.NET Core maps nested settings with double underscores:
+
+- `Auth:ApiKey` -> `Auth__ApiKey`
+
+### Local PowerShell Example
+
+Set for current shell session:
+
+```powershell
+$env:Auth__ApiKey = "replace-with-local-dev-key"
+```
+
+Persist for your user profile (new shells):
+
+```powershell
+setx Auth__ApiKey "replace-with-local-dev-key"
+```
+
+### Production Deployment Guidance
+
+- Inject `Auth__ApiKey` from your secret manager (for example Azure Key Vault, GitHub Actions secrets, or container orchestrator secrets).
+- Do not store production keys in `appsettings.json` or source control.
+- Rotate API keys on a defined schedule and after any suspected exposure.
+- CI gate available at `.github/workflows/security-auth-key-gate.yml`.
+
+### CI Gate Configuration
+
+The auth key security gate uses GitHub Actions configuration values:
+
+- Repository variable: `DEPLOY_ENV` (for example `Development`, `Staging`, `Production`)
+- Repository secret: `AUTH_API_KEY`
+
+Gate behavior:
+
+- If `DEPLOY_ENV` is `Development` (or unset), the gate passes without `AUTH_API_KEY`.
+- If `DEPLOY_ENV` is not `Development`, the gate fails when `AUTH_API_KEY` is missing.
+- The gate fails if a non-empty `Auth.ApiKey` value is committed to `src/PropelIQ.Api/appsettings.json` or `src/PropelIQ.Api/appsettings.Development.json`.
+- The gate runs on pushes to `main`/`master`, pull requests targeting `main`/`master`, and manual dispatch.
+- Final workflow status is published by job `Merge Readiness Gate`, which depends on both `Build and Test .NET Solution` and `Verify Auth__ApiKey for non-Development`.
+
+Branch protection recommendation:
+
+- Require status check: `Merge Readiness Gate`
+
+### Branch Protection Automation
+
+Use the helper script to configure branch protection through GitHub CLI:
+
+```powershell
+./scripts/configure-branch-protection.ps1
+```
+
+Optional explicit repository targeting:
+
+```powershell
+./scripts/configure-branch-protection.ps1 -Owner <github-owner> -Repo <github-repo>
+```
+
+Notes:
+
+- Requires authenticated `gh` CLI with permission to manage repository settings.
+- Script attempts both `main` and `master` branches.
+- Required check configured by script: `Merge Readiness Gate`.
+
+### API Key Rotation Runbook
+
+Recommended minimum rotation cadence: every 90 days.
+
+1. Generate a new API key in your approved secrets workflow.
+2. Store the new key in the secret manager as the next active value for `Auth__ApiKey`.
+3. Roll out configuration to all non-Development environments.
+4. Restart or redeploy API instances so each instance reads the new key.
+5. Validate health checks and one authenticated API call per environment.
+6. Decommission the old key after successful validation.
+7. Record the rotation timestamp, operator, and environment scope in your change log.
+
+### Incident Response Trigger Points
+
+Treat any of the following as key-compromise indicators:
+
+- API key appears in logs, screenshots, chat transcripts, or tickets.
+- Unauthorized requests are accepted with a key that should be inactive.
+- Unexpected traffic spikes using API-key authenticated routes.
+
+Response steps:
+
+1. Rotate the key immediately using the rotation runbook above.
+2. Invalidate previously active key material.
+3. Review recent authenticated request logs for abuse window and affected endpoints.
+4. Raise a security incident record and attach evidence timeline.
+5. Apply follow-up controls (for example tighter log redaction and reduced secret exposure paths).
+
 ## Executive Summary
 
 PropelIQ-Copilot is an AI-powered development framework that automates software development workflows from requirements gathering to implementation. It provides structured workflows for generating specifications, user stories, tasks, and code while enforcing comprehensive development standards across multiple languages and frameworks. The system combines business analysis, architecture design, and quality assurance into a unified platform for rapid, high-quality software delivery.

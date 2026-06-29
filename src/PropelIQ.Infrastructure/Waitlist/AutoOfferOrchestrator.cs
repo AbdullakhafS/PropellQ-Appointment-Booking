@@ -1,5 +1,6 @@
 using PropelIQ.Application.Interfaces.Services;
 using PropelIQ.Application.Models;
+using Microsoft.Extensions.Logging;
 
 namespace PropelIQ.Infrastructure.Waitlist;
 

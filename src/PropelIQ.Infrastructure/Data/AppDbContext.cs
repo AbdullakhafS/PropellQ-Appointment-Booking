@@ -30,6 +30,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<IntakeAllergy> IntakeAllergies => Set<IntakeAllergy>();
     public DbSet<IntakeInsurance> IntakeInsurances => Set<IntakeInsurance>();
     public DbSet<IntakeAuditLog> IntakeAuditLogs => Set<IntakeAuditLog>();
+    public DbSet<AppUserAccount> AppUserAccounts => Set<AppUserAccount>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,7 +68,7 @@ public sealed class AppDbContext : DbContext
             entity.Property(e => e.CurrentStage)
                   .HasConversion<int>()
                   .HasColumnType("int")
-                  .HasDefaultValue(0);
+                .HasDefaultValue(ConversationStage.Greeting);
 
             entity.HasIndex(e => e.AppointmentId);
             entity.HasIndex(e => e.PatientId);
@@ -236,6 +237,20 @@ public sealed class AppDbContext : DbContext
             entity.Property(e => e.Reason).HasMaxLength(500);
             entity.Property(e => e.ChangedAt).IsRequired();
             entity.HasIndex(e => e.IntakeId);
+        });
+
+        modelBuilder.Entity<AppUserAccount>(entity =>
+        {
+            entity.ToTable("AppUserAccounts");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Email).HasMaxLength(320).IsRequired();
+            entity.Property(e => e.PasswordHash).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.Role).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.UpdatedAt).IsRequired();
+            entity.HasIndex(e => e.UserId).IsUnique();
         });
     }
 

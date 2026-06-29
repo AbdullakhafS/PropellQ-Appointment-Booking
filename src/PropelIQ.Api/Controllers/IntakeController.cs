@@ -76,7 +76,7 @@ public sealed class IntakeController : ControllerBase
                 .Select(a => new AllergyEntryDto(a.Allergen, a.Reaction, a.Type ?? "Unknown"))
                 .ToList(),
             request.InsuranceInfo is { } ins
-                ? new InsuranceInfoDto(ins.Provider, ins.MemberId, ins.GroupNumber, ins.PlanName)
+                ? new PropelIQ.Application.Models.InsuranceInfoDto(ins.Provider, ins.MemberId, ins.GroupNumber, ins.PlanName)
                 : null
         );
 

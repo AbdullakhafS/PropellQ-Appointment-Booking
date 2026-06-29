@@ -182,6 +182,9 @@ function fmtDateTime(d) {
   return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 function statusBadge(status) {
+  const safeStatus = typeof status === 'string' && status.trim().length
+    ? status
+    : 'unknown';
   const map = {
     available: 'primary', booked: 'success', cancelled: 'error',
     confirmed: 'success', reserved: 'warning', searching: 'neutral',
@@ -190,24 +193,39 @@ function statusBadge(status) {
     checked_in: 'info', waiting: 'warning', in_room: 'success', completed: 'neutral',
     open: 'warning', resolved: 'success',
   };
-  const cls = map[status] || 'neutral';
-  return `<span class="badge badge-${cls}">${status.replace(/_/g, ' ')}</span>`;
+  const cls = map[safeStatus] || 'neutral';
+  return `<span class="badge badge-${cls}">${safeStatus.replace(/_/g, ' ')}</span>`;
 }
 
 // ── Inner tab switcher ────────────────────────────────────────────────────
 function initInnerTabs(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
-  container.querySelectorAll('.inner-tab').forEach(tab => {
+  const tabs = Array.from(container.querySelectorAll('.inner-tab'));
+  const panelIds = tabs.map(tab => tab.dataset.panel).filter(Boolean);
+
+  tabs.forEach(tab => {
     tab.addEventListener('click', () => {
-      container.querySelectorAll('.inner-tab').forEach(t => t.classList.remove('active'));
-      container.querySelectorAll('.inner-panel').forEach(p => p.classList.remove('active'));
+      tabs.forEach(t => t.classList.remove('active'));
+      panelIds.forEach(id => {
+        const panel = document.getElementById(id);
+        if (!panel) return;
+        panel.classList.remove('active');
+        panel.classList.remove('tab-panel--active');
+        panel.hidden = true;
+      });
+
       tab.classList.add('active');
-      const panel = container.querySelector(`#${tab.dataset.panel}`);
-      if (panel) panel.classList.add('active');
+      const panel = document.getElementById(tab.dataset.panel);
+      if (panel) {
+        panel.classList.add('active');
+        panel.classList.add('tab-panel--active');
+        panel.hidden = false;
+      }
     });
   });
-  const first = container.querySelector('.inner-tab');
+
+  const first = tabs[0];
   if (first) first.click();
 }
 

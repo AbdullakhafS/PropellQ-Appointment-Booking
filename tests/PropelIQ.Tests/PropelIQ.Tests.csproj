@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\PropelIQ.Api\PropelIQ.Api.csproj" />
     <ProjectReference Include="..\..\src\PropelIQ.Application\PropelIQ.Application.csproj" />
     <ProjectReference Include="..\..\src\PropelIQ.Infrastructure\PropelIQ.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\PropelIQ.Domain\PropelIQ.Domain.csproj" />

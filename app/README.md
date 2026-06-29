@@ -1,5 +1,12 @@
 # Appointment Search Implementation (TASK-001)
 
+## Runtime status
+
+This Python API is now a legacy compatibility runtime for local testing only.
+
+- Single production backend runtime: .NET API at src/PropelIQ.Api
+- Python runtime requires explicit opt-in via PROPELLQ_ENABLE_LEGACY_PYTHON=true
+
 ## Run locally
 
 1. Start server:

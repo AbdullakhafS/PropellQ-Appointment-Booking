@@ -3,6 +3,7 @@ using PropelIQ.Application.Interfaces.Services;
 using PropelIQ.Application.Models;
 using PropelIQ.Domain.Entities;
 using PropelIQ.Infrastructure.Notifications;
+using PropelIQ.Infrastructure.Queue;
 using PropelIQ.Infrastructure.Waitlist;
 using PropelIQ.Infrastructure.WalkIn;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,13 @@ namespace PropelIQ.Tests.Services;
 /// </summary>
 public sealed class WaitlistProcessingPipelineTests
 {
+    public WaitlistProcessingPipelineTests()
+    {
+        QueueService.ResetStateForTests();
+        WalkInBookingService.ResetStateForTests();
+        WaitlistService.ResetStateForTests();
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
@@ -107,8 +115,10 @@ public sealed class WaitlistProcessingPipelineTests
         var slotEvent = new SlotReleasedEvent(provider, slotId, provider, slotTime, "cancelled");
         await orchestrator.TriggerForReleasedSlotAsync(slotEvent);
 
-        var pending = waitlist.GetPendingOffers();
-        var offer = pending.FirstOrDefault(o => o.OfferId == pending.First().OfferId);
+        var pending = waitlist.GetPendingOffers()
+            .Where(o => o.ProviderName == provider)
+            .ToList();
+        var offer = pending.FirstOrDefault();
         Assert.NotNull(offer);
         Assert.Equal(provider, offer!.ProviderName);
         Assert.Equal(slotTime, offer.SlotStartTime);

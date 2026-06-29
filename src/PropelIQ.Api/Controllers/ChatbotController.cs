@@ -118,7 +118,9 @@ public sealed class ChatbotController : ControllerBase
             d.MedicalHistory,
             d.Medications.Select(m => new MedicationDto(m.Name, m.Dosage, m.Frequency)).ToList(),
             d.Allergies.Select(a => new AllergyDto(a.Allergen, a.Reaction, a.Type)).ToList(),
-            d.InsuranceInfo is { } ins ? new InsuranceInfoDto(ins.Provider, ins.MemberId, ins.GroupNumber, ins.PlanName) : null);
+            d.InsuranceInfo is { } ins
+                ? new PropelIQ.Api.DTOs.Intake.InsuranceInfoDto(ins.Provider, ins.MemberId, ins.GroupNumber, ins.PlanName)
+                : null);
 
     private static ConfidenceScoresResponseDto MapScores(ConfidenceScoresDto s)
         => new(s.ChiefComplaint, s.MedicalHistory, s.Medications, s.Allergies, s.InsuranceInfo);

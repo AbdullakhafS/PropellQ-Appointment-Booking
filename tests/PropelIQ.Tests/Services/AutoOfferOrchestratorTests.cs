@@ -20,6 +20,15 @@ public sealed class AutoOfferOrchestratorTests
     private static ILogger<AutoOfferOrchestrator> NullLogger() =>
         new LoggerFactory().CreateLogger<AutoOfferOrchestrator>();
 
+    private static INotificationService NotificationStub()
+    {
+        var mock = new Mock<INotificationService>();
+        mock
+            .Setup(n => n.NotifyWaitlistOfferAsync(It.IsAny<WaitlistOfferNotification>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        return mock.Object;
+    }
+
     // -------------------------------------------------------------------------
     // AC-1: Released slot triggers offer to first eligible waitlisted patient
     // -------------------------------------------------------------------------
@@ -30,7 +39,7 @@ public sealed class AutoOfferOrchestratorTests
         var offerId = Guid.NewGuid();
         var offerResult = new WaitlistOfferResult(
             offerId, Guid.NewGuid(), Guid.NewGuid(),
-            "Dr. Smith", DateTimeOffset.UtcNow.AddHours(2),
+            "John Doe", "Dr. Smith", DateTimeOffset.UtcNow.AddHours(2),
             "pending", DateTimeOffset.UtcNow.AddMinutes(30),
             null, null);
 
@@ -41,7 +50,7 @@ public sealed class AutoOfferOrchestratorTests
                 It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(offerResult);
 
-        var orchestrator = new AutoOfferOrchestrator(waitlistMock.Object, NullLogger());
+        var orchestrator = new AutoOfferOrchestrator(waitlistMock.Object, NotificationStub(), NullLogger());
 
         var result = await orchestrator.TriggerForReleasedSlotAsync(MakeEvent());
 
@@ -70,7 +79,7 @@ public sealed class AutoOfferOrchestratorTests
                 slotEvent.SlotTime, It.IsAny<CancellationToken>()))
             .ReturnsAsync((WaitlistOfferResult?)null);
 
-        var orchestrator = new AutoOfferOrchestrator(waitlistMock.Object, NullLogger());
+        var orchestrator = new AutoOfferOrchestrator(waitlistMock.Object, NotificationStub(), NullLogger());
 
         await orchestrator.TriggerForReleasedSlotAsync(slotEvent);
 
@@ -94,7 +103,7 @@ public sealed class AutoOfferOrchestratorTests
                 It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((WaitlistOfferResult?)null);
 
-        var orchestrator = new AutoOfferOrchestrator(waitlistMock.Object, NullLogger());
+        var orchestrator = new AutoOfferOrchestrator(waitlistMock.Object, NotificationStub(), NullLogger());
 
         var result = await orchestrator.TriggerForReleasedSlotAsync(MakeEvent());
 
@@ -114,7 +123,7 @@ public sealed class AutoOfferOrchestratorTests
         var slotId = Guid.NewGuid();
         var existingOffer = new WaitlistOfferResult(
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
-            "Dr. Brown", DateTimeOffset.UtcNow.AddHours(1),
+            "Jane Roe", "Dr. Brown", DateTimeOffset.UtcNow.AddHours(1),
             "pending", DateTimeOffset.UtcNow.AddMinutes(30),
             null, null);
 
@@ -131,7 +140,7 @@ public sealed class AutoOfferOrchestratorTests
                 return existingOffer;
             });
 
-        var orchestrator = new AutoOfferOrchestrator(waitlistMock.Object, NullLogger());
+        var orchestrator = new AutoOfferOrchestrator(waitlistMock.Object, NotificationStub(), NullLogger());
 
         var slotEvent = new SlotReleasedEvent("Dr. Brown", slotId, "Dr. Brown",
             DateTimeOffset.UtcNow.AddHours(1), "cancelled");
@@ -162,7 +171,7 @@ public sealed class AutoOfferOrchestratorTests
                 It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((WaitlistOfferResult?)null);
 
-        var orchestrator = new AutoOfferOrchestrator(waitlistMock.Object, NullLogger());
+        var orchestrator = new AutoOfferOrchestrator(waitlistMock.Object, NotificationStub(), NullLogger());
 
         // Reschedule also releases the old slot
         var result = await orchestrator.TriggerForReleasedSlotAsync(
