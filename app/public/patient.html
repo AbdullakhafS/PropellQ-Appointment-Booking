@@ -308,6 +308,22 @@
             </div>
             <div class="form-group"><label class="form-label">Email *</label><input class="form-input" id="ckEmail" type="email" required /></div>
             <div class="form-group"><label class="form-label">Phone *</label><input class="form-input" id="ckPhone" type="tel" required placeholder="+1-XXX-XXX-XXXX" /></div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Date of Birth *</label>
+                <input class="form-input" id="ckDob" type="date" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Gender *</label>
+                <select class="form-select" id="ckGender" required>
+                  <option value="">Select gender</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                  <option value="other">Other</option>
+                  <option value="unknown">Prefer not to say</option>
+                </select>
+              </div>
+            </div>
             <div class="form-group">
               <label class="form-label">Preferred Slot (Optional)</label>
               <select class="form-select" id="ckPrefSlot"><option value="">No preferred slot swap</option></select>
@@ -677,6 +693,30 @@ async function reserveSlot() {
   Toast.success('Slot reserved for 60 seconds! Complete your booking.');
 }
 
+function resetReservationState() {
+  _reservationToken = null;
+  clearInterval(_countdownTimer);
+  _countdownTimer = null;
+  clearInterval(_checkoutCdTimer);
+  _checkoutCdTimer = null;
+
+  const countdownDisplay = document.getElementById('countdownDisplay');
+  const checkoutCountdown = document.getElementById('checkoutCountdown');
+  const countdownSecs = document.getElementById('countdownSecs');
+  const ckSecs = document.getElementById('ckSecs');
+  const checkoutBtn = document.getElementById('checkoutBtn');
+  const reserveBtn = document.getElementById('reserveBtn');
+
+  if (countdownDisplay) countdownDisplay.classList.add('hidden');
+  if (checkoutCountdown) checkoutCountdown.classList.add('hidden');
+  if (countdownSecs) countdownSecs.textContent = '60';
+  if (ckSecs) ckSecs.textContent = '60';
+  if (checkoutBtn) checkoutBtn.style.display = 'none';
+  if (reserveBtn && _selectedSlot && (_selectedSlot.status === 'available')) {
+    reserveBtn.style.display = '';
+  }
+}
+
 function startCountdown() {
   clearInterval(_countdownTimer);
   let secs = 60;
@@ -741,9 +781,18 @@ async function finalizeBooking() {
   const last  = document.getElementById('ckLast').value.trim();
   const email = document.getElementById('ckEmail').value.trim();
   const phone = document.getElementById('ckPhone').value.trim();
-  if (!first || !last || !email || !phone) {
+  const dob = document.getElementById('ckDob').value;
+  const gender = document.getElementById('ckGender').value;
+
+  if (!first || !last || !email || !phone || !dob || !gender) {
     showAlert('checkoutAlert', 'Please fill in all required fields.'); return;
   }
+
+  if (!_reservationToken) {
+    showAlert('checkoutAlert', 'Reserve a slot first so your checkout lock is active.');
+    return;
+  }
+
   const btn = document.getElementById('bookBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Booking…';
 
@@ -754,6 +803,8 @@ async function finalizeBooking() {
     lastName:          last,
     email,
     phone,
+    dateOfBirth:       dob,
+    gender,
     timezone:          Intl.DateTimeFormat().resolvedOptions().timeZone,
     preferredSlotId:   document.getElementById('ckPrefSlot').value || null,
     notes:             document.getElementById('ckNotes').value,
@@ -768,8 +819,9 @@ async function finalizeBooking() {
     showAlert('checkoutAlert', res?.data?.error?.message || 'Booking failed. Please try again.');
     return;
   }
-  clearInterval(_countdownTimer);
+  resetReservationState();
   closeCheckout();
+  await Promise.all([loadAppointments(), loadDashboard()]);
   showConfirmation(res.data.data || {});
 }
 
@@ -788,6 +840,7 @@ function showConfirmation(appt) {
 async function goToAppointmentsFromConfirmation() {
   closeConfirm();
   closeCheckout();
+  resetReservationState();
   document.querySelectorAll('.nav-tab').forEach(x => x.classList.remove('active'));
   const tab = document.querySelector('.nav-tab[data-view="appointments"]');
   if (tab) tab.classList.add('active');
@@ -840,21 +893,21 @@ async function loadHistory() {
 }
 
 function apptRow(a, past = false) {
-  const provider = a.providerName || a.provider_name || a.provider || '—';
+  const provider = a.providerName || a.provider_name || a.provider || '';
   const date = a.appointmentDate || a.appointment_date || a.date;
   const start = a.startTime || a.start_time || a.time;
-  const status = a.status || a.appointmentStatus || a.appointment_status || 'booked';
-  const checkoutStatus = a.checkoutStatus || a.checkout_status || a.reservationStatus || 'searching';
+  const status = a.status || a.appointmentStatus || a.appointment_status || '';
+  const checkoutStatus = a.checkoutStatus || a.checkout_status || a.reservationStatus || '';
   return `<div class="queue-item">
     <div style="flex:1">
-      <div style="font-weight:600;color:#1F2937">${provider}</div>
+      <div style="font-weight:600;color:#1F2937">${provider || '—'}</div>
       <div style="font-size:.8rem;color:#6B7280">${a.specialty||''}</div>
       <div style="font-size:.875rem;color:#374151;margin-top:2px">📅 ${fmtDate(date)} &nbsp;🕐 ${fmtTime(start)}</div>
       <div style="font-size:.8rem;color:#9CA3AF">📍 ${a.location||'—'}</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-      ${statusBadge(status)}
-      ${statusBadge(checkoutStatus)}
+      ${status ? statusBadge(status) : ''}
+      ${checkoutStatus ? statusBadge(checkoutStatus) : ''}
     </div>
   </div>`;
 }

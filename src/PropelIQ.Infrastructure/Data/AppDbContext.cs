@@ -31,9 +31,15 @@ public sealed class AppDbContext : DbContext
     public DbSet<IntakeInsurance> IntakeInsurances => Set<IntakeInsurance>();
     public DbSet<IntakeAuditLog> IntakeAuditLogs => Set<IntakeAuditLog>();
     public DbSet<AppUserAccount> AppUserAccounts => Set<AppUserAccount>();
+    public DbSet<Patient> Patients => Set<Patient>();
+    public DbSet<Appointment> Appointments => Set<Appointment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        var dateOnlyConverter = new ValueConverter<DateOnly, DateTime>(
+            v => v.ToDateTime(TimeOnly.MinValue),
+            v => DateOnly.FromDateTime(v));
+
         modelBuilder.Entity<IntakeConversation>(entity =>
         {
             entity.ToTable("IntakeConversations");
@@ -251,6 +257,43 @@ public sealed class AppDbContext : DbContext
             entity.Property(e => e.CreatedAt).IsRequired();
             entity.Property(e => e.UpdatedAt).IsRequired();
             entity.HasIndex(e => e.UserId).IsUnique();
+        });
+
+        modelBuilder.Entity<Patient>(entity =>
+        {
+            entity.ToTable("Patients");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FirstName).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.LastName).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.DateOfBirth).HasConversion(dateOnlyConverter).HasColumnType("date").IsRequired();
+            entity.Property(e => e.Phone).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Email).HasMaxLength(320);
+            entity.Property(e => e.Gender).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Address).HasMaxLength(500);
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Ignore(e => e.FullName);
+            entity.HasIndex(e => e.Phone);
+            entity.HasIndex(e => e.Email);
+        });
+
+        modelBuilder.Entity<Appointment>(entity =>
+        {
+            entity.ToTable("Appointments");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PatientId).IsRequired();
+            entity.Property(e => e.PatientFullName).HasMaxLength(250).IsRequired();
+            entity.Property(e => e.ProviderName).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.AppointmentTime).IsRequired();
+            entity.Property(e => e.DurationMinutes).IsRequired();
+            entity.Property(e => e.IsWalkIn).IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.ArrivedAt);
+            entity.HasIndex(e => e.PatientId);
+            entity.HasIndex(e => e.AppointmentTime);
+            entity.HasIndex(e => new { e.ProviderName, e.AppointmentTime });
         });
     }
 

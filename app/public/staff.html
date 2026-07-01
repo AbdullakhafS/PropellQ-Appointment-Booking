@@ -257,13 +257,11 @@ async function loadQueue() {
   const today = toLocalIsoDate(new Date());
   const res = await API.get(`/api/staff/queue?date=${today}`);
   if (!res || !res.ok) {
-    // fallback to search API
-    const s = await API.get(`/api/appointments/search?dateFrom=${today}&dateTo=${today}&pageSize=50`);
-    if (s && s.ok) { _queueData = s.data.data?.items || s.data.data?.appointments || []; }
-    else { el.innerHTML = '<div class="empty-state"><p>Could not load queue.</p></div>'; return; }
-  } else {
-    _queueData = res.data.data?.queue || res.data.data || [];
+    el.innerHTML = '<div class="empty-state"><p>Could not load queue from database.</p></div>';
+    return;
   }
+
+  _queueData = res.data.data?.queue || res.data.data || [];
   updateQueueKPIs();
   renderQueueList(_queueData);
 }
@@ -282,13 +280,13 @@ function renderQueueList(data) {
     <div class="queue-item" style="cursor:pointer" onclick="selectQueueItem(${i})">
       <div class="queue-pos">${i+1}</div>
       <div style="flex:1">
-        <div style="font-weight:600;color:#1F2937">${a.patientFirstName||a.patient_first_name||a.firstName||'—'} ${a.patientLastName||a.patient_last_name||a.lastName||''}</div>
-        <div style="font-size:.8rem;color:#6B7280">${a.providerName||a.provider_name||'—'} · ${a.specialty||a.specialtyName||''}</div>
+        <div style="font-weight:600;color:#1F2937">${(a.patientFirstName||a.patient_first_name||a.firstName||'').trim()} ${(a.patientLastName||a.patient_last_name||a.lastName||'').trim()}</div>
+        <div style="font-size:.8rem;color:#6B7280">${a.providerName||a.provider_name||''}${a.specialty||a.specialtyName ? ` · ${a.specialty||a.specialtyName}` : ''}</div>
         <div style="font-size:.8rem;color:#374151">🕐 ${fmtTime(a.startTime||a.start_time)}</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
-        ${statusBadge(a.status)}
-        ${statusBadge(a.checkoutStatus||a.checkout_status||'searching')}
+        ${a.status ? statusBadge(a.status) : ''}
+        ${(a.checkoutStatus||a.checkout_status) ? statusBadge(a.checkoutStatus||a.checkout_status) : ''}
       </div>
     </div>
   `).join('');
@@ -297,7 +295,7 @@ function renderQueueList(data) {
 function filterQueue() {
   const q = document.getElementById('queueSearch').value.toLowerCase();
   const filtered = q ? _queueData.filter(a => {
-    const name = `${a.patientFirstName||''} ${a.patientLastName||''}`.toLowerCase();
+    const name = `${a.patientFirstName||a.patient_first_name||''} ${a.patientLastName||a.patient_last_name||''}`.toLowerCase();
     return name.includes(q);
   }) : _queueData;
   renderQueueList(filtered);
@@ -312,12 +310,12 @@ function selectQueueItem(idx) {
   document.getElementById('qDetailStatus').innerHTML = statusBadge(a.status);
   document.getElementById('qDetailBody').innerHTML = `
     <div class="summary-row"><span class="summary-label">Appointment ID</span><span class="summary-value">${a.id}</span></div>
-    <div class="summary-row"><span class="summary-label">Provider</span><span class="summary-value">${a.providerName||a.provider_name||'—'}</span></div>
+    <div class="summary-row"><span class="summary-label">Provider</span><span class="summary-value">${a.providerName||a.provider_name||''}</span></div>
     <div class="summary-row"><span class="summary-label">Time</span><span class="summary-value">${fmtTime(a.startTime||a.start_time)}</span></div>
-    <div class="summary-row"><span class="summary-label">Location</span><span class="summary-value">${a.location||'—'}</span></div>
-    <div class="summary-row"><span class="summary-label">Email</span><span class="summary-value">${a.patientEmail||a.patient_email||'—'}</span></div>
-    <div class="summary-row"><span class="summary-label">Phone</span><span class="summary-value">${a.patientPhone||a.patient_phone||'—'}</span></div>
-    <div class="summary-row"><span class="summary-label">Checkout Status</span><span class="summary-value">${statusBadge(a.checkoutStatus||a.checkout_status||'—')}</span></div>
+    <div class="summary-row"><span class="summary-label">Location</span><span class="summary-value">${a.location||''}</span></div>
+    <div class="summary-row"><span class="summary-label">Email</span><span class="summary-value">${a.patientEmail||a.patient_email||''}</span></div>
+    <div class="summary-row"><span class="summary-label">Phone</span><span class="summary-value">${a.patientPhone||a.patient_phone||''}</span></div>
+    <div class="summary-row"><span class="summary-label">Checkout Status</span><span class="summary-value">${(a.checkoutStatus||a.checkout_status) ? statusBadge(a.checkoutStatus||a.checkout_status) : ''}</span></div>
   `;
   const ciBtn = document.getElementById('checkInBtn');
   const alreadyCheckedIn = (a.checkoutStatus === 'confirmed' || a.checkout_status === 'confirmed');
@@ -397,17 +395,15 @@ async function searchForCheckIn() {
   if (!apptId && !name) { showAlert('ciAlert', 'Enter an appointment ID or patient name.'); return; }
 
   let appt = null;
+  const today = toLocalIsoDate(new Date());
+  const qRes = await API.get(`/api/staff/queue?date=${today}`);
+  const queue = (qRes && qRes.ok) ? (qRes.data.data?.queue || qRes.data.data || []) : [];
+
   if (apptId) {
-    const today = toLocalIsoDate(new Date());
-    const qRes = await API.get(`/api/staff/queue?date=${today}`);
-    if (qRes && qRes.ok) {
-      const queue = qRes.data.data?.queue || qRes.data.data || [];
-      appt = queue.find(x => String(x.id) === String(apptId)) || null;
-    }
+    appt = queue.find(x => String(x.id) === String(apptId)) || null;
   } else {
-    const today = toLocalIsoDate(new Date());
-    const res = await API.get(`/api/appointments/search?dateFrom=${today}&dateTo=${today}&provider=${encodeURIComponent(name)}&pageSize=10`);
-    if (res && res.ok) { const list = res.data.data?.items || res.data.data?.appointments || []; appt = list[0] || null; }
+    const term = name.toLowerCase();
+    appt = queue.find(x => `${x.patientFirstName||x.patient_first_name||''} ${x.patientLastName||x.patient_last_name||''}`.toLowerCase().includes(term)) || null;
   }
 
   if (!appt) { showAlert('ciAlert', 'No appointment found. Check the ID or name.'); return; }
