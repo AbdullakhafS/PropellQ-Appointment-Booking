@@ -1,6 +1,8 @@
 using PropelIQ.Application.Interfaces.Services;
 using PropelIQ.Application.Models;
 using PropelIQ.Domain.Entities;
+using PropelIQ.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace PropelIQ.Infrastructure.WalkIn;
 
@@ -10,6 +12,9 @@ namespace PropelIQ.Infrastructure.WalkIn;
 /// </summary>
 public sealed class WalkInBookingService : IWalkInBookingService
 {
+    private static readonly object _sync = new();
+    private static bool _isHydrated;
+
     // Temporary in-memory stores — replace with EF Core repositories.
     // 'Appointments' is internal so QueueService can share the same list.
     internal static readonly List<Patient> _patients = [];
@@ -18,18 +23,84 @@ public sealed class WalkInBookingService : IWalkInBookingService
 
     internal static void ResetStateForTests()
     {
-        _patients.Clear();
-        _appointments.Clear();
+        lock (_sync)
+        {
+            _patients.Clear();
+            _appointments.Clear();
+            _isHydrated = false;
+        }
     }
 
     private readonly IQueueEventBroadcaster _broadcaster;
+    private readonly AppDbContext _db;
 
-    public WalkInBookingService(IQueueEventBroadcaster broadcaster)
-        => _broadcaster = broadcaster;
+    public WalkInBookingService(IQueueEventBroadcaster broadcaster, AppDbContext db)
+    {
+        _broadcaster = broadcaster;
+        _db = db;
+    }
+
+    internal static void EnsureLoaded(AppDbContext db)
+    {
+        lock (_sync)
+        {
+            if (_isHydrated)
+            {
+                return;
+            }
+        }
+
+        var patients = db.Set<Patient>().AsNoTracking().ToList();
+        var appointments = db.Set<Appointment>().AsNoTracking().ToList();
+
+        lock (_sync)
+        {
+            if (_isHydrated)
+            {
+                return;
+            }
+
+            _patients.Clear();
+            _patients.AddRange(patients);
+            _appointments.Clear();
+            _appointments.AddRange(appointments);
+            _isHydrated = true;
+        }
+    }
+
+    internal static async Task EnsureLoadedAsync(AppDbContext db, CancellationToken ct = default)
+    {
+        lock (_sync)
+        {
+            if (_isHydrated)
+            {
+                return;
+            }
+        }
+
+        var patients = await db.Set<Patient>().AsNoTracking().ToListAsync(ct);
+        var appointments = await db.Set<Appointment>().AsNoTracking().ToListAsync(ct);
+
+        lock (_sync)
+        {
+            if (_isHydrated)
+            {
+                return;
+            }
+
+            _patients.Clear();
+            _patients.AddRange(patients);
+            _appointments.Clear();
+            _appointments.AddRange(appointments);
+            _isHydrated = true;
+        }
+    }
 
     public Task<IReadOnlyList<PatientSummary>> SearchPatientsAsync(
         PatientSearchQuery query, CancellationToken ct = default)
     {
+        EnsureLoaded(_db);
+
         var term = query.Term.Trim().ToLowerInvariant();
 
         var matches = _patients
@@ -45,9 +116,11 @@ public sealed class WalkInBookingService : IWalkInBookingService
         return Task.FromResult<IReadOnlyList<PatientSummary>>(matches);
     }
 
-    public Task<PatientSummary> CreatePatientAsync(
+    public async Task<PatientSummary> CreatePatientAsync(
         CreatePatientRequest request, CancellationToken ct = default)
     {
+        await EnsureLoadedAsync(_db, ct);
+
         var patient = Patient.Create(
             request.FirstName,
             request.LastName,
@@ -59,12 +132,17 @@ public sealed class WalkInBookingService : IWalkInBookingService
             request.Notes);
 
         _patients.Add(patient);
-        return Task.FromResult(MapToSummary(patient));
+        _db.Set<Patient>().Add(patient);
+        await _db.SaveChangesAsync(ct);
+
+        return MapToSummary(patient);
     }
 
-    public Task<BookWalkInResult> BookWalkInAsync(
+    public async Task<BookWalkInResult> BookWalkInAsync(
         BookWalkInRequest request, CancellationToken ct = default)
     {
+        await EnsureLoadedAsync(_db, ct);
+
         var patient = _patients.FirstOrDefault(p => p.Id == request.PatientId)
             ?? throw new InvalidOperationException($"Patient {request.PatientId} not found.");
 
@@ -78,6 +156,8 @@ public sealed class WalkInBookingService : IWalkInBookingService
             request.SlotId);
 
         _appointments.Add(appointment);
+        _db.Set<Appointment>().Add(appointment);
+        await _db.SaveChangesAsync(ct);
 
         var result = new BookWalkInResult(
             appointment.Id,
@@ -97,7 +177,7 @@ public sealed class WalkInBookingService : IWalkInBookingService
             result.ProviderName, result.AppointmentTime, result.DurationMinutes,
             result.IsWalkIn, result.SlotId, result.Status, result.CreatedAt)));
 
-        return Task.FromResult(result);
+        return result;
     }
 
     private static PatientSummary MapToSummary(Patient p)

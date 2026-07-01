@@ -51,7 +51,7 @@ public static class ServiceCollectionExtensions
         // EP-004: Queue, Waitlist, Notifications
         services.AddSingleton<IQueueEventBroadcaster, QueueEventBroadcaster>();
         services.AddSingleton<ISlotAvailabilityService, SlotAvailabilityService>();
-        services.AddSingleton<IAppointmentDetailService, AppointmentDetailService>();
+        services.AddScoped<IAppointmentDetailService, AppointmentDetailService>();
         services.AddSingleton<IWaitlistService, WaitlistService>();
         services.AddSingleton<IAutoOfferOrchestrator, AutoOfferOrchestrator>();
         services.AddSingleton<INotificationService, NotificationService>();

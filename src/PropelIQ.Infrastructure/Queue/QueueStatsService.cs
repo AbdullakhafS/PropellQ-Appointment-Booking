@@ -1,5 +1,6 @@
 using PropelIQ.Application.Interfaces.Services;
 using PropelIQ.Application.Models;
+using PropelIQ.Infrastructure.Data;
 using PropelIQ.Infrastructure.WalkIn;
 
 namespace PropelIQ.Infrastructure.Queue;
@@ -10,8 +11,17 @@ namespace PropelIQ.Infrastructure.Queue;
 /// </summary>
 public sealed class QueueStatsService : IQueueStatsService
 {
+    private readonly AppDbContext _db;
+
+    public QueueStatsService(AppDbContext db)
+    {
+        _db = db;
+    }
+
     public QueueStats ComputeStats()
     {
+        WalkInBookingService.EnsureLoaded(_db);
+
         var now = DateTimeOffset.UtcNow;
         var all = WalkInBookingService.Appointments;
 

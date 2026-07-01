@@ -1,6 +1,7 @@
 using PropelIQ.Application.Interfaces.Services;
 using PropelIQ.Application.Models;
 using PropelIQ.Domain.Entities;
+using PropelIQ.Infrastructure.Data;
 using PropelIQ.Infrastructure.WalkIn;
 
 namespace PropelIQ.Infrastructure.Queue;
@@ -16,17 +17,20 @@ public sealed class QueueService : IQueueService
     private readonly IAppointmentDetailService _history;
     private readonly IAutoOfferOrchestrator _autoOffer;
     private readonly INotificationService _notifications;
+    private readonly AppDbContext _db;
 
     public QueueService(
         IQueueEventBroadcaster broadcaster,
         IAppointmentDetailService history,
         IAutoOfferOrchestrator autoOffer,
-        INotificationService notifications)
+        INotificationService notifications,
+        AppDbContext db)
     {
         _broadcaster = broadcaster;
         _history = history;
         _autoOffer = autoOffer;
         _notifications = notifications;
+        _db = db;
     }
 
     // Shared position store: maps AppointmentId -> explicit queue position (0 = unset)
@@ -45,8 +49,10 @@ public sealed class QueueService : IQueueService
         WalkInBookingService.Appointments.Clear();
     }
 
-    public Task<QueueResult> GetQueueAsync(QueueQuery query, CancellationToken ct = default)
+    public async Task<QueueResult> GetQueueAsync(QueueQuery query, CancellationToken ct = default)
     {
+        await WalkInBookingService.EnsureLoadedAsync(_db, ct);
+
         var all = WalkInBookingService.Appointments;
 
         var filtered = all.AsEnumerable();
@@ -94,11 +100,13 @@ public sealed class QueueService : IQueueService
                 .ToList();
         }
 
-        return Task.FromResult(new QueueResult(page, total, query.Page, query.PageSize, hasWalkIns, version));
+        return new QueueResult(page, total, query.Page, query.PageSize, hasWalkIns, version);
     }
 
-    public Task<QueueAppointmentRow> RescheduleAsync(RescheduleRequest request, CancellationToken ct = default)
+    public async Task<QueueAppointmentRow> RescheduleAsync(RescheduleRequest request, CancellationToken ct = default)
     {
+        await WalkInBookingService.EnsureLoadedAsync(_db, ct);
+
         var appt = WalkInBookingService.Appointments.FirstOrDefault(a => a.Id == request.AppointmentId)
             ?? throw new InvalidOperationException($"Appointment {request.AppointmentId} not found.");
 
@@ -149,7 +157,10 @@ public sealed class QueueService : IQueueService
                 "rescheduled"),
             ct);
 
-        return Task.FromResult(row);
+        _db.Set<Appointment>().Update(appt);
+        await _db.SaveChangesAsync(ct);
+
+        return row;
     }
 
     public Task<ReorderQueueResult> ReorderQueueAsync(ReorderQueueRequest request, CancellationToken ct = default)
@@ -178,8 +189,10 @@ public sealed class QueueService : IQueueService
         return Task.FromResult(result);
     }
 
-    public Task<CheckInResult> CheckInAsync(Guid appointmentId, CancellationToken ct = default)
+    public async Task<CheckInResult> CheckInAsync(Guid appointmentId, CancellationToken ct = default)
     {
+        await WalkInBookingService.EnsureLoadedAsync(_db, ct);
+
         var appt = WalkInBookingService.Appointments.FirstOrDefault(a => a.Id == appointmentId)
             ?? throw new InvalidOperationException($"Appointment {appointmentId} not found.");
 
@@ -194,12 +207,17 @@ public sealed class QueueService : IQueueService
         // Broadcast check-in update to all SSE subscribers (task_037_004)
         _broadcaster.Publish(QueueEvent.From(QueueEventType.Updated, row));
 
-        return Task.FromResult(new CheckInResult(appt.Id, appt.Status, appt.ArrivedAt!.Value));
+        _db.Set<Appointment>().Update(appt);
+        await _db.SaveChangesAsync(ct);
+
+        return new CheckInResult(appt.Id, appt.Status, appt.ArrivedAt!.Value);
     }
 
-    public Task<CancelAppointmentResult> CancelAsync(
+    public async Task<CancelAppointmentResult> CancelAsync(
         Guid appointmentId, string? reason, CancellationToken ct = default)
     {
+        await WalkInBookingService.EnsureLoadedAsync(_db, ct);
+
         var appt = WalkInBookingService.Appointments.FirstOrDefault(a => a.Id == appointmentId)
             ?? throw new InvalidOperationException($"Appointment {appointmentId} not found.");
 
@@ -234,7 +252,10 @@ public sealed class QueueService : IQueueService
                 "cancelled"),
             ct);
 
-        return Task.FromResult(new CancelAppointmentResult(appt.Id, appt.Status));
+        _db.Set<Appointment>().Update(appt);
+        await _db.SaveChangesAsync(ct);
+
+        return new CancelAppointmentResult(appt.Id, appt.Status);
     }
 
     private static QueueAppointmentRow MapRowWithPosition(Appointment a, int position)

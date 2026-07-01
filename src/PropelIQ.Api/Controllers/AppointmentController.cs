@@ -295,33 +295,81 @@ public sealed class AppointmentController : ControllerBase
             // Staff walk-in flow can create a booking directly without a reservation token.
             if (req?.IsWalkInRequest() == true)
             {
-                var appointmentDate = TryParseDateOnlyFlexible(req.Date, out var parsedDate)
-                    ? parsedDate
-                    : DateOnly.FromDateTime(DateTime.UtcNow);
+                if (!TryParseDateOnlyFlexible(req.Date, out var appointmentDate))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = new { code = "VALIDATION_ERROR", message = "date is required and must be a valid date." }
+                    });
+                }
+
+                var patientValidation = req.ValidatePatientFields();
+                if (!string.IsNullOrWhiteSpace(patientValidation))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = new { code = "VALIDATION_ERROR", message = patientValidation }
+                    });
+                }
+
+                var appointmentContextValidation = req.ValidateAppointmentContext();
+                if (!string.IsNullOrWhiteSpace(appointmentContextValidation))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = new { code = "VALIDATION_ERROR", message = appointmentContextValidation }
+                    });
+                }
 
                 var patient = await _walkInBooking.CreatePatientAsync(new CreatePatientRequest(
                     req.FirstName!.Trim(),
                     req.LastName!.Trim(),
-                    // Legacy walk-in form does not collect DOB, so we use a safe placeholder.
-                    DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-30)),
+                    req.GetDateOfBirth()!.Value,
                     req.Phone!.Trim(),
-                    "unknown",
-                    req.Email?.Trim(),
+                    req.Gender!.Trim(),
+                    string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim(),
                     null,
                     "Created via legacy staff walk-in flow"), ct);
 
-                var appointmentTime = new DateTimeOffset(
-                    appointmentDate.Year,
-                    appointmentDate.Month,
-                    appointmentDate.Day,
-                    DateTime.UtcNow.Hour,
-                    0,
-                    0,
-                    TimeSpan.Zero);
+                DateTimeOffset appointmentTime;
+                string providerName;
+
+                if (req.AppointmentId is int walkInAppointmentId)
+                {
+                    var slot = await FindSlotByLegacyIdAsync(walkInAppointmentId, ct);
+                    if (slot is null)
+                    {
+                        return Conflict(new
+                        {
+                            success = false,
+                            error = new { code = "UNAVAILABLE_SLOT", message = "Selected appointment slot is no longer available" }
+                        });
+                    }
+
+                    appointmentTime = slot.StartTime;
+                    providerName = slot.ProviderName;
+                }
+                else
+                {
+                    if (!TimeOnly.TryParseExact(req.ResolvedStartTime!, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var startTime))
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = new { code = "VALIDATION_ERROR", message = "start_time is required in HH:mm format when appointmentId is not provided." }
+                        });
+                    }
+
+                    providerName = req.GetProviderName()!;
+                    appointmentTime = new DateTimeOffset(appointmentDate.ToDateTime(startTime), TimeSpan.Zero);
+                }
 
                 var booked = await _walkInBooking.BookWalkInAsync(new BookWalkInRequest(
                     patient.Id,
-                    req.GetProviderName(),
+                    providerName,
                     appointmentTime,
                     30,
                     "Booked via legacy /api/appointments/book"), ct);
@@ -370,27 +418,36 @@ public sealed class AppointmentController : ControllerBase
         {
             try
             {
-                var firstName = string.IsNullOrWhiteSpace(req?.FirstName) ? "Patient" : req!.FirstName!.Trim();
-                var lastName = string.IsNullOrWhiteSpace(req?.LastName) ? "Booked" : req!.LastName!.Trim();
-                var phone = string.IsNullOrWhiteSpace(req?.Phone) ? "unknown" : req!.Phone!.Trim();
-                var email = string.IsNullOrWhiteSpace(req?.Email) ? null : req!.Email!.Trim();
+                if (req is not null)
+                {
+                    var patientValidation = req.ValidatePatientFields();
+                    if (string.IsNullOrWhiteSpace(patientValidation))
+                    {
+                        var patient = await _walkInBooking.CreatePatientAsync(new CreatePatientRequest(
+                            req.FirstName!.Trim(),
+                            req.LastName!.Trim(),
+                            req.GetDateOfBirth()!.Value,
+                            req.Phone!.Trim(),
+                            req.Gender!.Trim(),
+                            string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim(),
+                            null,
+                            "Created via legacy patient booking flow"), ct);
 
-                var patient = await _walkInBooking.CreatePatientAsync(new CreatePatientRequest(
-                    firstName,
-                    lastName,
-                    DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-30)),
-                    phone,
-                    "unknown",
-                    email,
-                    null,
-                    "Created via legacy patient booking flow"), ct);
-
-                await _walkInBooking.BookWalkInAsync(new BookWalkInRequest(
-                    patient.Id,
-                    bookedSlot.ProviderName,
-                    bookedSlot.StartTime,
-                    bookedSlot.DurationMinutes,
-                    "Booked via reservation checkout flow"), ct);
+                        await _walkInBooking.BookWalkInAsync(new BookWalkInRequest(
+                            patient.Id,
+                            bookedSlot.ProviderName,
+                            bookedSlot.StartTime,
+                            bookedSlot.DurationMinutes,
+                            "Booked via reservation checkout flow"), ct);
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "Booked appointment {AppointmentId} succeeded but queue mirror was skipped due to validation: {ValidationError}",
+                            consumed.AppointmentId,
+                            patientValidation);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -700,6 +757,21 @@ public sealed class LegacyBookRequest
 
     public string? Date { get; init; }
 
+    [JsonPropertyName("dateOfBirth")]
+    public string? DateOfBirth { get; init; }
+
+    [JsonPropertyName("date_of_birth")]
+    public string? DateOfBirthSnakeCase { get; init; }
+
+    [JsonPropertyName("startTime")]
+    public string? StartTimeCamelCase { get; init; }
+
+    [JsonPropertyName("start_time")]
+    public string? StartTimeSnakeCase { get; init; }
+
+    [JsonPropertyName("gender")]
+    public string? Gender { get; init; }
+
     [JsonPropertyName("providerName")]
     public string? ProviderName { get; init; }
 
@@ -718,14 +790,13 @@ public sealed class LegacyBookRequest
 
     public bool IsWalkInRequest()
     {
-        return !string.IsNullOrWhiteSpace(FirstName)
-            && !string.IsNullOrWhiteSpace(LastName)
-            && !string.IsNullOrWhiteSpace(Email)
-            && !string.IsNullOrWhiteSpace(Phone)
-            && (!string.IsNullOrWhiteSpace(Date) || AppointmentId.HasValue);
+        return string.IsNullOrWhiteSpace(GetReservationToken())
+            && string.IsNullOrWhiteSpace(ValidatePatientFields())
+            && string.IsNullOrWhiteSpace(ValidateAppointmentContext())
+            && !string.IsNullOrWhiteSpace(Date);
     }
 
-    public string GetProviderName()
+    public string? GetProviderName()
     {
         if (!string.IsNullOrWhiteSpace(ProviderName))
         {
@@ -737,11 +808,67 @@ public sealed class LegacyBookRequest
             return ProviderNameSnakeCase.Trim();
         }
 
-        if (!string.IsNullOrWhiteSpace(SpecialtyId))
+        return null;
+    }
+
+    [JsonIgnore]
+    public string? ResolvedStartTime => StartTimeCamelCase ?? StartTimeSnakeCase;
+
+    public string? ValidatePatientFields()
+    {
+        if (string.IsNullOrWhiteSpace(FirstName)
+            || string.IsNullOrWhiteSpace(LastName)
+            || string.IsNullOrWhiteSpace(Phone)
+            || string.IsNullOrWhiteSpace(Gender)
+            || string.IsNullOrWhiteSpace(GetDateOfBirthRaw()))
         {
-            return $"Walk-in ({SpecialtyId.Trim()})";
+            return "firstName, lastName, phone, gender, and dateOfBirth are required.";
         }
 
-        return "Walk-in Provider";
+        if (GetDateOfBirth() is null)
+        {
+            return "dateOfBirth must be a valid date.";
+        }
+
+        return null;
+    }
+
+    public string? ValidateAppointmentContext()
+    {
+        if (AppointmentId.HasValue)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(GetProviderName()))
+        {
+            return "providerName is required when appointmentId is not provided.";
+        }
+
+        if (string.IsNullOrWhiteSpace(ResolvedStartTime))
+        {
+            return "start_time is required when appointmentId is not provided.";
+        }
+
+        return null;
+    }
+
+    public DateOnly? GetDateOfBirth()
+    {
+        var raw = GetDateOfBirthRaw();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        return DateOnly.TryParse(raw.Trim(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+            || DateOnly.TryParse(raw.Trim(), CultureInfo.CurrentCulture, DateTimeStyles.None, out parsed)
+            ? parsed
+            : null;
+    }
+
+    private string? GetDateOfBirthRaw()
+    {
+        return DateOfBirth ?? DateOfBirthSnakeCase;
     }
 }

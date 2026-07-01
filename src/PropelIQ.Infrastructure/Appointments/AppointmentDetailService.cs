@@ -1,6 +1,7 @@
 using PropelIQ.Application.Interfaces.Services;
 using PropelIQ.Application.Models;
 using PropelIQ.Domain.Entities;
+using PropelIQ.Infrastructure.Data;
 using PropelIQ.Infrastructure.WalkIn;
 
 namespace PropelIQ.Infrastructure.Appointments;
@@ -14,9 +15,17 @@ public sealed class AppointmentDetailService : IAppointmentDetailService
 {
     private static readonly List<AppointmentStatusHistory> _history = [];
     private static readonly object _lock = new();
+    private readonly AppDbContext _db;
+
+    public AppointmentDetailService(AppDbContext db)
+    {
+        _db = db;
+    }
 
     public AppointmentDetail? GetDetail(Guid appointmentId)
     {
+        WalkInBookingService.EnsureLoaded(_db);
+
         var appt = WalkInBookingService.Appointments.FirstOrDefault(a => a.Id == appointmentId);
         if (appt is null) return null;
 

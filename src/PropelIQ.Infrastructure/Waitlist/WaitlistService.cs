@@ -1,7 +1,9 @@
 using PropelIQ.Application.Interfaces.Services;
 using PropelIQ.Application.Models;
 using PropelIQ.Domain.Entities;
+using PropelIQ.Infrastructure.Data;
 using PropelIQ.Infrastructure.WalkIn;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace PropelIQ.Infrastructure.Waitlist;
 
@@ -15,6 +17,12 @@ public sealed class WaitlistService : IWaitlistService
     private static readonly List<WaitlistEntry> _entries = [];
     private static readonly List<WaitlistOffer> _offers = [];
     private static readonly object _lock = new();
+    private readonly IServiceScopeFactory _scopeFactory;
+
+    public WaitlistService(IServiceScopeFactory scopeFactory)
+    {
+        _scopeFactory = scopeFactory;
+    }
 
     internal static void ResetStateForTests()
     {
@@ -132,6 +140,7 @@ public sealed class WaitlistService : IWaitlistService
                     offer.SlotStartTime);
 
                 WalkInBookingService.Appointments.Add(appointment);
+                PersistAppointment(appointment);
 
                 offer.Accept(appointment.Id);
                 entry.MarkFulfilled();
@@ -219,4 +228,16 @@ public sealed class WaitlistService : IWaitlistService
     private static WaitlistOfferResult MapOffer(WaitlistOffer o, string patientFullName = "")
         => new(o.Id, o.WaitlistEntryId, o.PatientId, patientFullName, o.ProviderName,
                o.SlotStartTime, o.Status, o.ExpiresAt, o.RespondedAt, o.ConvertedAppointmentId);
+
+    private void PersistAppointment(Appointment appointment)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        if (!db.Set<Appointment>().Any(a => a.Id == appointment.Id))
+        {
+            db.Set<Appointment>().Add(appointment);
+            db.SaveChanges();
+        }
+    }
 }
