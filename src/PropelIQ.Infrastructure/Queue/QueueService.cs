@@ -27,7 +27,6 @@ public sealed class QueueService : IQueueService
         _history = history;
         _autoOffer = autoOffer;
         _notifications = notifications;
-        SeedAppointments();
     }
 
     // Shared position store: maps AppointmentId -> explicit queue position (0 = unset)
@@ -43,10 +42,7 @@ public sealed class QueueService : IQueueService
             _queueVersion = 0;
         }
 
-        lock (_seedLock)
-        {
-            _seeded = false;
-        }
+        WalkInBookingService.Appointments.Clear();
     }
 
     public Task<QueueResult> GetQueueAsync(QueueQuery query, CancellationToken ct = default)
@@ -249,37 +245,4 @@ public sealed class QueueService : IQueueService
     private static QueueAppointmentRow MapRow(Appointment a)
         => MapRowWithPosition(a, 0);
 
-    private static bool _seeded;
-    private static readonly object _seedLock = new();
-
-    private static void SeedAppointments()
-    {
-        lock (_seedLock)
-        {
-            if (_seeded) return;
-            _seeded = true;
-
-            // Seed a mix of walk-in and pre-booked appointments for demo purposes.
-            var patients = new[]
-            {
-                (Guid.NewGuid(), "Alice Johnson"),
-                (Guid.NewGuid(), "Bob Martinez"),
-                (Guid.NewGuid(), "Carol White"),
-            };
-
-            var today = DateTimeOffset.UtcNow.Date;
-
-            foreach (var (i, (pid, name)) in patients.Select((v, i) => (i, v)))
-            {
-                var apptTime = new DateTimeOffset(today.Year, today.Month, today.Day, 9 + i, 0, 0, TimeSpan.Zero);
-                var isWalkIn = i % 2 == 0;
-
-                var appt = isWalkIn
-                    ? Appointment.CreateWalkIn(pid, name, $"Dr. Provider-{i + 1}", apptTime)
-                    : Appointment.Create(pid, name, $"Dr. Provider-{i + 1}", apptTime);
-
-                WalkInBookingService.Appointments.Add(appt);
-            }
-        }
-    }
 }

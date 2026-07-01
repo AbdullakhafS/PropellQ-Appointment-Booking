@@ -25,7 +25,6 @@ public sealed class LegacyPortalController : ControllerBase
 
     private static readonly ConcurrentDictionary<string, NotificationPreferences> NotificationPrefsByPatient = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["1"] = new NotificationPreferences(true, false, false)
     };
 
     private static readonly ConcurrentDictionary<string, decimal> Thresholds = new(StringComparer.OrdinalIgnoreCase)
@@ -36,15 +35,7 @@ public sealed class LegacyPortalController : ControllerBase
 
     private static readonly List<ThresholdHistoryItem> ThresholdHistory = new();
     private static readonly object ThresholdLock = new();
-    private static readonly List<PatientDocumentItem> PatientDocuments =
-    [
-        new PatientDocumentItem(
-            1,
-            "insurance-card.pdf",
-            "application/pdf",
-            "complete",
-            DateTimeOffset.UtcNow.AddDays(-2))
-    ];
+    private static readonly List<PatientDocumentItem> PatientDocuments = [];
     private static readonly object PatientDocumentsLock = new();
     private static readonly List<object> AdminAuditEvents =
     [
@@ -691,19 +682,32 @@ public sealed class LegacyPortalController : ControllerBase
     [HttpGet("/api/patient/appointments/upcoming")]
     public IActionResult GetUpcomingAppointments()
     {
-        var items = Enumerable.Range(1, 3).Select(i => new
-        {
-            id = i,
-            appointment_date = DateTime.UtcNow.AddDays(i).ToString("yyyy-MM-dd"),
-            start_time = "09:00",
-            end_time = "09:30",
-            provider_name = "Dr. Morgan Lee",
-            specialty = "General Practice",
-            location = "Main Clinic",
-            status = "booked",
-            can_reschedule = true,
-            can_cancel = true
-        }).ToList();
+        var today = DateTimeOffset.UtcNow.Date;
+        var queue = _queue.GetQueueAsync(new QueueQuery(
+            Date: null,
+            Status: null,
+            IsWalkIn: null,
+            ProviderId: null,
+            Page: 1,
+            PageSize: 500)).GetAwaiter().GetResult();
+
+        var items = queue.Items
+            .Where(a => a.AppointmentTime.Date >= today)
+            .OrderBy(a => a.AppointmentTime)
+            .Select(a => new
+            {
+                id = ToLegacyIntId(a.AppointmentId),
+                appointment_date = a.AppointmentTime.ToString("yyyy-MM-dd"),
+                start_time = a.AppointmentTime.ToString("HH:mm"),
+                end_time = a.AppointmentTime.AddMinutes(a.DurationMinutes).ToString("HH:mm"),
+                provider_name = a.ProviderName,
+                specialty = string.Empty,
+                location = string.Empty,
+                status = a.Status,
+                can_reschedule = true,
+                can_cancel = true
+            })
+            .ToList();
 
         return Ok(new { success = true, data = new { total = items.Count, items } });
     }
@@ -711,17 +715,30 @@ public sealed class LegacyPortalController : ControllerBase
     [HttpGet("/api/patient/appointments/history")]
     public IActionResult GetAppointmentHistory()
     {
-        var items = Enumerable.Range(1, 5).Select(i => new
-        {
-            id = i,
-            appointment_date = DateTime.UtcNow.AddDays(-i).ToString("yyyy-MM-dd"),
-            provider_name = "Dr. Morgan Lee",
-            specialty = "General Practice",
-            status = "completed",
-            notes_available = i % 2 == 0,
-            notes_url = i % 2 == 0 ? "https://example.org/notes" : (string?)null,
-            notes_unavailable_reason = i % 2 == 0 ? null : "Pending physician sign-off"
-        }).ToList();
+        var today = DateTimeOffset.UtcNow.Date;
+        var queue = _queue.GetQueueAsync(new QueueQuery(
+            Date: null,
+            Status: null,
+            IsWalkIn: null,
+            ProviderId: null,
+            Page: 1,
+            PageSize: 500)).GetAwaiter().GetResult();
+
+        var items = queue.Items
+            .Where(a => a.AppointmentTime.Date < today)
+            .OrderByDescending(a => a.AppointmentTime)
+            .Select(a => new
+            {
+                id = ToLegacyIntId(a.AppointmentId),
+                appointment_date = a.AppointmentTime.ToString("yyyy-MM-dd"),
+                provider_name = a.ProviderName,
+                specialty = string.Empty,
+                status = a.Status,
+                notes_available = false,
+                notes_url = (string?)null,
+                notes_unavailable_reason = "Clinical notes have not been released yet."
+            })
+            .ToList();
 
         return Ok(new { success = true, data = new { total = items.Count, items } });
     }
@@ -729,18 +746,38 @@ public sealed class LegacyPortalController : ControllerBase
     [HttpGet("/api/patient/dashboard")]
     public IActionResult GetPatientDashboard()
     {
-        var upcomingCount = 3;
-        var pastCount = 5;
-        var documentCount = 1;
-        var healthItemCount = 5;
+        var today = DateTimeOffset.UtcNow.Date;
+        var queue = _queue.GetQueueAsync(new QueueQuery(
+            Date: null,
+            Status: null,
+            IsWalkIn: null,
+            ProviderId: null,
+            Page: 1,
+            PageSize: 500)).GetAwaiter().GetResult();
 
-        var nextAppointment = new
-        {
-            provider_name = "Dr. Morgan Lee",
-            appointment_date = DateTime.UtcNow.AddDays(1).ToString("yyyy-MM-dd"),
-            start_time = "09:00",
-            location = "Main Clinic"
-        };
+        var upcoming = queue.Items
+            .Where(a => a.AppointmentTime.Date >= today)
+            .OrderBy(a => a.AppointmentTime)
+            .ToList();
+        var past = queue.Items
+            .Where(a => a.AppointmentTime.Date < today)
+            .ToList();
+
+        var upcomingCount = upcoming.Count;
+        var pastCount = past.Count;
+        var documentCount = PatientDocuments.Count;
+        var healthItemCount = 0;
+
+        var next = upcoming.FirstOrDefault();
+        var nextAppointment = next is null
+            ? null
+            : new
+            {
+                provider_name = next.ProviderName,
+                appointment_date = next.AppointmentTime.ToString("yyyy-MM-dd"),
+                start_time = next.AppointmentTime.ToString("HH:mm"),
+                location = string.Empty
+            };
 
         return Ok(new
         {
@@ -764,12 +801,12 @@ public sealed class LegacyPortalController : ControllerBase
             success = true,
             data = new
             {
-                medications = new[] { new { label = "Atorvastatin 10mg", status = "active" } },
-                allergies = new[] { new { label = "Penicillin", status = "high" } },
-                diagnoses = new[] { new { label = "Hypertension" } },
-                chronic_conditions = new[] { new { label = "Type 2 Diabetes" } },
-                alerts = new[] { new { label = "Allergy conflict requires review" } },
-                version = 1,
+                medications = Array.Empty<object>(),
+                allergies = Array.Empty<object>(),
+                diagnoses = Array.Empty<object>(),
+                chronic_conditions = Array.Empty<object>(),
+                alerts = Array.Empty<object>(),
+                version = 0,
                 last_updated = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm")
             }
         });
@@ -860,16 +897,28 @@ public sealed class LegacyPortalController : ControllerBase
     [HttpGet("/api/admin/filter-options")]
     public IActionResult GetAdminFilterOptions()
     {
+        var queue = _queue.GetQueueAsync(new QueueQuery(
+            Date: null,
+            Status: null,
+            IsWalkIn: null,
+            ProviderId: null,
+            Page: 1,
+            PageSize: 500)).GetAwaiter().GetResult();
+
+        var providers = queue.Items
+            .Select(x => x.ProviderName)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x)
+            .Select((name, idx) => new { id = (idx + 1).ToString(), name, credentials = string.Empty })
+            .ToList();
+
         return Ok(new
         {
             success = true,
             data = new
             {
-                providers = new[]
-                {
-                    new { id = "1", name = "Dr. Morgan Lee", credentials = "MD" },
-                    new { id = "2", name = "Dr. Taylor Kim", credentials = "DO" }
-                }
+                providers
             }
         });
     }
@@ -877,75 +926,108 @@ public sealed class LegacyPortalController : ControllerBase
     [HttpGet("/api/admin/operational-metrics")]
     public IActionResult GetAdminOperationalMetrics()
     {
-        var byProvider = new[]
-        {
-            new
+        var queue = _queue.GetQueueAsync(new QueueQuery(
+            Date: null,
+            Status: null,
+            IsWalkIn: null,
+            ProviderId: null,
+            Page: 1,
+            PageSize: 500)).GetAwaiter().GetResult();
+
+        var rows = queue.Items.ToList();
+        var total = rows.Count;
+        var booked = rows.Count(x => string.Equals(x.Status, "scheduled", StringComparison.OrdinalIgnoreCase) || string.Equals(x.Status, "arrived", StringComparison.OrdinalIgnoreCase));
+        var cancelled = rows.Count(x => string.Equals(x.Status, "cancelled", StringComparison.OrdinalIgnoreCase));
+        var available = Math.Max(0, total - booked - cancelled);
+        var utilizationRate = total > 0 ? Math.Round((double)booked / total * 100, 1) : 0d;
+        var noShowRate = total > 0 ? Math.Round((double)cancelled / total * 100, 1) : 0d;
+        var avgWaitMinutes = rows.Count > 0 ? Math.Round(rows.Average(x => x.DurationMinutes), 1) : 0d;
+
+        var byProvider = rows
+            .GroupBy(x => x.ProviderName)
+            .Select(g => new
             {
-                providerName = "Dr. Morgan Lee",
-                provider_name = "Dr. Morgan Lee",
-                total = 20,
-                booked = 18,
-                available = 2,
-                cancelled = 1
-            },
-            new
-            {
-                providerName = "Dr. Taylor Kim",
-                provider_name = "Dr. Taylor Kim",
-                total = 26,
-                booked = 24,
-                available = 2,
-                cancelled = 1
-            }
-        };
+                providerName = g.Key,
+                provider_name = g.Key,
+                total = g.Count(),
+                booked = g.Count(x => string.Equals(x.Status, "scheduled", StringComparison.OrdinalIgnoreCase) || string.Equals(x.Status, "arrived", StringComparison.OrdinalIgnoreCase)),
+                available = 0,
+                cancelled = g.Count(x => string.Equals(x.Status, "cancelled", StringComparison.OrdinalIgnoreCase))
+            })
+            .OrderByDescending(x => x.booked)
+            .ToList();
 
         return Ok(new
         {
             success = true,
             data = new
             {
-                utilizationRate = 86d,
-                noShowRate = 4d,
-                avgWaitMinutes = 12d,
-                totalAppointments = 42,
+                utilizationRate,
+                noShowRate,
+                avgWaitMinutes,
+                totalAppointments = total,
                 byProvider,
-                utilization_rate = 86,
-                no_show_rate = 4,
-                avg_wait_minutes = 12,
-                total_appointments = 42,
+                utilization_rate = utilizationRate,
+                no_show_rate = noShowRate,
+                avg_wait_minutes = avgWaitMinutes,
+                total_appointments = total,
                 last_updated = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm"),
-                by_provider = new[]
-                {
-                    new { provider = "Dr. Morgan Lee", count = 18 },
-                    new { provider = "Dr. Taylor Kim", count = 24 }
-                }
+                by_provider = byProvider.Select(x => new { provider = x.providerName, count = x.booked })
             }
         });
     }
 
     [HttpGet("/api/admin/metrics/no-show")]
-    public IActionResult GetNoShowMetrics() => Ok(new
+    public IActionResult GetNoShowMetrics()
     {
-        success = true,
-        data = new
+        var queue = _queue.GetQueueAsync(new QueueQuery(
+            Date: null,
+            Status: null,
+            IsWalkIn: null,
+            ProviderId: null,
+            Page: 1,
+            PageSize: 500)).GetAwaiter().GetResult();
+        var rows = queue.Items.ToList();
+        var total = rows.Count;
+        var cancelled = rows.Count(x => string.Equals(x.Status, "cancelled", StringComparison.OrdinalIgnoreCase));
+        var rate = total > 0 ? Math.Round((double)cancelled / total * 100, 1) : 0d;
+
+        return Ok(new
         {
-            noShowRate = 4d,
-            rate = 4,
-            delta = -1d
-        }
-    });
+            success = true,
+            data = new
+            {
+                noShowRate = rate,
+                rate,
+                delta = 0d
+            }
+        });
+    }
 
     [HttpGet("/api/admin/metrics/wait-time")]
-    public IActionResult GetWaitTimeMetrics() => Ok(new
+    public IActionResult GetWaitTimeMetrics()
     {
-        success = true,
-        data = new
+        var queue = _queue.GetQueueAsync(new QueueQuery(
+            Date: null,
+            Status: null,
+            IsWalkIn: null,
+            ProviderId: null,
+            Page: 1,
+            PageSize: 500)).GetAwaiter().GetResult();
+        var waits = queue.Items.Select(x => x.DurationMinutes).OrderBy(x => x).ToList();
+        var p95 = waits.Count == 0 ? 0 : waits[(int)Math.Min(waits.Count - 1, Math.Floor(waits.Count * 0.95))];
+
+        return Ok(new
         {
-            p95WaitMinutes = 21d,
-            p95_wait_minutes = 21,
-            threshold_exceeded = false
-        }
-    });
+            success = true,
+            data = new
+            {
+                p95WaitMinutes = p95,
+                p95_wait_minutes = p95,
+                threshold_exceeded = p95 > 30
+            }
+        });
+    }
 
     [HttpGet("/api/admin/metrics/utilization")]
     public IActionResult GetUtilizationMetrics() => Ok(new
@@ -953,16 +1035,8 @@ public sealed class LegacyPortalController : ControllerBase
         success = true,
         data = new
         {
-            bySpecialty = new[]
-            {
-                new { specialty = "General Practice", booked = 30, total = 36, rate = 83d },
-                new { specialty = "Dermatology", booked = 12, total = 16, rate = 75d }
-            },
-            by_specialty = new[]
-            {
-                new { specialty = "General Practice", booked = 30, total = 36, utilization_rate = 83 },
-                new { specialty = "Dermatology", booked = 12, total = 16, utilization_rate = 75 }
-            }
+            bySpecialty = Array.Empty<object>(),
+            by_specialty = Array.Empty<object>()
         }
     });
 
@@ -972,15 +1046,15 @@ public sealed class LegacyPortalController : ControllerBase
         success = true,
         data = new
         {
-            completionRate = 92d,
-            intakeCompletionRate = 92d,
-            completion_rate = 92,
+            completionRate = 0d,
+            intakeCompletionRate = 0d,
+            completion_rate = 0,
             low_completion_flag = false
         }
     });
 
     [HttpGet("/api/admin/metrics/insurance")]
-    public IActionResult GetInsuranceMetrics() => Ok(new { success = true, data = new { verified = 38, pending = 3, failed = 1, issue_flag = false } });
+    public IActionResult GetInsuranceMetrics() => Ok(new { success = true, data = new { verified = 0, pending = 0, failed = 0, issue_flag = false } });
 
     [HttpGet("/api/admin/metrics/agreement")]
     public IActionResult GetAgreementMetrics() => Ok(new
@@ -988,18 +1062,10 @@ public sealed class LegacyPortalController : ControllerBase
         success = true,
         data = new
         {
-            agreementRate = 95d,
-            byCategory = new[]
-            {
-                new { category = "icd10", rate = 96d },
-                new { category = "cpt", rate = 94d }
-            },
-            agreement_rate = 95,
-            by_category = new[]
-            {
-                new { category = "icd10", agreement_rate = 96 },
-                new { category = "cpt", agreement_rate = 94 }
-            }
+            agreementRate = 0d,
+            byCategory = Array.Empty<object>(),
+            agreement_rate = 0,
+            by_category = Array.Empty<object>()
         }
     });
 

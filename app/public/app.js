@@ -945,7 +945,7 @@ async function refreshMetrics() {
       ? Object.entries(values)
           .map(([key, count]) => `<li><span>${key}</span><strong>${count}</strong></li>`)
           .join("")
-      : '<li><span>No data yet</span><strong>0</strong></li>';
+      : "";
     return `
       <article class="ops-card">
         <h3>${label}</h3>
@@ -2071,7 +2071,7 @@ function renderUpcomingAppointments(data) {
     const end = appt.end_time || appt.endTime || "";
     const provider = appt.provider_name || appt.providerName || appt.provider || "";
     const specialty = appt.specialty || appt.specialty_name || "";
-    const status = appt.status || appt.appointment_status || "booked";
+    const status = appt.status || appt.appointment_status || "";
     const actions = [];
     if (appt.can_reschedule) {
       actions.push(`<button class="ghost-btn dash-action-btn" type="button" aria-label="Reschedule appointment ${appt.id}" data-appt-id="${appt.id}" data-action="reschedule">Reschedule</button>`);
@@ -2146,7 +2146,7 @@ function renderAppointmentHistory(data) {
     const apptDate = appt.appointment_date || appt.appointmentDate || appt.date || "";
     const provider = appt.provider_name || appt.providerName || appt.provider || "";
     const specialty = appt.specialty || appt.specialty_name || "";
-    const status = appt.status || appt.appointment_status || "completed";
+    const status = appt.status || appt.appointment_status || "";
     const notesHtml = appt.notes_available
       ? `<a href="${escHtml(appt.notes_url || "#")}" class="ghost-btn" target="_blank" rel="noopener noreferrer">View notes</a>`
       : `<span class="muted-text" title="${escHtml(appt.notes_unavailable_reason || "Notes not yet released")}">Notes not released</span>`;
@@ -2203,7 +2203,7 @@ function renderHealthProfile(data) {
       ${section("Chronic Conditions", data.chronic_conditions, "Long-term conditions")}
       ${data.alerts?.length ? `<div class="health-alerts">${data.alerts.map(a => `<div class="health-alert-chip" role="alert">⚠ ${escHtml(a.label || "")}</div>`).join("")}</div>` : ""}
     </div>
-    <p class="muted-text health-version">Version ${escHtml(String(data.version || 0))} · Updated ${escHtml(data.last_updated || "")}</p>`;
+    <p class="muted-text health-version">Version ${escHtml(String(data.version ?? ""))} · Updated ${escHtml(data.last_updated || "")}</p>`;
 }
 
 // --- US-057: Document Upload ------------------------------------------------
