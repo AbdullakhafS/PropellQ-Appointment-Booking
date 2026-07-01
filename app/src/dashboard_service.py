@@ -246,7 +246,7 @@ def get_notification_preferences(
         "patient_id": patient_id,
         "email": "email" in channels,
         "sms": "sms" in channels,
-        "in_app": True,
+        "in_app": bool(profile),
         "do_not_disturb": bool(profile.get("do_not_disturb", 0)),
     }
 
@@ -258,9 +258,9 @@ def set_notification_preferences(
 ) -> dict[str, Any]:
     """Persist notification channel preferences."""
     channels: list[str] = []
-    if prefs.get("email", True):
+    if prefs.get("email", False):
         channels.append("email")
-    if prefs.get("sms", True):
+    if prefs.get("sms", False):
         channels.append("sms")
     do_not_disturb = 1 if prefs.get("do_not_disturb", False) else 0
     with connection:
