@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using PropelIQ.Api.Services;
 using PropelIQ.Infrastructure;
+using PropelIQ.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -73,6 +75,13 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    dbContext.Database.Migrate();
+}
+
 var configuredUrls = builder.Configuration["ASPNETCORE_URLS"] ?? string.Empty;
 var hasHttpsBinding = configuredUrls
     .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

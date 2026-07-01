@@ -42,7 +42,7 @@ def _make_db() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
 
-    schema_path = os.path.join(os.path.dirname(__file__), "..", "db", "schema.sql")
+    schema_path = os.path.join(os.path.dirname(__file__), "..", "db", "schema_v1_production.sql")
     with open(schema_path) as fh:
         conn.executescript(fh.read())
 
