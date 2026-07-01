@@ -35,7 +35,7 @@ from src.dashboard_service import (
     get_wait_time_metrics,
 )
 
-_SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "..", "db", "schema.sql")
+_SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "..", "db", "schema_v1_production.sql")
 
 
 # ---------------------------------------------------------------------------

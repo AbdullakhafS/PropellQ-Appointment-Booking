@@ -7,7 +7,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_DB_PATH = BASE_DIR / "db" / "appointments.db"
-SCHEMA_PATH = BASE_DIR / "db" / "schema.sql"
+SCHEMA_PATH = BASE_DIR / "db" / "schema_v1_production.sql"
 
 
 def get_connection(db_path: Path | None = None) -> sqlite3.Connection:
