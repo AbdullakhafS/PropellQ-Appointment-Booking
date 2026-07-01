@@ -363,6 +363,43 @@ public sealed class AppointmentController : ControllerBase
             bookedSlot = await FindSlotByLegacyIdAsync(appointmentId, ct);
         }
 
+        // Keep patient dashboard appointment views in sync with successful bookings.
+        // Upcoming/history endpoints read from the queue-backed store, so mirror the
+        // completed booking into that store when we have enough booking details.
+        if (bookedSlot is not null)
+        {
+            try
+            {
+                var firstName = string.IsNullOrWhiteSpace(req?.FirstName) ? "Patient" : req!.FirstName!.Trim();
+                var lastName = string.IsNullOrWhiteSpace(req?.LastName) ? "Booked" : req!.LastName!.Trim();
+                var phone = string.IsNullOrWhiteSpace(req?.Phone) ? "unknown" : req!.Phone!.Trim();
+                var email = string.IsNullOrWhiteSpace(req?.Email) ? null : req!.Email!.Trim();
+
+                var patient = await _walkInBooking.CreatePatientAsync(new CreatePatientRequest(
+                    firstName,
+                    lastName,
+                    DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-30)),
+                    phone,
+                    "unknown",
+                    email,
+                    null,
+                    "Created via legacy patient booking flow"), ct);
+
+                await _walkInBooking.BookWalkInAsync(new BookWalkInRequest(
+                    patient.Id,
+                    bookedSlot.ProviderName,
+                    bookedSlot.StartTime,
+                    bookedSlot.DurationMinutes,
+                    "Booked via reservation checkout flow"), ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "Booked appointment {AppointmentId} succeeded but queue mirror failed.",
+                    consumed.AppointmentId);
+            }
+        }
+
         return Ok(new
         {
             success = true,
