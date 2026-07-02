@@ -7,6 +7,7 @@ using PropelIQ.Infrastructure.Queue;
 using PropelIQ.Infrastructure.Waitlist;
 using PropelIQ.Infrastructure.WalkIn;
 using Microsoft.Extensions.Logging;
+using PropelIQ.Tests.TestInfrastructure;
 
 namespace PropelIQ.Tests.Services;
 
@@ -41,7 +42,7 @@ public sealed class WaitlistProcessingPipelineTests
         BuildPipeline()
     {
         var notificationSvc = new NotificationService(NullLogger<NotificationService>());
-        var waitlistSvc = new WaitlistService();
+        var waitlistSvc = new WaitlistService(TestServiceFactory.CreateScopeFactory());
         var orchestrator = new AutoOfferOrchestrator(
             waitlistSvc,
             notificationSvc,

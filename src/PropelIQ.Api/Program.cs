@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using PropelIQ.Api.Services;
 using PropelIQ.Infrastructure;
@@ -99,21 +98,12 @@ if (!app.Environment.IsDevelopment() || hasHttpsBinding)
     app.UseHttpsRedirection();
 }
 
-// Serve the UI static files from app/public (relative to the project root)
-var publicPath = Path.GetFullPath(
-    Path.Combine(builder.Environment.ContentRootPath, "..", "..", "app", "public"));
-if (Directory.Exists(publicPath))
-{
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new PhysicalFileProvider(publicPath),
-        RequestPath  = "",
-    });
-}
+// Serve UI static files from this API project's wwwroot.
+app.UseStaticFiles();
 
 IResult RenderPortalPage(string fileName)
 {
-    var filePath = Path.Combine(publicPath, fileName);
+    var filePath = Path.Combine(builder.Environment.WebRootPath ?? string.Empty, fileName);
     return File.Exists(filePath)
         ? Results.File(filePath, "text/html; charset=utf-8")
         : Results.NotFound();

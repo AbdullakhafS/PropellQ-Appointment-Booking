@@ -7,6 +7,8 @@ using PropelIQ.Infrastructure.Queue;
 using PropelIQ.Infrastructure.Waitlist;
 using PropelIQ.Infrastructure.WalkIn;
 using Microsoft.Extensions.Logging;
+using PropelIQ.Infrastructure.Data;
+using PropelIQ.Tests.TestInfrastructure;
 
 namespace PropelIQ.Tests.Services;
 
@@ -30,6 +32,7 @@ public sealed class CancellationRescheduleTests
         new LoggerFactory().CreateLogger<T>();
 
     private static Appointment MakeAppt(
+        AppDbContext db,
         string providerName = "Dr. Smith",
         int hourOffset = 2,
         int durationMinutes = 30)
@@ -37,18 +40,22 @@ public sealed class CancellationRescheduleTests
         var appt = Appointment.Create(
             Guid.NewGuid(), "Test Patient", providerName,
             DateTimeOffset.UtcNow.AddHours(hourOffset), durationMinutes);
-        WalkInBookingService.Appointments.Add(appt);
+        db.Set<Appointment>().Add(appt);
+        db.SaveChanges();
+        db.Entry(appt).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
         return appt;
     }
 
     private static (QueueService svc,
                     Mock<IQueueEventBroadcaster> broadcasterMock,
-                    Mock<INotificationService> notificationMock) BuildService()
+                    Mock<INotificationService> notificationMock,
+                    AppDbContext db) BuildService()
     {
         var broadcasterMock = new Mock<IQueueEventBroadcaster>();
         var historyMock = new Mock<IAppointmentDetailService>();
         var autoOfferMock = new Mock<IAutoOfferOrchestrator>();
         var notificationMock = new Mock<INotificationService>();
+        var db = TestServiceFactory.CreateDbContext();
 
         autoOfferMock
             .Setup(o => o.TriggerForReleasedSlotAsync(It.IsAny<SlotReleasedEvent>(), It.IsAny<CancellationToken>()))
@@ -58,9 +65,10 @@ public sealed class CancellationRescheduleTests
             broadcasterMock.Object,
             historyMock.Object,
             autoOfferMock.Object,
-            notificationMock.Object);
+            notificationMock.Object,
+            db);
 
-        return (svc, broadcasterMock, notificationMock);
+        return (svc, broadcasterMock, notificationMock, db);
     }
 
     // ==========================================================================
@@ -70,8 +78,8 @@ public sealed class CancellationRescheduleTests
     [Fact]
     public async Task Cancel_ScheduledAppointment_TransitionsToCancelled()
     {
-        var appt = MakeAppt();
-        var (svc, _, _) = BuildService();
+        var (svc, _, _, db) = BuildService();
+        var appt = MakeAppt(db);
 
         var result = await svc.CancelAsync(appt.Id, "Patient request");
 
@@ -82,8 +90,8 @@ public sealed class CancellationRescheduleTests
     [Fact]
     public async Task Cancel_AlreadyCancelled_ThrowsInvalidOperation()
     {
-        var appt = MakeAppt();
-        var (svc, _, _) = BuildService();
+        var (svc, _, _, db) = BuildService();
+        var appt = MakeAppt(db);
 
         await svc.CancelAsync(appt.Id, null);
 
@@ -95,12 +103,14 @@ public sealed class CancellationRescheduleTests
     public async Task Cancel_CompletedAppointment_ThrowsInvalidOperation()
     {
         // Simulate a completed appointment directly via domain object
+        var (svc, _, _, db) = BuildService();
         var appt = Appointment.Create(Guid.NewGuid(), "Patient", "Dr. X", DateTimeOffset.UtcNow.AddHours(1));
         // Mark arrived then complete via a workaround — force status through reflection for test only
         var statusProp = typeof(Appointment).GetProperty("Status")!;
         statusProp.SetValue(appt, "completed");
-        WalkInBookingService.Appointments.Add(appt);
-        var (svc, _, _) = BuildService();
+        db.Set<Appointment>().Add(appt);
+        db.SaveChanges();
+        db.Entry(appt).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             svc.CancelAsync(appt.Id, null));
@@ -113,8 +123,8 @@ public sealed class CancellationRescheduleTests
     [Fact]
     public async Task Cancel_BroadcastsRemovedEvent()
     {
-        var appt = MakeAppt();
-        var (svc, broadcasterMock, _) = BuildService();
+        var (svc, broadcasterMock, _, db) = BuildService();
+        var appt = MakeAppt(db);
 
         await svc.CancelAsync(appt.Id, null);
 
@@ -126,8 +136,8 @@ public sealed class CancellationRescheduleTests
     [Fact]
     public async Task Reschedule_BroadcastsUpdatedEvent()
     {
-        var appt = MakeAppt(hourOffset: 5);
-        var (svc, broadcasterMock, _) = BuildService();
+        var (svc, broadcasterMock, _, db) = BuildService();
+        var appt = MakeAppt(db, hourOffset: 5);
 
         var newTime = appt.AppointmentTime.AddHours(3);
         await svc.RescheduleAsync(new RescheduleRequest(appt.Id, newTime, 30, null));
@@ -144,8 +154,8 @@ public sealed class CancellationRescheduleTests
     [Fact]
     public async Task Cancel_SendsCancellationNotification()
     {
-        var appt = MakeAppt();
-        var (svc, _, notificationMock) = BuildService();
+        var (svc, _, notificationMock, db) = BuildService();
+        var appt = MakeAppt(db);
 
         await svc.CancelAsync(appt.Id, "Test reason");
 
@@ -161,8 +171,8 @@ public sealed class CancellationRescheduleTests
     [Fact]
     public async Task Reschedule_SendsRescheduleNotification()
     {
-        var appt = MakeAppt(hourOffset: 6);
-        var (svc, _, notificationMock) = BuildService();
+        var (svc, _, notificationMock, db) = BuildService();
+        var appt = MakeAppt(db, hourOffset: 6);
 
         var newTime = appt.AppointmentTime.AddHours(2);
         await svc.RescheduleAsync(new RescheduleRequest(appt.Id, newTime, 30, null));
@@ -185,8 +195,8 @@ public sealed class CancellationRescheduleTests
     public async Task Reschedule_WithNoConflict_Succeeds()
     {
         var provider = $"Dr.ConflictTest-{Guid.NewGuid():N}";
-        var appt = MakeAppt(providerName: provider, hourOffset: 10);
-        var (svc, _, _) = BuildService();
+        var (svc, _, _, db) = BuildService();
+        var appt = MakeAppt(db, providerName: provider, hourOffset: 10);
 
         // Schedule to a slot 4 hours away — no conflict
         var newTime = DateTimeOffset.UtcNow.AddHours(14);
@@ -199,12 +209,11 @@ public sealed class CancellationRescheduleTests
     public async Task Reschedule_WhenConflictExists_ThrowsInvalidOperation()
     {
         var provider = $"Dr.ConflictTest-{Guid.NewGuid():N}";
+        var (svc, _, _, db) = BuildService();
 
         // Two appointments for the same provider 30 minutes apart
-        var appt1 = MakeAppt(providerName: provider, hourOffset: 20);
-        var appt2 = MakeAppt(providerName: provider, hourOffset: 21);
-
-        var (svc, _, _) = BuildService();
+        var appt1 = MakeAppt(db, providerName: provider, hourOffset: 20);
+        var appt2 = MakeAppt(db, providerName: provider, hourOffset: 21);
 
         // Try to reschedule appt1 to overlap with appt2 (same start time)
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
