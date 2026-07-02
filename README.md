@@ -5,13 +5,11 @@
 The repository now uses a single production backend runtime:
 
 - Production system of record: .NET API in src/PropelIQ.Api
-- Legacy compatibility runtime: Python API in app (dev-only)
 
 Operational policy:
 
 - Use .vscode task PropelIQ: Run Application for normal development and all production-aligned workflows.
-- Python server startup is blocked unless PROPELLQ_ENABLE_LEGACY_PYTHON=true is explicitly set.
-- Do not deploy the Python runtime to production environments.
+- Do not run or deploy legacy runtime implementations.
 
 ## API Key Configuration (.NET API)
 
@@ -184,12 +182,7 @@ If commands are visible, your setup is complete and PropelIQ-Copilot is ready to
 
 GitHub Copilot Chat in VS Code does not currently expose hook events equivalent to `UserPromptSubmit`/`Stop`.
 
-Use the provided workaround:
-- Run VS Code task `PropelIQ: Copilot pre-prompt submit` before your main chat request.
-- Use prompt `/usepromptsubmitprompt` from `.github/prompts/usepromptsubmitprompt.prompt.md`.
-- Run VS Code task `PropelIQ: Copilot session end` when ending your session.
-
-These tasks call `.propel/hooks/context_tracker_tiktoken/copilot.py` with `userPromptSubmitted` and `sessionEnd` to emulate the same tracking flow.
+Use prompt `/usepromptsubmitprompt` from `.github/prompts/usepromptsubmitprompt.prompt.md` if you need manual equivalent behavior.
 
 ## Prompts
 

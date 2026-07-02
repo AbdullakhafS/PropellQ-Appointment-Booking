@@ -2,13 +2,14 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using PropelIQ.Api.Controllers;
 using PropelIQ.Api.Services;
+using PropelIQ.Tests.TestInfrastructure;
 
 namespace PropelIQ.Tests.Controllers;
 
 public sealed class AuthControllerTests
 {
     private static AuthController CreateController() =>
-        new(new SessionStore());
+        new(new SessionStore(TestServiceFactory.CreateScopeFactory()));
 
     [Fact]
     public void Register_WithSnakeCaseUserId_ReturnsOk()

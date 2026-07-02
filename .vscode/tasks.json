@@ -73,57 +73,6 @@
           "endsPattern": "Now listening on:"
         }
       }
-    },
-    {
-      "label": "PropellQ: Run Legacy Python API (dev only)",
-      "type": "shell",
-      "command": "${workspaceFolder}/app/.venv/Scripts/python.exe",
-      "args": [
-        "${workspaceFolder}/app/server.py"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}/app",
-        "env": {
-          "PROPELLQ_ENABLE_LEGACY_PYTHON": "true"
-        }
-      },
-      "presentation": {
-        "reveal": "always",
-        "panel": "new",
-        "focus": true
-      },
-      "isBackground": true,
-      "problemMatcher": {
-        "pattern": {
-          "regexp": "^ERROR",
-          "message": 1
-        },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "PropelIQ API running",
-          "endsPattern": "Opening browser"
-        }
-      }
-    },
-    {
-      "label": "PropelIQ: Copilot pre-prompt submit",
-      "type": "shell",
-      "command": "python",
-      "args": [
-        ".propel/hooks/context_tracker_tiktoken/copilot.py",
-        "userPromptSubmitted"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "PropelIQ: Copilot session end",
-      "type": "shell",
-      "command": "python",
-      "args": [
-        ".propel/hooks/context_tracker_tiktoken/copilot.py",
-        "sessionEnd"
-      ],
-      "problemMatcher": []
     }
   ]
 }
